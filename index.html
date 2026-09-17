@@ -219,7 +219,7 @@ function layarMasuk(pesan) {
     <label class="medan"><span id="lblPin">${pemilik ? 'Sandi pemilik' : 'PIN 6 angka'}</span><input id="mPin" type="password" class="${pemilik ? '' : 'pin'}" ${pemilik ? '' : 'inputmode="numeric" maxlength="6"'} required></label>
     <button class="pil emas" style="width:100%;padding:14px;font-size:16px" id="mTombol">Masuk</button>
     <div class="catatan" style="text-align:center">Lupa PIN? Minta PIN baru ke pemilik.</div>
-    <div class="pasang" id="kotakPasang" hidden><div class="teks"><b>Pasang di HP</b>Jadi ikon aplikasi, buka tanpa mengetik alamat.</div><button type="button" class="pil" id="bPasang">Pasang</button></div></form></main>`;
+    <div class="pasang" id="kotakPasang" hidden><div class="teks"><b>Pasang di HP</b>Jadi ikon aplikasi, buka tanpa mengetik alamat.</div><button type="button" class="pil" id="bPasang" data-pasang>Pasang</button></div></form></main>`;
   siapkanPasang();
   const fk = $('#mKode'), fp = $('#mPin');
   fk.oninput = () => { const p = fk.value.trim().toLowerCase() === 'pemilik'; $('#lblPin').textContent = p ? 'Sandi pemilik' : 'PIN 6 angka';
@@ -239,8 +239,9 @@ async function keluar() { const s = sesi.baca(); sesi.hapus(); if (s) rpc('minya
 let undangPasang = null;
 const sudahTerpasang = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); undangPasang = ev; siapkanPasang(); });
-addEventListener('appinstalled', () => { undangPasang = null; $$('#kotakPasang,#bPasangBawah').forEach(x => x.hidden = true); });
-function siapkanPasang() { if (sudahTerpasang()) return; $$('#kotakPasang,#bPasangBawah').forEach(x => x.hidden = false); $$('#bPasang,#bPasangBawah').forEach(b => b.onclick = pasang); }
+addEventListener('appinstalled', () => { undangPasang = null; document.querySelectorAll('[data-pasang],#kotakPasang').forEach(x => x.hidden = true); });
+function siapkanPasang() { if (sudahTerpasang()) return; const k = document.getElementById('kotakPasang'); if (k) k.hidden = false;
+  document.querySelectorAll('[data-pasang]').forEach(b => { b.hidden = false; b.onclick = pasang; }); }
 async function pasang() { if (undangPasang) { undangPasang.prompt(); const h = await undangPasang.userChoice; if (h.outcome === 'accepted') undangPasang = null; return; }
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   dialog(`<h3>Pasang di HP</h3><p class="catatan" style="margin:0 0 6px">${ios ? 'Di iPhone, buka halaman ini lewat Safari.' : 'Buka halaman ini lewat Chrome.'}</p>
@@ -273,7 +274,7 @@ function layarKaryawan(e, diubah) {
   const kapan = diubah ? new Date(diubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   akar.innerHTML = `<header class="kepala"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · Absensi & Gaji</div><h1>${esc(e.nama)}</h1>
       <p>Minggu ${esc(k.w)}${k.periode ? ' · ' + esc(k.periode) : ''}</p></div>
-      <button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></header>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Pasang di HP</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
   <main class="bungkus">
     <section class="besar angkat"><div class="label">Gaji diterima minggu ${esc(k.w)}</div><div class="nilai">${rp(k.terima)}</div>
       <div class="keping-baris"><span class="keping"><b>${k.masuk}</b> hari masuk</span><span class="keping">Total gaji <b>${rp(k.total)}</b></span>
@@ -300,7 +301,7 @@ function layarKaryawan(e, diubah) {
       ${wks.length ? `<div class="baris-data total"><div class="kiri">Total ${wks.length} minggu</div><div class="kanan">${rp(tg - tm - tb)}</div></div>` : ''}</section>
 
     <div class="catatan" style="text-align:center;margin-top:18px">Data diisi oleh pemilik${kapan ? ' · diperbarui ' + esc(kapan) : ''}.<br>
-      <button class="pil halus kecil" id="bPin" style="margin-top:10px">Ganti PIN</button> <button class="pil halus kecil" id="bMuat" style="margin-top:10px">Muat ulang</button> <button class="pil kecil" id="bPasangBawah" style="margin-top:10px" hidden>Pasang di HP</button></div>
+      <button class="pil halus kecil" id="bPin" style="margin-top:10px">Ganti PIN</button> <button class="pil halus kecil" id="bMuat" style="margin-top:10px">Muat ulang</button> <button class="pil kecil" id="bPasangBawah" style="margin-top:10px" data-pasang hidden>Pasang di HP</button></div>
   </main>`;
   siapkanPasang();
   $('#bKeluar').onclick = keluar; $('#bPin').onclick = () => dialogGanti('karyawan'); $('#bMuat').onclick = mulai;
@@ -318,14 +319,14 @@ const semuaMinggu = () => [...new Set(Object.values(data).flatMap(e => (e.minggu
 function layarPemilik() {
   akar.innerHTML = `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · Panel Pemilik</div><h1>Absensi & Gaji</h1>
       <p>Isi gaji harian, potongan, dan hutang. Karyawan melihat datanya sendiri lewat PIN.</p></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil kaca kecil" id="bSandi">Ganti sandi</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Pasang di HP</button><button class="pil kaca kecil" id="bSandi">Ganti sandi</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
   <main class="bungkus"><nav class="tab-baris" id="tab" aria-label="Karyawan"></nav><div id="isi"></div>
     <div class="bilah"><span class="st" id="st">—</span><span style="display:flex;gap:6px;flex:none"><button class="pil halus kecil" id="bMuat">Muat ulang</button><button class="pil emas" id="bSimpan">Simpan</button></span></div></main>`;
   $('#bKeluar').onclick = () => { if (kotor.size && !confirm('Ada perubahan belum disimpan. Tetap keluar?')) return; keluar(); };
   $('#bSandi').onclick = () => dialogGanti('pemilik');
   $('#bMuat').onclick = () => { if (kotor.size && !confirm('Perubahan yang belum disimpan akan hilang. Lanjut?')) return; mulai(); };
   $('#bSimpan').onclick = simpan;
-  gambar();
+  gambar(); siapkanPasang();
 }
 function gambar() { gambarTab(); kini === '__ringkasan__' ? gambarRingkasan() : gambarKaryawan(kini); }
 function gambarTab() {
