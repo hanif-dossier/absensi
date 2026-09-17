@@ -243,8 +243,17 @@ let undangPasang = null;
 const sudahTerpasang = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); undangPasang = ev; siapkanPasang(); });
 addEventListener('appinstalled', () => { undangPasang = null; document.querySelectorAll('[data-pasang],#kotakPasang').forEach(x => x.hidden = true); });
-function siapkanPasang() { if (sudahTerpasang()) return; const k = document.getElementById('kotakPasang'); if (k) k.hidden = false;
+function siapkanPasang() { const k = document.getElementById('kotakPasang');
+  if (sudahTerpasang()) {   // sudah jadi aplikasi: tombol yang sama dipakai untuk membagikan link ke orang lain
+    if (k) { k.hidden = false; const b = document.getElementById('bPasang'); b.lastChild.textContent = 'Bagikan link download'; b.onclick = bagikan;
+      k.querySelector('.catatan').textContent = 'Aplikasi sudah terpasang di HP ini. Kirim linknya ke karyawan supaya mereka bisa memasang juga.'; }
+    return; }
+  if (k) k.hidden = false;
   document.querySelectorAll('[data-pasang]').forEach(b => { b.hidden = false; b.onclick = pasang; }); }
+async function bagikan() { const url = location.origin + location.pathname, teks = 'Aplikasi Absensi & Gaji. Buka lewat Chrome, tekan Download aplikasi, lalu masuk dengan nama dan PIN-mu: ' + url;
+  try { if (navigator.share) return await navigator.share({ title: 'Absensi & Gaji', text: teks }); } catch (e) { if (e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(teks); dialog('<h3>Link tersalin</h3><p class="catatan">Tempel di WhatsApp untuk dikirim ke karyawan.</p><div class="tombol-baris"><button class="pil" data-tutup>Oke</button></div>'); }
+  catch { dialog('<h3>Link download</h3><p class="catatan" style="word-break:break-all">' + esc(url) + '</p><div class="tombol-baris"><button class="pil" data-tutup>Tutup</button></div>'); } }
 async function pasang() { if (undangPasang) { undangPasang.prompt(); const h = await undangPasang.userChoice; if (h.outcome === 'accepted') undangPasang = null; return; }
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   dialog(`<h3>Download aplikasi</h3><p class="catatan" style="margin:0 0 6px">${ios ? 'Di iPhone, buka halaman ini lewat Safari.' : 'Buka halaman ini lewat Chrome.'}</p>
