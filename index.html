@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0f3d3a">
-<title>Absensi & Gaji</title>
+<title>Minyak Andre</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="ikon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="ikon-192.png">
+<link rel="icon" href="ikon.svg?v=2" type="image/svg+xml">
+<link rel="apple-touch-icon" href="ikon-192.png?v=2">
+<meta name="apple-mobile-web-app-title" content="Minyak Andre">
+<meta name="application-name" content="Minyak Andre">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
@@ -223,7 +225,7 @@ function layarMasuk(pesan) {
   const pemilik = k === 'pemilik';
   akar.innerHTML = `<main class="masuk"><form class="masuk-kartu" id="fMasuk" autocomplete="off">
     <div class="tetes" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 2.5c3.2 4.3 6.5 8 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 10.5 8.8 6.8 12 2.5z" fill="#d59a1c"/><path d="M9 14.5a3.2 3.2 0 0 0 3 3.2" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg></div>
-    <div class="label">Usaha Minyak</div><h1>Absensi & Gaji</h1>
+    <div class="label">Absensi & Gaji</div><h1>Minyak Andre</h1>
     <p>${pemilik ? 'Masuk sebagai pemilik untuk mengisi absensi dan gaji.' : 'Masuk untuk melihat absensi dan gajimu. Hanya kamu yang bisa melihat datamu.'}</p>
     ${pesan ? `<div class="pesan-salah" role="alert">${esc(pesan)}</div>` : ''}
     <label class="medan"><span>Kode ${pemilik ? '' : 'karyawan'}</span><input id="mKode" value="${esc(k)}" placeholder="namamu, mis. andika" autocapitalize="none" spellcheck="false" required></label>
@@ -260,8 +262,8 @@ function siapkanPasang() { const k = document.getElementById('kotakPasang');
     return; }
   if (k) k.hidden = false;
   document.querySelectorAll('[data-pasang]').forEach(b => { b.hidden = false; b.onclick = pasang; }); }
-async function bagikan() { const url = location.origin + location.pathname, teks = 'Aplikasi Absensi & Gaji. Buka lewat Chrome, tekan Download aplikasi, lalu masuk dengan nama dan PIN-mu: ' + url;
-  try { if (navigator.share) return await navigator.share({ title: 'Absensi & Gaji', text: teks }); } catch (e) { if (e.name === 'AbortError') return; }
+async function bagikan() { const url = location.origin + location.pathname, teks = 'Aplikasi Minyak Andre (absensi & gaji). Buka lewat Chrome, tekan Download aplikasi, lalu masuk dengan nama dan PIN-mu: ' + url;
+  try { if (navigator.share) return await navigator.share({ title: 'Minyak Andre', text: teks }); } catch (e) { if (e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(teks); dialog('<h3>Link tersalin</h3><p class="catatan">Tempel di WhatsApp untuk dikirim ke karyawan.</p><div class="tombol-baris"><button class="pil" data-tutup>Oke</button></div>'); }
   catch { dialog('<h3>Link download</h3><p class="catatan" style="word-break:break-all">' + esc(url) + '</p><div class="tombol-baris"><button class="pil" data-tutup>Tutup</button></div>'); } }
 async function pasang() { if (undangPasang) { undangPasang.prompt(); const h = await undangPasang.userChoice; if (h.outcome === 'accepted') undangPasang = null; return; }
@@ -269,7 +271,7 @@ async function pasang() { if (undangPasang) { undangPasang.prompt(); const h = a
   dialog(`<h3>Download aplikasi</h3><p class="catatan" style="margin:0 0 6px">${ios ? 'Di iPhone, buka halaman ini lewat Safari.' : 'Buka halaman ini lewat Chrome.'}</p>
     <div class="baris-data"><div class="kiri">1. Tekan ${ios ? 'tombol Bagikan (kotak dengan panah ke atas)' : 'titik tiga di kanan atas'}</div></div>
     <div class="baris-data"><div class="kiri">2. Pilih <b>${ios ? 'Tambah ke Layar Utama' : 'Instal aplikasi'}</b>${ios ? '' : ' atau <b>Tambahkan ke layar utama</b>'}</div></div>
-    <div class="baris-data"><div class="kiri">3. Ikon tetes minyak emas bernama <b>Absensi</b> muncul di layar HP</div></div>
+    <div class="baris-data"><div class="kiri">3. Ikon tetes minyak emas bernama <b>Minyak Andre</b> muncul di layar HP</div></div>
     <div class="tombol-baris"><button class="pil" data-tutup>Mengerti</button></div>`); }
 
 /* ---------- Dialog kecil serbaguna ---------- */
@@ -294,7 +296,7 @@ function layarKaryawan(e, diubah) {
   const rinci = rincianHm(k);
   const tg = wks.reduce((a, w) => a + w.total, 0), tm = wks.reduce((a, w) => a + num(w.hm), 0), tb = wks.reduce((a, w) => a + num(w.hb), 0);
   const kapan = diubah ? new Date(diubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-  akar.innerHTML = `<header class="kepala"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · Absensi & Gaji</div><h1>${esc(e.nama)}</h1>
+  akar.innerHTML = `<header class="kepala"><div class="bungkus"><div class="baris"><div><div class="label">Minyak Andre · Absensi & Gaji</div><h1>${esc(e.nama)}</h1>
       <p>Minggu ${esc(k.w)}${k.periode ? ' · ' + esc(k.periode) : ''}</p></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
   <main class="bungkus">
@@ -341,7 +343,7 @@ function status(t, c) { const s = $('#st'); if (s) { s.textContent = t; s.classN
 const semuaMinggu = () => [...new Set(Object.values(data).flatMap(e => (e.minggu || []).map(w => num(w.w)).filter(w => w > 0)))].sort((a, b) => a - b);
 
 function layarPemilik() {
-  akar.innerHTML = `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · Panel Pemilik</div><h1>Absensi & Gaji</h1>
+  akar.innerHTML = `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Minyak Andre · Panel Pemilik</div><h1>Absensi & Gaji</h1>
       <p>Isi gaji harian, potongan, dan hutang. Karyawan melihat datanya sendiri lewat PIN.</p></div>
       <div><button class="pil kaca kecil" id="bBeranda">← Beranda</button></div></div></div></header>
   <main class="bungkus"><nav class="tab-baris" id="tab" aria-label="Karyawan"></nav><div id="isi"></div>
@@ -459,7 +461,7 @@ async function buatPin(k) { const e = data[k];
   try { const r = await rpc('minyak_atur_pin', { p_token: sesi.baca().token, p_kode: k, p_pin: pin }); if (!r.ok) return status(r.pesan, 'salah'); } catch (err) { return status(err.message, 'salah'); }
   punyaPin[k] = true; gambar();
   const link = location.origin + location.pathname + '?k=' + encodeURIComponent(k);
-  const pesan = `Halo ${e.nama}, ini aplikasi untuk melihat absensi dan gajimu.\n\nBuka: ${link}\nPIN: ${pin}\n\nPIN hanya untukmu, jangan dibagikan. Bisa diganti dari dalam aplikasi.`;
+  const pesan = `Halo ${e.nama}, ini aplikasi Minyak Andre untuk melihat absensi dan gajimu.\n\nBuka: ${link}\nPIN: ${pin}\n\nPIN hanya untukmu, jangan dibagikan. Bisa diganti dari dalam aplikasi.`;
   dialog(`<h3>PIN ${esc(e.nama)}</h3><p class="catatan" style="margin:0">PIN ini hanya ditampilkan sekali. PIN lama (kalau ada) sudah tidak berlaku.</p><div class="pin-besar">${pin}</div>
     <div class="catatan" style="word-break:break-all">${esc(link)}</div>
     <div class="tombol-baris"><button class="pil halus" data-tutup>Tutup</button><button class="pil" id="bSalin">Salin pesan</button><a class="pil emas" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(pesan)}">Kirim WhatsApp</a></div>`,
@@ -496,7 +498,7 @@ async function muatKeuangan() { if (keu) return keu;
   if (!r.ok) throw new Error(r.pesan); keu = r.nilai; keuDiubah = r.diubah; return keu; }
 
 function kepalaPemilik(judul, keterangan, kembali) {
-  return `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · ${kembali ? 'Dashboard' : 'Pemilik'}</div><h1>${judul}</h1><p>${keterangan}</p></div>
+  return `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Minyak Andre · ${kembali ? 'Dashboard' : 'Pemilik'}</div><h1>${judul}</h1><p>${keterangan}</p></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${kembali ? '<button class="pil kaca kecil" id="bBeranda">← Beranda</button>' : '<button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bSandi">Ganti sandi</button><button class="pil kaca kecil" id="bKeluar">Keluar</button>'}</div></div></div></header>`; }
 
 async function layarBeranda() {
@@ -580,7 +582,7 @@ function muatPdf() { return pustakaPdf ||= (async () => { const muat = src => ne
 const HIJAU = [15, 61, 58], EMAS = [213, 154, 28];
 async function dokumen(judul, sub) { const JsPDF = await muatPdf(); const doc = new JsPDF({ unit: 'mm', format: 'a4' });
   doc.setFillColor(...HIJAU); doc.rect(0, 0, 210, 30, 'F'); doc.setFillColor(...EMAS); doc.rect(0, 30, 210, 1.2, 'F');
-  doc.setTextColor(232, 181, 74); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.text('USAHA MINYAK', 14, 11);
+  doc.setTextColor(232, 181, 74); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.text('MINYAK ANDRE', 14, 11);
   doc.setTextColor(255, 255, 255); doc.setFontSize(17); doc.text(judul, 14, 19); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(207, 227, 222); doc.text(sub, 14, 25.5);
   doc.setTextColor(22, 48, 44); return doc; }
 const gayaTabel = { styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.2, textColor: [22, 48, 44] }, headStyles: { fillColor: HIJAU, textColor: 255, fontStyle: 'bold' }, alternateRowStyles: { fillColor: [244, 248, 243] }, footStyles: { fillColor: [251, 240, 211], textColor: [22, 48, 44], fontStyle: 'bold' }, margin: { left: 14, right: 14 },
