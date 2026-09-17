@@ -139,6 +139,8 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .medan span{display:block;font-size:12px;font-weight:700;color:var(--redup);margin-bottom:5px}
 .medan input{width:100%;background:var(--kartu2);border:1.5px solid var(--garis);border-radius:18px;padding:14px 16px;font-size:16px}
 .medan input.pin{letter-spacing:.5em;text-align:center;font-size:22px;font-weight:700}
+.pasang{display:flex;align-items:center;gap:12px;background:var(--emas-lembut);border-radius:20px;padding:12px 14px;margin-top:16px}
+.pasang .teks{flex:1;min-width:0;font-size:13px;line-height:1.35}.pasang .teks b{display:block;font-size:14px}
 .pesan-salah{background:var(--turun-lembut);color:var(--turun);border-radius:14px;padding:10px 14px;font-size:13.5px;margin-bottom:12px}
 
 /* ---------- Dialog ---------- */
@@ -213,21 +215,39 @@ function layarMasuk(pesan) {
     <div class="label">Usaha Minyak</div><h1>Absensi & Gaji</h1>
     <p>${pemilik ? 'Masuk sebagai pemilik untuk mengisi absensi dan gaji.' : 'Masuk untuk melihat absensi dan gajimu. Hanya kamu yang bisa melihat datamu.'}</p>
     ${pesan ? `<div class="pesan-salah" role="alert">${esc(pesan)}</div>` : ''}
-    <label class="medan"><span>Kode ${pemilik ? '' : 'karyawan'}</span><input id="mKode" value="${esc(k)}" placeholder="mis. andika" autocapitalize="none" spellcheck="false" required></label>
+    <label class="medan"><span>Kode ${pemilik ? '' : 'karyawan'}</span><input id="mKode" value="${esc(k)}" placeholder="namamu, mis. andika" autocapitalize="none" spellcheck="false" required></label>
     <label class="medan"><span id="lblPin">${pemilik ? 'Sandi pemilik' : 'PIN 6 angka'}</span><input id="mPin" type="password" class="${pemilik ? '' : 'pin'}" ${pemilik ? '' : 'inputmode="numeric" maxlength="6"'} required></label>
     <button class="pil emas" style="width:100%;padding:14px;font-size:16px" id="mTombol">Masuk</button>
-    <div class="catatan" style="text-align:center">Lupa PIN? Minta PIN baru ke pemilik.</div></form></main>`;
+    <div class="catatan" style="text-align:center">Lupa PIN? Minta PIN baru ke pemilik.</div>
+    <div class="pasang" id="kotakPasang" hidden><div class="teks"><b>Pasang di HP</b>Jadi ikon aplikasi, buka tanpa mengetik alamat.</div><button type="button" class="pil" id="bPasang">Pasang</button></div></form></main>`;
+  siapkanPasang();
   const fk = $('#mKode'), fp = $('#mPin');
   fk.oninput = () => { const p = fk.value.trim().toLowerCase() === 'pemilik'; $('#lblPin').textContent = p ? 'Sandi pemilik' : 'PIN 6 angka';
     fp.className = p ? '' : 'pin'; p ? (fp.removeAttribute('maxlength'), fp.removeAttribute('inputmode')) : (fp.maxLength = 6, fp.inputMode = 'numeric'); };
   (k ? fp : fk).focus();
   $('#fMasuk').onsubmit = async ev => { ev.preventDefault(); const b = $('#mTombol'); b.disabled = true; b.textContent = 'Memeriksa…';
-    try { const r = await rpc('minyak_masuk', { p_kode: fk.value, p_pin: fp.value });
+    try { const kode = slug(fk.value) || fk.value;   // "Bang Hen" -> "bang-hen"
+      const r = await rpc('minyak_masuk', { p_kode: kode, p_pin: fp.value });
       if (!r.ok) return layarMasuk(r.pesan);
       sesi.tulis({ token: r.token, peran: r.peran, kode: r.kode, nama: r.nama }); mulai();
     } catch (e) { layarMasuk(e.message); } };
 }
 async function keluar() { const s = sesi.baca(); sesi.hapus(); if (s) rpc('minyak_keluar', { p_token: s.token }).catch(() => {}); layarMasuk(); }
+
+/* ---------- Pasang aplikasi (PWA). Chrome Android memberi peristiwa beforeinstallprompt: kita simpan, lalu
+   memanggilnya saat tombol ditekan. Peramban lain (iPhone/Firefox) tidak punya peristiwa itu, jadi diberi petunjuk manual. ---------- */
+let undangPasang = null;
+const sudahTerpasang = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); undangPasang = ev; siapkanPasang(); });
+addEventListener('appinstalled', () => { undangPasang = null; $$('#kotakPasang,#bPasangBawah').forEach(x => x.hidden = true); });
+function siapkanPasang() { if (sudahTerpasang()) return; $$('#kotakPasang,#bPasangBawah').forEach(x => x.hidden = false); $$('#bPasang,#bPasangBawah').forEach(b => b.onclick = pasang); }
+async function pasang() { if (undangPasang) { undangPasang.prompt(); const h = await undangPasang.userChoice; if (h.outcome === 'accepted') undangPasang = null; return; }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  dialog(`<h3>Pasang di HP</h3><p class="catatan" style="margin:0 0 6px">${ios ? 'Di iPhone, buka halaman ini lewat Safari.' : 'Buka halaman ini lewat Chrome.'}</p>
+    <div class="baris-data"><div class="kiri">1. Tekan ${ios ? 'tombol Bagikan (kotak dengan panah ke atas)' : 'titik tiga di kanan atas'}</div></div>
+    <div class="baris-data"><div class="kiri">2. Pilih <b>${ios ? 'Tambah ke Layar Utama' : 'Instal aplikasi'}</b>${ios ? '' : ' atau <b>Tambahkan ke layar utama</b>'}</div></div>
+    <div class="baris-data"><div class="kiri">3. Ikon tetes minyak emas bernama <b>Absensi</b> muncul di layar HP</div></div>
+    <div class="tombol-baris"><button class="pil" data-tutup>Mengerti</button></div>`); }
 
 /* ---------- Dialog kecil serbaguna ---------- */
 function dialog(html, siap) { const t = document.createElement('div'); t.className = 'tirai'; t.innerHTML = `<div class="dialog" role="dialog" aria-modal="true">${html}</div>`;
@@ -280,8 +300,9 @@ function layarKaryawan(e, diubah) {
       ${wks.length ? `<div class="baris-data total"><div class="kiri">Total ${wks.length} minggu</div><div class="kanan">${rp(tg - tm - tb)}</div></div>` : ''}</section>
 
     <div class="catatan" style="text-align:center;margin-top:18px">Data diisi oleh pemilik${kapan ? ' · diperbarui ' + esc(kapan) : ''}.<br>
-      <button class="pil halus kecil" id="bPin" style="margin-top:10px">Ganti PIN</button> <button class="pil halus kecil" id="bMuat" style="margin-top:10px">Muat ulang</button></div>
+      <button class="pil halus kecil" id="bPin" style="margin-top:10px">Ganti PIN</button> <button class="pil halus kecil" id="bMuat" style="margin-top:10px">Muat ulang</button> <button class="pil kecil" id="bPasangBawah" style="margin-top:10px" hidden>Pasang di HP</button></div>
   </main>`;
+  siapkanPasang();
   $('#bKeluar').onclick = keluar; $('#bPin').onclick = () => dialogGanti('karyawan'); $('#bMuat').onclick = mulai;
 }
 
