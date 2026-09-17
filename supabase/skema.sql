@@ -145,3 +145,43 @@ revoke all on function public.minyak__h(text), public.minyak__sesi(text) from pu
 grant execute on function public.minyak_masuk(text,text), public.minyak_data(text), public.minyak_simpan(text,jsonb),
   public.minyak_atur_pin(text,text,text), public.minyak_ganti_sandi(text,text,text), public.minyak_keluar(text) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- =====================================================================================================
+-- NILAI BEBAS (pemilik saja): dipakai untuk data Dashboard Keuangan Minyak (kunci 'keuangan').
+-- Diisi oleh supabase/muat-keuangan.mjs (kunci service, melewati RLS); dibaca aplikasi lewat fungsi di bawah.
+-- =====================================================================================================
+create table if not exists public.minyak_nilai (
+  kunci text primary key,
+  nilai jsonb not null,
+  diubah timestamptz not null default now()
+);
+alter table public.minyak_nilai enable row level security;
+
+create or replace function public.minyak_ambil_nilai(p_token text, p_kunci text) returns jsonb language plpgsql stable security definer
+set search_path = public, extensions as $f$
+declare s minyak_sesi := minyak__sesi(p_token);
+begin
+  if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
+  if s.peran <> 'pemilik' then return jsonb_build_object('ok', false, 'pesan', 'Hanya pemilik.'); end if;
+  return jsonb_build_object('ok', true, 'nilai', (select nilai from minyak_nilai where kunci = p_kunci),
+    'diubah', (select diubah from minyak_nilai where kunci = p_kunci));
+end $f$;
+grant execute on function public.minyak_ambil_nilai(text,text) to anon, authenticated;
+notify pgrst, 'reload schema';
+
+-- =====================================================================================================
+-- TULIS NILAI dari luar (GitHub Actions) dengan kunci sempit: hanya boleh menulis kunci 'keuangan'.
+-- Kunci aslinya ada di rahasia/absensi-minyak.txt dan secret GitHub SINKRON_KUNCI; di sini hanya sha256-nya.
+-- =====================================================================================================
+alter table public.minyak_pemilik add column if not exists sinkron_hash text;
+create or replace function public.minyak_tulis_nilai(p_rahasia text, p_kunci text, p_nilai jsonb) returns jsonb language plpgsql security definer
+set search_path = public, extensions as $f$
+begin
+  if p_kunci <> 'keuangan' then return jsonb_build_object('ok', false, 'pesan', 'kunci tidak diizinkan'); end if;
+  if coalesce(length(p_rahasia), 0) < 32 or not exists (select 1 from minyak_pemilik where id = 1 and sinkron_hash = minyak__h(p_rahasia)) then
+    return jsonb_build_object('ok', false, 'pesan', 'ditolak'); end if;
+  insert into minyak_nilai(kunci, nilai) values (p_kunci, p_nilai) on conflict (kunci) do update set nilai = excluded.nilai, diubah = now();
+  return jsonb_build_object('ok', true);
+end $f$;
+grant execute on function public.minyak_tulis_nilai(text,text,jsonb) to anon, authenticated;
+notify pgrst, 'reload schema';

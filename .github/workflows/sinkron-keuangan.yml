@@ -1,0 +1,17 @@
+name: Sinkron keuangan dari Docfarm
+# Menyalin data Dashboard Keuangan Minyak (Docfarm) ke database aplikasi, supaya halaman Keuangan selalu terbaru.
+on:
+  schedule:
+    - cron: "17 * * * *"      # tiap jam, menit ke-17
+  workflow_dispatch:
+jobs:
+  sinkron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node supabase/muat-keuangan.mjs
+        env:
+          SINKRON_KUNCI: ${{ secrets.SINKRON_KUNCI }}

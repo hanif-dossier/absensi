@@ -124,6 +124,16 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .hutang-baris{display:grid;grid-template-columns:130px 1fr 110px 110px 170px auto;gap:6px;margin-bottom:8px;align-items:center}
 @media (max-width:820px){.hutang-baris{grid-template-columns:1fr 1fr;background:var(--kartu2);padding:10px;border-radius:var(--r-kecil)}.hutang-baris .lebar{grid-column:1/-1}}
 
+/* ---------- Menu beranda pemilik ---------- */
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-top:16px}
+.ubin{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;background:var(--kartu);border:0;border-radius:var(--r);padding:16px;box-shadow:var(--bayang);cursor:pointer;color:var(--tinta);text-decoration:none;transition:transform .12s}
+.ubin:hover{transform:translateY(-2px)}.ubin:active{transform:scale(.98)}
+.ubin b{font-family:var(--serif);font-weight:600;font-size:18px;margin-top:8px}
+.ubin small{color:var(--redup);font-size:12.5px;line-height:1.35}
+.ubin .ik{width:46px;height:46px;border-radius:16px;display:grid;place-items:center;background:var(--naik-lembut);color:var(--utama2)}
+.ubin .ik.emas{background:var(--emas-lembut);color:var(--emas)}
+@media (prefers-color-scheme:dark){.ubin .ik{color:var(--naik)}}
+
 /* ---------- Bilah simpan ---------- */
 .bilah{position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);margin-top:18px;background:var(--kartu);border-radius:999px;box-shadow:0 12px 34px rgba(15,61,58,.22);
   padding:8px 8px 8px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:5}
@@ -290,7 +300,8 @@ function layarKaryawan(e, diubah) {
   <main class="bungkus">
     <section class="besar angkat"><div class="label">Gaji diterima minggu ${esc(k.w)}</div><div class="nilai">${rp(k.terima)}</div>
       <div class="keping-baris"><span class="keping"><b>${k.masuk}</b> hari masuk</span><span class="keping">Total gaji <b>${rp(k.total)}</b></span>
-      ${num(k.hm) + num(k.hb) ? `<span class="keping">Potongan <b>${rp(num(k.hm) + num(k.hb))}</b></span>` : ''}</div></section>
+      ${num(k.hm) + num(k.hb) ? `<span class="keping">Potongan <b>${rp(num(k.hm) + num(k.hb))}</b></span>` : ''}</div>
+      ${wks.length ? '<button class="pil emas kecil" id="bSlip" style="margin-top:14px">Unduh slip gaji (PDF)</button>' : ''}</section>
 
     <section class="kartu"><h2>Absensi minggu ${esc(k.w)}</h2>
       <div class="hari7">${k.hari.map((v, i) => `<div class="hari ${v ? 'hadir' : 'libur'}"><b>${HS[i]}</b><span>${v ? ribu(v) : '—'}</span></div>`).join('')}</div>
@@ -309,7 +320,7 @@ function layarKaryawan(e, diubah) {
       ${e.hutang.length ? `<div class="catatan">Pinjaman ${rp(c.pinjam)} − sudah dibayar ${rp(c.bayar + c.cicil)} (potongan gaji ${rp(c.potgaji + c.cicil)} + tunai ${rp(c.tunai)}).</div>` : ''}</section>
 
     <section class="kartu"><h2>Riwayat mingguan</h2>
-      ${[...wks].reverse().map(w => `<div class="baris-data"><div class="kiri">Minggu ${esc(w.w)} · ${w.masuk} hari<small>${esc(w.periode || '')}${num(w.hm) + num(w.hb) ? ' · potongan ' + rp(num(w.hm) + num(w.hb)) : ''}</small></div><div class="kanan">${rp(w.terima)}<small style="display:block;font-weight:500;color:var(--redup)">dari ${rp(w.total)}</small></div></div>`).join('') || '<div class="catatan" style="margin:0">Belum ada data.</div>'}
+      ${[...wks].reverse().map(w => `<div class="baris-data"><div class="kiri">Minggu ${esc(w.w)} · ${w.masuk} hari<small>${esc(w.periode || '')}${num(w.hm) + num(w.hb) ? ' · potongan ' + rp(num(w.hm) + num(w.hb)) : ''}</small></div><div class="kanan">${rp(w.terima)}<small style="display:block;font-weight:500;color:var(--redup)">dari ${rp(w.total)}</small><button class="pil halus kecil" data-slipw="${esc(w.w)}" style="margin-top:4px;padding:4px 10px;font-size:11.5px">PDF</button></div></div>`).join('') || '<div class="catatan" style="margin:0">Belum ada data.</div>'}
       ${wks.length ? `<div class="baris-data total"><div class="kiri">Total ${wks.length} minggu</div><div class="kanan">${rp(tg - tm - tb)}</div></div>` : ''}</section>
 
     <div class="catatan" style="text-align:center;margin-top:18px">Data diisi oleh pemilik${kapan ? ' · diperbarui ' + esc(kapan) : ''}.<br>
@@ -317,6 +328,7 @@ function layarKaryawan(e, diubah) {
   </main>`;
   siapkanPasang();
   $('#bKeluar').onclick = keluar; $('#bPin').onclick = () => dialogGanti('karyawan'); $('#bMuat').onclick = mulai;
+  const bs = $('#bSlip'); if (bs) bs.onclick = () => pdfSlip(e, k.w); $$('[data-slipw]').forEach(b => b.onclick = () => pdfSlip(e, b.dataset.slipw));
 }
 
 /* =====================================================================================================
@@ -331,12 +343,11 @@ const semuaMinggu = () => [...new Set(Object.values(data).flatMap(e => (e.minggu
 function layarPemilik() {
   akar.innerHTML = `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · Panel Pemilik</div><h1>Absensi & Gaji</h1>
       <p>Isi gaji harian, potongan, dan hutang. Karyawan melihat datanya sendiri lewat PIN.</p></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bSandi">Ganti sandi</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
+      <div><button class="pil kaca kecil" id="bBeranda">← Beranda</button></div></div></div></header>
   <main class="bungkus"><nav class="tab-baris" id="tab" aria-label="Karyawan"></nav><div id="isi"></div>
     <div class="bilah"><span class="st" id="st">—</span><span style="display:flex;gap:6px;flex:none"><button class="pil halus kecil" id="bMuat">Muat ulang</button><button class="pil emas" id="bSimpan">Simpan</button></span></div></main>`;
-  $('#bKeluar').onclick = () => { if (kotor.size && !confirm('Ada perubahan belum disimpan. Tetap keluar?')) return; keluar(); };
-  $('#bSandi').onclick = () => dialogGanti('pemilik');
-  $('#bMuat').onclick = () => { if (kotor.size && !confirm('Perubahan yang belum disimpan akan hilang. Lanjut?')) return; mulai(); };
+  $('#bBeranda').onclick = () => { if (kotor.size && !confirm('Ada perubahan belum disimpan. Tetap kembali ke beranda?')) return; if (kotor.size) { kotor.clear(); return mulai(); } layarBeranda(); };
+  $('#bMuat').onclick = () => { if (kotor.size && !confirm('Perubahan yang belum disimpan akan hilang. Lanjut?')) return; mulai().then(() => { if (sesi.baca()?.peran === 'pemilik') layarPemilik(); }); };
   $('#bSimpan').onclick = simpan;
   gambar(); siapkanPasang();
 }
@@ -463,13 +474,162 @@ async function simpan() { if (!kotor.size) { status('Tidak ada perubahan', 'ok')
   } catch (err) { status(err.message, 'salah'); return false; } finally { const b = $('#bSimpan'); if (b) b.disabled = false; } }
 
 /* =====================================================================================================
+   DASHBOARD MINYAK (pemilik): beranda berisi menu, halaman Keuangan, dan Laporan PDF.
+   Data keuangan diambil dari database (kunci 'keuangan') yang diisi supaya hanya pemilik yang bisa membacanya.
+   ===================================================================================================== */
+let keu = null, keuDiubah = null, mingguKeu = null;
+const jt = n => (n / 1e6).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' jt';
+const pc = n => (n * 100).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+const judulKecil = s => String(s).toLowerCase().replace(/(^|[s-])S/g, c => c.toUpperCase());   // "BANG HEN" -> "Bang Hen"
+const IKON = {
+  gaji: '<path d="M4 7h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M9 13l2 2 4-4"/>',
+  uang: '<path d="M4 19V5M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-3M20 16V6"/>',
+  harian: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/>',
+  pdf: '<path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5"/>',
+  bagi: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.9l7.6-3.8M8.2 13.1l7.6 3.8"/>',
+  grafik: '<circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7 5"/>',
+};
+const ikon = k => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IKON[k]}</svg>`;
+
+async function muatKeuangan() { if (keu) return keu;
+  const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'keuangan' });
+  if (!r.ok) throw new Error(r.pesan); keu = r.nilai; keuDiubah = r.diubah; return keu; }
+
+function kepalaPemilik(judul, keterangan, kembali) {
+  return `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · ${kembali ? 'Dashboard' : 'Pemilik'}</div><h1>${judul}</h1><p>${keterangan}</p></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${kembali ? '<button class="pil kaca kecil" id="bBeranda">← Beranda</button>' : '<button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bSandi">Ganti sandi</button><button class="pil kaca kecil" id="bKeluar">Keluar</button>'}</div></div></div></header>`; }
+
+async function layarBeranda() {
+  const wl = semuaMinggu(), w = wl[wl.length - 1];
+  const bayar = w ? Object.values(data).filter(e => e.aktif).reduce((a, e) => a + (hitung(e).wks.find(x => num(x.w) === w)?.terima || 0), 0) : 0;
+  const sisaHutang = Object.values(data).filter(e => e.aktif).reduce((a, e) => a + hitung(e).sisa, 0);
+  akar.innerHTML = kepalaPemilik('Dashboard Minyak', 'Absensi, gaji, keuangan, dan laporan usaha minyak di satu tempat.', false) +
+  `<main class="bungkus">
+    <section class="besar angkat" style="margin-top:-18px"><div class="label">Gaji yang harus dibayar · minggu ${w || '—'}</div><div class="nilai">${rp(bayar)}</div>
+      <div class="keping-baris"><span class="keping"><b>${Object.values(data).filter(e => e.aktif).length}</b> karyawan aktif</span><span class="keping">Sisa hutang besar <b>${rp(sisaHutang)}</b></span><span class="keping" id="kepingLaba">Laba bersih …</span></div></section>
+    <section class="menu">
+      <button class="ubin" data-ke="gaji"><span class="ik">${ikon('gaji')}</span><b>Absensi & Gaji</b><small>Isi gaji harian, potongan, hutang, dan PIN karyawan</small></button>
+      <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Omzet, laba, pengantar, jenis minyak, biaya per minggu</small></button>
+      <button class="ubin" data-ke="laporan"><span class="ik">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan keuangan</small></button>
+      <a class="ubin" id="ubinHarian" target="_blank" rel="noopener" href="https://doc.farm/laporan-harian-minyak-minggu-${w || ''}"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''} (Docfarm)</small></a>
+      <a class="ubin" target="_blank" rel="noopener" href="https://doc.farm/dashboard-keuangan-minyak"><span class="ik">${ikon('grafik')}</span><b>Dashboard bergrafik</b><small>Versi lengkap dengan grafik tren (Docfarm)</small></a>
+      <button class="ubin" id="ubinBagi"><span class="ik emas">${ikon('bagi')}</span><b>Bagikan ke karyawan</b><small>Kirim link aplikasi supaya mereka bisa memasang</small></button>
+    </section>
+    <div class="catatan" style="text-align:center;margin-top:18px">Halaman ini hanya untuk pemilik. Karyawan yang masuk hanya melihat gajinya sendiri.</div></main>`;
+  $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); $('#ubinBagi').onclick = bagikan; siapkanPasang();
+  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan })[b.dataset.ke]());
+  try { const k = await muatKeuangan(), t = k.D[k.CURW].tot; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih M${k.CURW} <b>${rp(t.bersih)}</b>`;
+    const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) { u.href = 'https://doc.farm/laporan-harian-minyak-minggu-' + mh; $('small', u).textContent = `Rincian penjualan per hari minggu ${mh} (Docfarm)`; }
+  } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
+}
+
+async function layarKeuangan() {
+  akar.innerHTML = kepalaPemilik('Keuangan', 'Memuat data…', true) + '<main class="bungkus"><section class="kartu">Memuat…</section></main>';
+  $('#bBeranda').onclick = layarBeranda;
+  let k; try { k = await muatKeuangan(); } catch (e) { $('main').innerHTML = `<section class="kartu"><div class="pesan-salah">${esc(e.message)}</div></section>`; return; }
+  if (!k) { $('main').innerHTML = '<section class="kartu">Data keuangan belum dimuat ke aplikasi.</section>'; return; }
+  if (!k.WK.includes(mingguKeu)) mingguKeu = k.CURW;
+  const w = mingguKeu, d = k.D[w], t = d.tot, p = k.D[w - 1]?.tot;
+  const beda = (a, b, balik) => { if (!b) return ''; const x = (a - b) / Math.abs(b), naik = x >= 0, baik = balik ? !naik : naik; return `<span class="keping ${Math.abs(x) < .0005 ? '' : baik ? 'hijau' : 'merah'}" style="font-size:11.5px;padding:3px 9px">${naik ? '▲' : '▼'} ${Math.abs(x * 100).toFixed(1)}%</span>`; };
+  const kpi = [['Omzet', jt(t.omset), beda(t.omset, p?.omset)], ['Laba kotor', jt(t.lk), beda(t.lk, p?.lk)], ['Margin kotor', pc(t.lk / t.omset), ''], ['Laba bersih', jt(t.bersih), beda(t.bersih, p?.bersih)],
+    ['Kuantitas', ribu(t.qty) + ' unit', beda(t.qty, p?.qty)], ['Biaya ops + gaji', jt(t.biayaops), beda(t.biayaops, p?.biayaops, true)]];
+  const mxO = Math.max(...k.WK.map(x => k.D[x].tot.omset));
+  const P = Object.entries(d.pengantar || {}).map(([n, v]) => ({ n, q: v.qty, lk: v.lk, op: v.ops, lu: v.lk - v.ops })).filter(r => r.q || r.lk).sort((a, b) => b.lu - a.lu), mxP = Math.max(1, ...P.map(r => r.lu));
+  const J = Object.entries(d.jenis || {}).map(([n, v]) => ({ n, q: v.qty, o: v.omset, lk: v.omset - v.hpp })).sort((a, b) => b.o - a.o), tO = J.reduce((a, r) => a + r.o, 0) || 1;
+  const B = (d.biaya || []).slice().sort((a, b) => b.nilai - a.nilai), G = d.gaji || [];
+  const kapan = keuDiubah ? new Date(keuDiubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  akar.innerHTML = kepalaPemilik('Keuangan', esc(k.sub || ''), true) + `<main class="bungkus">
+    <nav class="tab-baris" aria-label="Minggu">${[...k.WK].reverse().map(x => `<button class="tab ${x === w ? 'aktif' : ''}" data-w="${x}">Minggu ${x}</button>`).join('')}</nav>
+    <section class="kartu" style="margin-top:6px"><h2>Minggu ${w}<span class="keping">${esc(k.PER[w] || '')} · ${k.HARI[w] || '?'} hari kerja</span></h2>
+      <div class="kisi">${kpi.map((x, i) => `<div class="kotak ${i === 3 ? 'emas' : ''}"><div class="l">${x[0]}</div><div class="v">${x[1]}</div>${x[2]}</div>`).join('')}</div>
+      <div class="catatan">Laba bersih per unit ${rp(t.bersih / (t.qty || 1))}. Tanda naik/turun dibanding minggu ${w - 1}.</div>
+      <div class="tombol-baris" style="justify-content:flex-start"><button class="pil kecil" id="bPdfKeu">${ikon('pdf').replace('width="26" height="26"', 'width="16" height="16" style="vertical-align:-3px"')} Unduh PDF minggu ${w}</button></div></section>
+    <section class="kartu"><h2>Tren ${k.WK.length} minggu</h2>${k.WK.map(x => { const tt = k.D[x].tot; return `<div class="orang" style="cursor:default" ><span class="nama" style="font-size:15px">M${x} <small style="font-family:var(--sans);color:var(--redup);font-size:12px">${esc(k.PER[x] || '')}</small></span><span class="bayar" style="font-size:16px">${jt(tt.omset)}</span>
+      <span class="garis-batang"><i style="width:${Math.round(tt.omset / mxO * 100)}%"></i></span><span class="rinci"><span class="keping">Laba bersih ${jt(tt.bersih)}</span><span class="keping">Margin ${pc(tt.lk / tt.omset)}</span><span class="keping">${ribu(tt.qty)} unit</span></span></div>`; }).join('')}</section>
+    <section class="kartu"><h2>Kinerja pengantar</h2>${P.map(r => `<div class="orang" style="cursor:default"><span class="nama" style="font-size:16px">${esc(judulKecil(r.n))}</span><span class="bayar" style="font-size:17px">${rp(r.lu)}</span>
+      <span class="garis-batang"><i style="width:${Math.max(0, Math.round(r.lu / mxP * 100))}%"></i></span><span class="rinci"><span class="keping">${ribu(r.q)} unit</span><span class="keping">Laba kotor ${rp(r.lk)}</span><span class="keping">Biaya ${rp(r.op)}</span></span></div>`).join('') || '<div class="catatan" style="margin:0">Belum ada data.</div>'}
+      <div class="catatan">Angka besar = laba usaha (laba kotor dikurangi biaya operasional pengantar itu).</div></section>
+    ${J.length ? `<section class="kartu"><h2>Per jenis minyak</h2>${J.map(r => `<div class="baris-data"><div class="kiri">${esc(r.n)}<small>${ribu(r.q)} unit · margin ${pc(r.lk / (r.o || 1))} · ${pc(r.o / tO)} dari omzet</small></div><div class="kanan">${jt(r.o)}<small style="display:block;font-weight:500;color:var(--redup)">laba ${rp(r.lk)}</small></div></div>`).join('')}</section>` : ''}
+    ${B.length ? `<section class="kartu"><h2>Biaya harian <span class="keping merah">${rp(B.reduce((a, x) => a + x.nilai, 0))}</span></h2>${B.map(x => `<div class="baris-data"><div class="kiri">${esc(x.jenis)}<small>${esc(judulKecil(x.hari))} · ${esc(x.orang)}</small></div><div class="kanan">${rp(x.nilai)}</div></div>`).join('')}</section>` : ''}
+    ${G.length ? `<section class="kartu"><h2>Gaji minggu ${w} <span class="keping">${rp(G.reduce((a, x) => a + x.total, 0))} bruto</span></h2>${G.map(x => `<div class="baris-data"><div class="kiri">${esc(judulKecil(x.nama))}<small>bruto ${rp(x.total)}${x.hm + x.hb ? ' · potongan ' + rp(x.hm + x.hb) : ''}</small></div><div class="kanan">${rp(x.terima)}</div></div>`).join('')}</section>` : ''}
+    ${k.catatan?.length ? `<section class="kartu"><h2>Catatan & anomali</h2>${k.catatan.map(c => `<div class="kotak ${c.jenis === 'flag' ? 'merah' : c.jenis === 'ok' ? '' : 'emas'}" style="margin-bottom:10px"><div class="l" style="color:${c.jenis === 'ok' ? 'var(--naik)' : 'inherit'}">${esc(c.judul)}</div><div style="font-size:13px;margin-top:4px">${c.isi}</div></div>`).join('')}</section>` : ''}
+    <div class="catatan" style="margin-top:16px">${(k.kaki || []).join('<br>')}<br>Data disalin dari Dashboard Keuangan Minyak di Docfarm${kapan ? ', terakhir ' + esc(kapan) : ''}.</div></main>`;
+  $('#bBeranda').onclick = layarBeranda; $('#bPdfKeu').onclick = () => pdfKeuangan(w);
+  $$('.tab[data-w]').forEach(b => b.onclick = () => { mingguKeu = +b.dataset.w; layarKeuangan(); });
+}
+
+function layarLaporan() {
+  const wl = semuaMinggu(); let w = wl[wl.length - 1];
+  const gambarIsi = () => { const daftar = Object.entries(data).filter(([, e]) => (e.minggu || []).some(x => num(x.w) === w)).sort((a, b) => a[1].nama.localeCompare(b[1].nama));
+    $('#isiLaporan').innerHTML = `<section class="kartu"><h2>Gaji minggu ${w}<select id="pilihW" class="isian" style="width:auto" aria-label="Pilih minggu">${[...wl].reverse().map(x => `<option ${x === w ? 'selected' : ''}>${x}</option>`).join('')}</select></h2>
+        <button class="orang" id="bRekap"><span class="nama">Rekap gaji semua karyawan</span><span class="bayar" style="font-size:14px;font-family:var(--sans);font-weight:700;color:var(--emas)">PDF</span><span class="rinci"><span class="keping">${daftar.length} karyawan</span><span class="keping">untuk arsip & tanda terima</span></span></button>
+        ${daftar.map(([k, e]) => `<button class="orang" data-slip="${esc(k)}"><span class="nama" style="font-size:16px">Slip gaji ${esc(e.nama)}</span><span class="bayar" style="font-size:14px;font-family:var(--sans);font-weight:700;color:var(--emas)">PDF</span></button>`).join('')}</section>
+      <section class="kartu"><h2>Keuangan</h2><div id="daftarKeu" class="catatan" style="margin:0">Memuat…</div></section>`;
+    $('#pilihW').onchange = ev => { w = num(ev.target.value); gambarIsi(); };
+    $('#bRekap').onclick = () => pdfRekapGaji(w); $$('[data-slip]').forEach(b => b.onclick = () => pdfSlip(data[b.dataset.slip], w));
+    muatKeuangan().then(k => { $('#daftarKeu').outerHTML = [...k.WK].reverse().map(x => `<button class="orang" data-keu="${x}"><span class="nama" style="font-size:16px">Laporan keuangan minggu ${x}</span><span class="bayar" style="font-size:14px;font-family:var(--sans);font-weight:700;color:var(--emas)">PDF</span><span class="rinci"><span class="keping">${esc(k.PER[x] || '')}</span><span class="keping">Omzet ${jt(k.D[x].tot.omset)}</span></span></button>`).join('');
+      $$('[data-keu]').forEach(b => b.onclick = () => pdfKeuangan(+b.dataset.keu)); }).catch(e => { $('#daftarKeu').textContent = e.message; }); };
+  akar.innerHTML = kepalaPemilik('Laporan PDF', 'Ketuk untuk mengunduh. Berkas dibuat di HP ini, tidak dikirim ke mana-mana.', true) + '<main class="bungkus"><div id="isiLaporan"></div></main>';
+  $('#bBeranda').onclick = layarBeranda; gambarIsi();
+}
+
+/* ---------- PDF: pustaka jsPDF + AutoTable dimuat dari cdnjs hanya saat pertama kali dibutuhkan ---------- */
+let pustakaPdf = null;
+function muatPdf() { return pustakaPdf ||= (async () => { const muat = src => new Promise((ok, gagal) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => gagal(new Error('Gagal memuat pembuat PDF. Cek internet.')); document.head.append(s); });
+  await muat('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'); await muat('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'); return window.jspdf.jsPDF; })().catch(e => { pustakaPdf = null; throw e; }); }
+const HIJAU = [15, 61, 58], EMAS = [213, 154, 28];
+async function dokumen(judul, sub) { const JsPDF = await muatPdf(); const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+  doc.setFillColor(...HIJAU); doc.rect(0, 0, 210, 30, 'F'); doc.setFillColor(...EMAS); doc.rect(0, 30, 210, 1.2, 'F');
+  doc.setTextColor(232, 181, 74); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.text('USAHA MINYAK', 14, 11);
+  doc.setTextColor(255, 255, 255); doc.setFontSize(17); doc.text(judul, 14, 19); doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(207, 227, 222); doc.text(sub, 14, 25.5);
+  doc.setTextColor(22, 48, 44); return doc; }
+const gayaTabel = { styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.2, textColor: [22, 48, 44] }, headStyles: { fillColor: HIJAU, textColor: 255, fontStyle: 'bold' }, alternateRowStyles: { fillColor: [244, 248, 243] }, footStyles: { fillColor: [251, 240, 211], textColor: [22, 48, 44], fontStyle: 'bold' }, margin: { left: 14, right: 14 },
+  // kepala & kaki tabel ikut rata kanan kalau kolom badannya rata kanan
+  didParseCell: d => { if (d.section !== 'body' && d.table.styles?.columnStyles?.[d.column.index]?.halign === 'right') d.cell.styles.halign = 'right'; } };
+function tutupDok(doc, nama) { const n = doc.getNumberOfPages(); for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(95, 117, 112);
+    doc.text('Dibuat ' + new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }) + ' · halaman ' + i + ' dari ' + n, 14, 290); } doc.save(nama); }
+const kanan = kolom => Object.fromEntries(kolom.map(i => [i, { halign: 'right' }]));
+async function denganTunggu(fn) { const tutup = dialog('<h3>Menyiapkan PDF…</h3><p class="catatan">Sebentar ya.</p>'); try { await fn(); tutup(); } catch (e) { tutup(); dialog(`<h3>PDF gagal dibuat</h3><p class="catatan">${esc(e.message)}</p><div class="tombol-baris"><button class="pil" data-tutup>Tutup</button></div>`); } }
+
+function pdfSlip(e, w) { return denganTunggu(async () => { const c = hitung(e), m = c.wks.find(x => num(x.w) === num(w)); if (!m) throw new Error('Minggu itu belum ada datanya.');
+  const doc = await dokumen('Slip Gaji · ' + e.nama, `Minggu ${m.w}${m.periode ? ' · ' + m.periode : ''}`);
+  doc.autoTable({ ...gayaTabel, startY: 38, head: [['Hari', 'Gaji harian', 'Hutang mingguan']], body: HN.map((h, i) => [h, m.hari[i] ? rp(m.hari[i]) : 'tidak masuk', num(m.hmd?.[i]) ? rp(m.hmd[i]) : '-']), columnStyles: kanan([1, 2]) });
+  doc.autoTable({ ...gayaTabel, startY: doc.lastAutoTable.finalY + 6, head: [['Rincian', 'Jumlah']], body: [['Hari masuk', m.masuk + ' hari'], ['Total gaji', rp(m.total)], ['Potongan hutang mingguan' + (num(m.hmx) ? ' (termasuk lain-lain ' + rp(m.hmx) + ')' : ''), '- ' + rp(m.hm)], ['Potongan hutang besar', '- ' + rp(m.hb)]],
+    foot: [['GAJI DITERIMA', rp(m.terima)]], columnStyles: kanan([1]) });
+  if (e.hutang?.length) doc.autoTable({ ...gayaTabel, startY: doc.lastAutoTable.finalY + 6, head: [['Hutang besar', 'Tanggal', 'Pinjam', 'Bayar']], body: e.hutang.map(d => [d.ket || '-', d.tgl || (num(d.wk) ? 'minggu ' + num(d.wk) : '-'), num(d.pinjam) ? rp(d.pinjam) : '-', num(d.bayar) ? rp(d.bayar) : '-']),
+    foot: [['Sisa hutang besar', '', '', rp(c.sisa)]], columnStyles: kanan([2, 3]) });
+  const y = Math.min(doc.lastAutoTable.finalY + 22, 270); doc.setFontSize(9.5); doc.text('Diterima oleh,', 28, y); doc.text('Pemilik,', 150, y); doc.line(18, y + 20, 72, y + 20); doc.line(138, y + 20, 192, y + 20); doc.text(e.nama, 45, y + 25, { align: 'center' });
+  tutupDok(doc, `slip-gaji-${slug(e.nama)}-minggu-${m.w}.pdf`); }); }
+
+function pdfRekapGaji(w) { return denganTunggu(async () => { const baris = Object.values(data).map(e => ({ e, m: hitung(e).wks.find(x => num(x.w) === num(w)), sisa: hitung(e).sisa })).filter(x => x.m).sort((a, b) => a.e.nama.localeCompare(b.e.nama));
+  if (!baris.length) throw new Error('Belum ada data minggu itu.'); const T = f => baris.reduce((a, x) => a + num(x.m[f]), 0), per = (baris.find(x => x.m.periode) || { m: {} }).m.periode || '';
+  const doc = await dokumen('Rekap Gaji Karyawan', `Minggu ${w}${per ? ' · ' + per : ''} · ${baris.length} karyawan`);
+  doc.autoTable({ ...gayaTabel, startY: 38, head: [['Karyawan', 'Masuk', 'Total gaji', 'Hutang mingguan', 'Hutang besar', 'Dibayar', 'Sisa hutang', 'Paraf']], body: baris.map(x => [x.e.nama, x.m.masuk + ' hr', rp(x.m.total), x.m.hm ? rp(x.m.hm) : '-', x.m.hb ? rp(x.m.hb) : '-', rp(x.m.terima), x.sisa > 0 ? rp(x.sisa) : '-', '']),
+    foot: [['TOTAL', '', rp(T('total')), rp(T('hm')), rp(T('hb')), rp(T('terima')), rp(baris.reduce((a, x) => a + Math.max(0, x.sisa), 0)), '']], columnStyles: { ...kanan([2, 3, 4, 5, 6]), 7: { cellWidth: 20 } }, styles: { ...gayaTabel.styles, fontSize: 8.5 } });
+  tutupDok(doc, `rekap-gaji-minggu-${w}.pdf`); }); }
+
+function pdfKeuangan(w) { return denganTunggu(async () => { const k = await muatKeuangan(), d = k.D[w]; if (!d) throw new Error('Minggu itu tidak ada di data keuangan.'); const t = d.tot;
+  const doc = await dokumen('Laporan Keuangan', `Minggu ${w} · ${k.PER[w] || ''} · ${k.HARI[w] || '?'} hari kerja`);
+  doc.autoTable({ ...gayaTabel, startY: 38, head: [['Ringkasan', 'Nilai']], body: [['Omzet', rp(t.omset)], ['Harga pokok (HPP)', rp(t.hpp)], ['Laba kotor', rp(t.lk)], ['Margin kotor', pc(t.lk / t.omset)], ['Biaya operasional', rp(t.ops)], ['Gaji (bruto)', rp(t.gaji)], ['Kuantitas', ribu(t.qty) + ' unit'], ['Laba bersih per unit', rp(t.bersih / (t.qty || 1))]],
+    foot: [['LABA BERSIH', rp(t.bersih) + '  (' + pc(t.bersih / t.omset) + ')']], columnStyles: kanan([1]) });
+  const lanjut = () => doc.lastAutoTable.finalY + 7;
+  if (d.days?.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Hari', 'Qty', 'Omzet', 'Laba kotor', 'Margin']], body: d.days.map(x => [judulKecil(x.hari), ribu(x.qty), rp(x.omset), rp(x.lk), pc(x.lk / x.omset)]), columnStyles: kanan([1, 2, 3, 4]) });
+  const P = Object.entries(d.pengantar || {}).sort((a, b) => (b[1].lk - b[1].ops) - (a[1].lk - a[1].ops)).map(([n, v]) => [judulKecil(n), ribu(v.qty), rp(v.lk), rp(v.ops), rp(v.lk - v.ops)]);
+  if (P.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Pengantar', 'Qty', 'Laba kotor', 'Biaya ops', 'Laba usaha']], body: P, columnStyles: kanan([1, 2, 3, 4]) });
+  const J = Object.entries(d.jenis || {}).map(([n, v]) => [n, ribu(v.qty), rp(v.omset), rp(v.omset - v.hpp), pc((v.omset - v.hpp) / (v.omset || 1))]);
+  if (J.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Jenis minyak', 'Qty', 'Omzet', 'Laba kotor', 'Margin']], body: J, columnStyles: kanan([1, 2, 3, 4]) });
+  if (d.biaya?.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Biaya', 'Hari', 'Pengantar', 'Jumlah']], body: d.biaya.map(x => [x.jenis, judulKecil(x.hari), x.orang, rp(x.nilai)]), foot: [['Total biaya harian', '', '', rp(d.biaya.reduce((a, x) => a + x.nilai, 0))]], columnStyles: kanan([3]) });
+  if (d.gaji?.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Karyawan', 'Gaji bruto', 'Hutang mingguan', 'Hutang besar', 'Diterima']], body: d.gaji.map(x => [judulKecil(x.nama), rp(x.total), rp(x.hm), rp(x.hb), rp(x.terima)]), columnStyles: kanan([1, 2, 3, 4]) });
+  tutupDok(doc, `laporan-keuangan-minggu-${w}.pdf`); }); }
+
+/* =====================================================================================================
    MULAI: ada token tersimpan? ambil data. Tidak ada atau sudah habis? tampilkan layar masuk.
    ===================================================================================================== */
 async function mulai() { const s = sesi.baca(); if (!s?.token) return layarMasuk();
   akar.innerHTML = '<main class="masuk"><div style="color:#cfe3de">Memuat…</div></main>';
   try { const r = await rpc('minyak_data', { p_token: s.token });
     if (!r.ok) { sesi.hapus(); return layarMasuk(r.pesan); }
-    if (r.peran === 'pemilik') { data = r.karyawan || {}; punyaPin = r.pin || {}; kotor.clear(); Object.values(data).forEach(hitung); if (kini !== '__ringkasan__' && !data[kini]) kini = '__ringkasan__'; layarPemilik(); status('Data dimuat ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), 'ok'); }
+    if (r.peran === 'pemilik') { data = r.karyawan || {}; punyaPin = r.pin || {}; kotor.clear(); Object.values(data).forEach(hitung); if (kini !== '__ringkasan__' && !data[kini]) kini = '__ringkasan__'; layarBeranda(); status('Data dimuat ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), 'ok'); }
     else layarKaryawan(r.data, r.diubah);
   } catch (e) { akar.innerHTML = `<main class="masuk"><div class="masuk-kartu"><h1>Tidak tersambung</h1><p>${esc(e.message)}</p><button class="pil emas" onclick="mulai()">Coba lagi</button></div></main>`; } }
 addEventListener('beforeunload', ev => { if (kotor.size) { ev.preventDefault(); ev.returnValue = ''; } });
