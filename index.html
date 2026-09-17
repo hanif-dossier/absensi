@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#0f3d3a">
 <title>Minyak Andre</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="ikon.svg?v=2" type="image/svg+xml">
-<link rel="apple-touch-icon" href="ikon-192.png?v=2">
+<link rel="icon" href="ikon.svg?v=3" type="image/svg+xml">
+<link rel="apple-touch-icon" href="ikon-any-512.png?v=3">
 <meta name="apple-mobile-web-app-title" content="Minyak Andre">
 <meta name="application-name" content="Minyak Andre">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -156,6 +156,15 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .pil.unduh{width:100%;padding:14px;font-size:16px;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--utama);color:#fff}
 .pesan-salah{background:var(--turun-lembut);color:var(--turun);border-radius:14px;padding:10px 14px;font-size:13.5px;margin-bottom:12px}
 
+/* ---------- Lembar tawaran pasang (muncul sendiri dari bawah) ---------- */
+.tawar{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:30;max-width:460px;margin:0 auto;background:var(--kartu);color:var(--tinta);border-radius:26px;padding:14px;
+  box-shadow:0 18px 50px rgba(0,0,0,.38);display:flex;gap:12px;align-items:center;transform:translateY(140%);transition:transform .45s cubic-bezier(.2,.9,.3,1.1)}
+.tawar.muncul{transform:none}
+.tawar img{width:54px;height:54px;border-radius:16px;flex:none}
+.tawar .isi{flex:1;min-width:0}.tawar .isi b{display:block;font-family:var(--serif);font-size:17px;font-weight:600}.tawar .isi span{font-size:12.5px;color:var(--redup);line-height:1.3;display:block}
+.tawar .aksi{display:flex;flex-direction:column;gap:6px;flex:none}
+@media (prefers-reduced-motion:reduce){.tawar{transition:none}}
+
 /* ---------- Dialog ---------- */
 .tirai{position:fixed;inset:0;background:rgba(5,20,18,.55);backdrop-filter:blur(3px);display:grid;place-items:end center;z-index:20;padding:16px}
 @media (min-width:640px){.tirai{place-items:center}}
@@ -255,6 +264,21 @@ let undangPasang = null;
 const sudahTerpasang = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); undangPasang = ev; siapkanPasang(); });
 addEventListener('appinstalled', () => { undangPasang = null; document.querySelectorAll('[data-pasang],#kotakPasang').forEach(x => x.hidden = true); });
+/* Tawaran pasang otomatis: muncul sendiri sekali saat halaman dibuka di browser (bukan di aplikasi terpasang).
+   Dialog Instal milik Chrome hanya boleh dibuka lewat ketukan, jadi ketukan pada tombol "Instal" inilah yang memanggilnya.
+   Kalau ditutup, tidak ditawarkan lagi selama 3 hari. */
+const LS_TAWAR = 'minyak-tawar-pasang';
+function tawarkanPasang() { if (sudahTerpasang() || document.querySelector('.tawar')) return;
+  try { if (Date.now() - (+localStorage.getItem(LS_TAWAR) || 0) < 3 * 864e5) return; } catch {}
+  const t = document.createElement('div'); t.className = 'tawar'; t.setAttribute('role', 'dialog'); t.setAttribute('aria-label', 'Pasang aplikasi');
+  t.innerHTML = `<img src="ikon-any-192.png?v=3" alt=""><div class="isi"><b>Pasang Minyak Andre</b><span>Jadi aplikasi di HP. Gratis, ringan, tanpa Play Store.</span></div>
+    <div class="aksi"><button class="pil emas kecil" id="tInstal">Instal</button><button class="pil halus kecil" id="tNanti">Nanti</button></div>`;
+  document.body.append(t); requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('muncul')));
+  const tutup = ingat => { if (ingat) try { localStorage.setItem(LS_TAWAR, Date.now()); } catch {} t.classList.remove('muncul'); setTimeout(() => t.remove(), 450); };
+  t.querySelector('#tNanti').onclick = () => tutup(true);
+  t.querySelector('#tInstal').onclick = async () => { tutup(false); await pasang(); }; }
+addEventListener('appinstalled', () => document.querySelector('.tawar')?.remove());
+
 function siapkanPasang() { const k = document.getElementById('kotakPasang');
   if (sudahTerpasang()) {   // sudah jadi aplikasi: tombol yang sama dipakai untuk membagikan link ke orang lain
     if (k) { k.hidden = false; const b = document.getElementById('bPasang'); b.lastChild.textContent = 'Bagikan link download'; b.onclick = bagikan;
@@ -639,7 +663,7 @@ addEventListener('beforeunload', ev => { if (kotor.size) { ev.preventDefault(); 
 addEventListener('keydown', ev => { if (ev.key !== 'Enter' || !ev.target.matches('#isi input')) return; ev.preventDefault();
   const semua = $$('#isi input').filter(x => x.offsetParent !== null), i = semua.indexOf(ev.target); (semua[i + 1] || ev.target).focus(); semua[i + 1]?.select?.(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-mulai();
+mulai().finally(() => setTimeout(tawarkanPasang, 900));
 </script>
 </body>
 </html>
