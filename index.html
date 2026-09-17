@@ -139,8 +139,9 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .medan span{display:block;font-size:12px;font-weight:700;color:var(--redup);margin-bottom:5px}
 .medan input{width:100%;background:var(--kartu2);border:1.5px solid var(--garis);border-radius:18px;padding:14px 16px;font-size:16px}
 .medan input.pin{letter-spacing:.5em;text-align:center;font-size:22px;font-weight:700}
-.pasang{display:flex;align-items:center;gap:12px;background:var(--emas-lembut);border-radius:20px;padding:12px 14px;margin-top:16px}
-.pasang .teks{flex:1;min-width:0;font-size:13px;line-height:1.35}.pasang .teks b{display:block;font-size:14px}
+.pemisah{display:flex;align-items:center;gap:10px;color:var(--redup);font-size:12px;margin:16px 0 12px}
+.pemisah::before,.pemisah::after{content:"";flex:1;height:1px;background:var(--garis)}
+.pil.unduh{width:100%;padding:14px;font-size:16px;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--utama);color:#fff}
 .pesan-salah{background:var(--turun-lembut);color:var(--turun);border-radius:14px;padding:10px 14px;font-size:13.5px;margin-bottom:12px}
 
 /* ---------- Dialog ---------- */
@@ -219,7 +220,9 @@ function layarMasuk(pesan) {
     <label class="medan"><span id="lblPin">${pemilik ? 'Sandi pemilik' : 'PIN 6 angka'}</span><input id="mPin" type="password" class="${pemilik ? '' : 'pin'}" ${pemilik ? '' : 'inputmode="numeric" maxlength="6"'} required></label>
     <button class="pil emas" style="width:100%;padding:14px;font-size:16px" id="mTombol">Masuk</button>
     <div class="catatan" style="text-align:center">Lupa PIN? Minta PIN baru ke pemilik.</div>
-    <div class="pasang" id="kotakPasang" hidden><div class="teks"><b>Pasang di HP</b>Jadi ikon aplikasi, buka tanpa mengetik alamat.</div><button type="button" class="pil" id="bPasang" data-pasang>Pasang</button></div></form></main>`;
+    <div id="kotakPasang" hidden><div class="pemisah"><span>atau</span></div>
+      <button type="button" class="pil unduh" id="bPasang" data-pasang><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>Download aplikasi</button>
+      <div class="catatan" style="text-align:center;margin-top:8px">Pasang di HP supaya jadi ikon aplikasi. Gratis, kecil, tanpa Play Store.</div></div></form></main>`;
   siapkanPasang();
   const fk = $('#mKode'), fp = $('#mPin');
   fk.oninput = () => { const p = fk.value.trim().toLowerCase() === 'pemilik'; $('#lblPin').textContent = p ? 'Sandi pemilik' : 'PIN 6 angka';
@@ -244,7 +247,7 @@ function siapkanPasang() { if (sudahTerpasang()) return; const k = document.getE
   document.querySelectorAll('[data-pasang]').forEach(b => { b.hidden = false; b.onclick = pasang; }); }
 async function pasang() { if (undangPasang) { undangPasang.prompt(); const h = await undangPasang.userChoice; if (h.outcome === 'accepted') undangPasang = null; return; }
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  dialog(`<h3>Pasang di HP</h3><p class="catatan" style="margin:0 0 6px">${ios ? 'Di iPhone, buka halaman ini lewat Safari.' : 'Buka halaman ini lewat Chrome.'}</p>
+  dialog(`<h3>Download aplikasi</h3><p class="catatan" style="margin:0 0 6px">${ios ? 'Di iPhone, buka halaman ini lewat Safari.' : 'Buka halaman ini lewat Chrome.'}</p>
     <div class="baris-data"><div class="kiri">1. Tekan ${ios ? 'tombol Bagikan (kotak dengan panah ke atas)' : 'titik tiga di kanan atas'}</div></div>
     <div class="baris-data"><div class="kiri">2. Pilih <b>${ios ? 'Tambah ke Layar Utama' : 'Instal aplikasi'}</b>${ios ? '' : ' atau <b>Tambahkan ke layar utama</b>'}</div></div>
     <div class="baris-data"><div class="kiri">3. Ikon tetes minyak emas bernama <b>Absensi</b> muncul di layar HP</div></div>
@@ -274,7 +277,7 @@ function layarKaryawan(e, diubah) {
   const kapan = diubah ? new Date(diubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   akar.innerHTML = `<header class="kepala"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · Absensi & Gaji</div><h1>${esc(e.nama)}</h1>
       <p>Minggu ${esc(k.w)}${k.periode ? ' · ' + esc(k.periode) : ''}</p></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Pasang di HP</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
   <main class="bungkus">
     <section class="besar angkat"><div class="label">Gaji diterima minggu ${esc(k.w)}</div><div class="nilai">${rp(k.terima)}</div>
       <div class="keping-baris"><span class="keping"><b>${k.masuk}</b> hari masuk</span><span class="keping">Total gaji <b>${rp(k.total)}</b></span>
@@ -319,7 +322,7 @@ const semuaMinggu = () => [...new Set(Object.values(data).flatMap(e => (e.minggu
 function layarPemilik() {
   akar.innerHTML = `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Usaha Minyak · Panel Pemilik</div><h1>Absensi & Gaji</h1>
       <p>Isi gaji harian, potongan, dan hutang. Karyawan melihat datanya sendiri lewat PIN.</p></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Pasang di HP</button><button class="pil kaca kecil" id="bSandi">Ganti sandi</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bSandi">Ganti sandi</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
   <main class="bungkus"><nav class="tab-baris" id="tab" aria-label="Karyawan"></nav><div id="isi"></div>
     <div class="bilah"><span class="st" id="st">—</span><span style="display:flex;gap:6px;flex:none"><button class="pil halus kecil" id="bMuat">Muat ulang</button><button class="pil emas" id="bSimpan">Simpan</button></span></div></main>`;
   $('#bKeluar').onclick = () => { if (kotor.size && !confirm('Ada perubahan belum disimpan. Tetap keluar?')) return; keluar(); };
