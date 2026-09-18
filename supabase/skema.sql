@@ -19,6 +19,10 @@ create table if not exists public.minyak_pemilik (
   gagal int not null default 0,
   kunci_sampai timestamptz
 );
+-- 18 Sep 2026: baris kedua untuk akun BOS (kode 'bos', peran 'bos'): hanya membaca gaji, keuangan, laporan, harga.
+alter table public.minyak_pemilik drop constraint if exists minyak_pemilik_id_check;
+alter table public.minyak_pemilik drop constraint if exists minyak_pemilik_id_bos;
+alter table public.minyak_pemilik add constraint minyak_pemilik_id_bos check (id in (1, 2));   -- 1 = pemilik, 2 = bos
 create table if not exists public.minyak_sesi (
   token_hash text primary key,                 -- sha256(token); token asli hanya ada di HP pemakai
   peran text not null check (peran in ('pemilik','karyawan')),
@@ -29,6 +33,10 @@ create table if not exists public.minyak_sesi (
 alter table public.minyak_karyawan enable row level security;
 alter table public.minyak_pemilik  enable row level security;
 alter table public.minyak_sesi     enable row level security;
+-- 18 Sep 2026: peran 'bos' ikut diizinkan di sesi.
+alter table public.minyak_sesi drop constraint if exists minyak_sesi_peran_check;
+alter table public.minyak_sesi drop constraint if exists minyak_sesi_peran_bos;
+alter table public.minyak_sesi add constraint minyak_sesi_peran_bos check (peran in ('pemilik','karyawan','bos'));
 
 -- Pembantu: sha256 heksadesimal
 create or replace function public.minyak__h(t text) returns text language sql immutable
@@ -43,10 +51,11 @@ set search_path = public, extensions as $f$
 -- Sengaja mengembalikan {ok:false} (bukan raise) supaya hitungan gagal tidak ikut di-rollback.
 create or replace function public.minyak_masuk(p_kode text, p_pin text) returns jsonb language plpgsql security definer
 set search_path = public, extensions as $f$
-declare v_kode text := lower(trim(coalesce(p_kode,''))); v_hash text; v_kunci timestamptz; v_nama text; v_token text; v_peran text; v_aktif boolean := true;
+declare v_kode text := lower(trim(coalesce(p_kode,''))); v_hash text; v_kunci timestamptz; v_nama text; v_token text; v_peran text; v_aktif boolean := true; v_id int;
 begin
-  if v_kode = 'pemilik' then
-    select sandi_hash, kunci_sampai into v_hash, v_kunci from minyak_pemilik where id = 1; v_peran := 'pemilik'; v_nama := 'Pemilik';
+  if v_kode in ('pemilik', 'bos') then
+    v_id := case when v_kode = 'pemilik' then 1 else 2 end;
+    select sandi_hash, kunci_sampai into v_hash, v_kunci from minyak_pemilik where id = v_id; v_peran := v_kode; v_nama := case when v_kode = 'pemilik' then 'Pemilik' else 'Bos' end;
   else
     select pin_hash, kunci_sampai, data->>'nama', coalesce((data->>'aktif')::boolean, true) into v_hash, v_kunci, v_nama, v_aktif from minyak_karyawan where kode = v_kode; v_peran := 'karyawan';
   end if;
@@ -54,19 +63,19 @@ begin
     return jsonb_build_object('ok', false, 'pesan', 'Terlalu banyak percobaan. Coba lagi pukul ' || to_char(v_kunci at time zone 'Asia/Jakarta', 'HH24:MI') || ' WIB.');
   end if;
   if v_hash is null or p_pin is null or v_hash <> extensions.crypt(p_pin, v_hash) or (v_peran = 'karyawan' and not coalesce(v_aktif, true)) then
-    if v_peran = 'pemilik' then
-      update minyak_pemilik set kunci_sampai = case when gagal + 1 >= 5 then now() + interval '15 minutes' else kunci_sampai end, gagal = case when gagal + 1 >= 5 then 0 else gagal + 1 end where id = 1;
+    if v_id is not null then
+      update minyak_pemilik set kunci_sampai = case when gagal + 1 >= 5 then now() + interval '15 minutes' else kunci_sampai end, gagal = case when gagal + 1 >= 5 then 0 else gagal + 1 end where id = v_id;
     else
       update minyak_karyawan set kunci_sampai = case when gagal + 1 >= 5 then now() + interval '15 minutes' else kunci_sampai end, gagal = case when gagal + 1 >= 5 then 0 else gagal + 1 end where kode = v_kode;
     end if;
     return jsonb_build_object('ok', false, 'pesan', 'Kode atau PIN salah.');
   end if;
-  if v_peran = 'pemilik' then update minyak_pemilik set gagal = 0, kunci_sampai = null where id = 1;
+  if v_id is not null then update minyak_pemilik set gagal = 0, kunci_sampai = null where id = v_id;
   else update minyak_karyawan set gagal = 0, kunci_sampai = null where kode = v_kode; end if;
   v_token := encode(extensions.gen_random_bytes(24), 'hex');
   delete from minyak_sesi where kedaluwarsa < now();
   insert into minyak_sesi(token_hash, peran, kode, kedaluwarsa)
-    values (minyak__h(v_token), v_peran, case when v_peran = 'karyawan' then v_kode end, now() + case when v_peran = 'pemilik' then interval '30 days' else interval '90 days' end);
+    values (minyak__h(v_token), v_peran, case when v_peran = 'karyawan' then v_kode end, now() + case when v_peran = 'karyawan' then interval '90 days' else interval '30 days' end);
   return jsonb_build_object('ok', true, 'token', v_token, 'peran', v_peran, 'kode', case when v_peran = 'karyawan' then v_kode end, 'nama', v_nama);
 end $f$;
 
@@ -76,8 +85,8 @@ set search_path = public, extensions as $f$
 declare s minyak_sesi := minyak__sesi(p_token);
 begin
   if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
-  if s.peran = 'pemilik' then
-    return jsonb_build_object('ok', true, 'peran', 'pemilik',
+  if s.peran in ('pemilik', 'bos') then   -- bos: data yang sama, tetapi fungsi tulis menolaknya
+    return jsonb_build_object('ok', true, 'peran', s.peran,
       'karyawan', coalesce((select jsonb_object_agg(kode, data) from minyak_karyawan), '{}'::jsonb),
       'pin', coalesce((select jsonb_object_agg(kode, pin_hash is not null) from minyak_karyawan), '{}'::jsonb));
   end if;
@@ -117,15 +126,16 @@ end $f$;
 -- GANTI sandi/PIN sendiri. Pemilik: sandi min. 8 karakter. Karyawan: PIN 6 angka.
 create or replace function public.minyak_ganti_sandi(p_token text, p_lama text, p_baru text) returns jsonb language plpgsql security definer
 set search_path = public, extensions as $f$
-declare s minyak_sesi := minyak__sesi(p_token); v_hash text;
+declare s minyak_sesi := minyak__sesi(p_token); v_hash text; v_id int;
 begin
   if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
-  if s.peran = 'pemilik' then
-    select sandi_hash into v_hash from minyak_pemilik where id = 1;
+  if s.peran in ('pemilik', 'bos') then
+    v_id := case when s.peran = 'pemilik' then 1 else 2 end;
+    select sandi_hash into v_hash from minyak_pemilik where id = v_id;
     if v_hash <> extensions.crypt(coalesce(p_lama,''), v_hash) then return jsonb_build_object('ok', false, 'pesan', 'Sandi lama salah.'); end if;
     if length(coalesce(p_baru,'')) < 8 then return jsonb_build_object('ok', false, 'pesan', 'Sandi baru minimal 8 karakter.'); end if;
-    update minyak_pemilik set sandi_hash = extensions.crypt(p_baru, extensions.gen_salt('bf', 10)) where id = 1;
-    delete from minyak_sesi where peran = 'pemilik' and token_hash <> s.token_hash;
+    update minyak_pemilik set sandi_hash = extensions.crypt(p_baru, extensions.gen_salt('bf', 10)) where id = v_id;
+    delete from minyak_sesi where peran = s.peran and token_hash <> s.token_hash;
   else
     select pin_hash into v_hash from minyak_karyawan where kode = s.kode;
     if v_hash <> extensions.crypt(coalesce(p_lama,''), v_hash) then return jsonb_build_object('ok', false, 'pesan', 'PIN lama salah.'); end if;
@@ -162,7 +172,7 @@ set search_path = public, extensions as $f$
 declare s minyak_sesi := minyak__sesi(p_token);
 begin
   if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
-  if s.peran <> 'pemilik' then return jsonb_build_object('ok', false, 'pesan', 'Hanya pemilik.'); end if;
+  if s.peran not in ('pemilik', 'bos') then return jsonb_build_object('ok', false, 'pesan', 'Hanya pemilik.'); end if;   -- bos boleh membaca keuangan
   return jsonb_build_object('ok', true, 'nilai', (select nilai from minyak_nilai where kunci = p_kunci),
     'diubah', (select diubah from minyak_nilai where kunci = p_kunci));
 end $f$;
