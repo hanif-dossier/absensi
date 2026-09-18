@@ -50,6 +50,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .pil:hover{filter:brightness(1.08)}.pil:active{transform:scale(.97)}
 .pil.emas{background:var(--emas);color:#2a1e02}
 .pil.halus{background:var(--kartu2);color:var(--tinta);box-shadow:inset 0 0 0 1px var(--garis)}
+.kepala .pil{white-space:nowrap}
 .pil.kaca{background:rgba(255,255,255,.14);color:#fff;backdrop-filter:blur(6px)}
 .pil.bahaya{background:var(--turun-lembut);color:var(--turun)}
 .pil.kecil{padding:7px 13px;font-size:13px}
@@ -164,6 +165,26 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .tawar .isi{flex:1;min-width:0}.tawar .isi b{display:block;font-family:var(--serif);font-size:17px;font-weight:600}.tawar .isi span{font-size:12.5px;color:var(--redup);line-height:1.3;display:block}
 .tawar .aksi{display:flex;flex-direction:column;gap:6px;flex:none}
 @media (prefers-reduced-motion:reduce){.tawar{transition:none}}
+
+/* ---------- Harga toko (pemilik mengisi, karyawan membaca) ---------- */
+.kepala .tab-baris{margin:16px -16px 0;padding-bottom:0}
+.kepala .tab{background:rgba(255,255,255,.14);color:#fff;box-shadow:none}
+.kepala .tab.aktif{background:var(--emas);color:#2a1e02}
+.daftar-toko{display:grid;gap:10px;margin-top:12px}
+@media (min-width:640px){.daftar-toko{grid-template-columns:1fr 1fr}}
+.toko{background:var(--kartu2);border-radius:var(--r-kecil);padding:12px 14px;min-width:0}
+.toko.mati{opacity:.55}
+.toko-nama{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--serif);font-size:17px;font-weight:600;line-height:1.2}
+.toko-nama .keping{font-family:var(--sans)}
+.toko-nama .pil{padding:3px 11px;font-size:15px;line-height:1.2;flex:none}
+.toko-harga{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.hp{display:block;min-width:0}
+.hp .l{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--redup);font-weight:700}
+.hp .l small{letter-spacing:0;text-transform:none;font-weight:500}
+.hp b{display:block;font-family:var(--serif);font-size:20px;font-weight:600;margin-top:2px}
+.hp small{display:block;color:var(--redup);font-size:11.5px;margin-top:2px}
+.hp .isian{margin-top:3px;padding:8px 10px}
+.isian.ubah{border-color:var(--emas);background:var(--emas-lembut);font-weight:700}
 
 /* ---------- Dialog ---------- */
 .tirai{position:fixed;inset:0;background:rgba(5,20,18,.55);backdrop-filter:blur(3px);display:grid;place-items:end center;z-index:20;padding:16px}
@@ -314,6 +335,7 @@ function dialogGanti(peran) { const p = peran === 'pemilik';
 /* =====================================================================================================
    TAMPILAN KARYAWAN: hanya membaca. Satu layar panjang yang enak digulir di HP.
    ===================================================================================================== */
+const LS_PANEL = 'minyak-panel'; let panelK = (() => { try { return localStorage.getItem(LS_PANEL) === 'harga' ? 'harga' : 'gaji'; } catch { return 'gaji'; } })();
 function layarKaryawan(e, diubah) {
   const c = hitung(e); const wks = c.wks.filter(w => num(w.w) > 0).sort((a, b) => num(a.w) - num(b.w));
   const k = wks[wks.length - 1] || { w: '—', periode: '', hari: [0, 0, 0, 0, 0, 0, 0], total: 0, hm: 0, hb: 0, terima: 0, masuk: 0, hmd: [] };
@@ -322,8 +344,9 @@ function layarKaryawan(e, diubah) {
   const kapan = diubah ? new Date(diubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   akar.innerHTML = `<header class="kepala"><div class="bungkus"><div class="baris"><div><div class="label">Minyak Andre · Absensi & Gaji</div><h1>${esc(e.nama)}</h1>
       <p>Minggu ${esc(k.w)}${k.periode ? ' · ' + esc(k.periode) : ''}</p></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div></div></header>
-  <main class="bungkus">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="pil emas kecil" data-pasang hidden>Download</button><button class="pil kaca kecil" id="bKeluar">Keluar</button></div></div>
+    <nav class="tab-baris" aria-label="Panel"><button class="tab ${panelK === 'gaji' ? 'aktif' : ''}" data-panel="gaji">Gaji</button><button class="tab ${panelK === 'harga' ? 'aktif' : ''}" data-panel="harga">Harga toko</button></nav></div></header>
+  <main class="bungkus"><div id="panelHarga" ${panelK === 'harga' ? '' : 'hidden'}></div><div id="panelGaji" ${panelK === 'gaji' ? '' : 'hidden'}>
     <section class="besar angkat"><div class="label">Gaji diterima minggu ${esc(k.w)}</div><div class="nilai">${rp(k.terima)}</div>
       <div class="keping-baris"><span class="keping"><b>${k.masuk}</b> hari masuk</span><span class="keping">Total gaji <b>${rp(k.total)}</b></span>
       ${num(k.hm) + num(k.hb) ? `<span class="keping">Potongan <b>${rp(num(k.hm) + num(k.hb))}</b></span>` : ''}</div>
@@ -351,8 +374,12 @@ function layarKaryawan(e, diubah) {
 
     <div class="catatan" style="text-align:center;margin-top:18px">Data diisi oleh pemilik${kapan ? ' · diperbarui ' + esc(kapan) : ''}.<br>
       <button class="pil halus kecil" id="bPin" style="margin-top:10px">Ganti PIN</button> <button class="pil halus kecil" id="bMuat" style="margin-top:10px">Muat ulang</button> <button class="pil kecil" id="bPasangBawah" style="margin-top:10px" data-pasang hidden>Pasang di HP</button></div>
-  </main>`;
+  </div></main>`;
   siapkanPasang();
+  // Dua panel: Gaji (isi di atas) dan Harga toko (dimuat saat pertama dibuka). Panel terakhir diingat di HP.
+  const bukaPanel = p => { panelK = p; try { localStorage.setItem(LS_PANEL, p); } catch {} $$('[data-panel]').forEach(x => x.classList.toggle('aktif', x.dataset.panel === p));
+    $('#panelGaji').hidden = p !== 'gaji'; const ph = $('#panelHarga'); ph.hidden = p !== 'harga'; if (p === 'harga' && !ph.dataset.siap) { ph.dataset.siap = 1; panelHargaKaryawan(ph); } };
+  $$('[data-panel]').forEach(b => b.onclick = () => { bukaPanel(b.dataset.panel); scrollTo({ top: 0 }); }); if (panelK === 'harga') bukaPanel('harga');
   $('#bKeluar').onclick = keluar; $('#bPin').onclick = () => dialogGanti('karyawan'); $('#bMuat').onclick = mulai;
   const bs = $('#bSlip'); if (bs) bs.onclick = () => pdfSlip(e, k.w); $$('[data-slipw]').forEach(b => b.onclick = () => pdfSlip(e, b.dataset.slipw));
 }
@@ -514,6 +541,7 @@ const IKON = {
   pdf: '<path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5"/>',
   bagi: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.9l7.6-3.8M8.2 13.1l7.6 3.8"/>',
   grafik: '<circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7 5"/>',
+  toko: '<path d="M3.5 9.5l1.8-5h13.4l1.8 5"/><path d="M3.5 9.5h17M5.5 9.5V20h13V9.5M10 20v-5h4v5"/>',
 };
 const ikon = k => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IKON[k]}</svg>`;
 
@@ -536,14 +564,15 @@ async function layarBeranda() {
     <section class="menu">
       <button class="ubin" data-ke="gaji"><span class="ik">${ikon('gaji')}</span><b>Absensi & Gaji</b><small>Isi gaji harian, potongan, hutang, dan PIN karyawan</small></button>
       <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Omzet, laba, pengantar, jenis minyak, biaya per minggu</small></button>
-      <button class="ubin" data-ke="laporan"><span class="ik">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan keuangan</small></button>
+      <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>Harga curah & dus tiap toko; karyawan ikut melihatnya</small></button>
+      <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan keuangan</small></button>
       <a class="ubin" id="ubinHarian" target="_blank" rel="noopener" href="https://doc.farm/laporan-harian-minyak-minggu-${w || ''}"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''} (Docfarm)</small></a>
       <a class="ubin" target="_blank" rel="noopener" href="https://doc.farm/dashboard-keuangan-minyak"><span class="ik">${ikon('grafik')}</span><b>Dashboard bergrafik</b><small>Versi lengkap dengan grafik tren (Docfarm)</small></a>
       <button class="ubin" id="ubinBagi"><span class="ik emas">${ikon('bagi')}</span><b>Bagikan ke karyawan</b><small>Kirim link aplikasi supaya mereka bisa memasang</small></button>
     </section>
     <div class="catatan" style="text-align:center;margin-top:18px">Halaman ini hanya untuk pemilik. Karyawan yang masuk hanya melihat gajinya sendiri.</div></main>`;
   $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); $('#ubinBagi').onclick = bagikan; siapkanPasang();
-  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan })[b.dataset.ke]());
+  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: layarHarga })[b.dataset.ke]());
   try { const k = await muatKeuangan(), t = k.D[k.CURW].tot; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih M${k.CURW} <b>${rp(t.bersih)}</b>`;
     const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) { u.href = 'https://doc.farm/laporan-harian-minyak-minggu-' + mh; $('small', u).textContent = `Rincian penjualan per hari minggu ${mh} (Docfarm)`; }
   } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
@@ -599,6 +628,110 @@ function layarLaporan() {
   $('#bBeranda').onclick = layarBeranda; gambarIsi();
 }
 
+/* =====================================================================================================
+   HARGA TOKO: harga jual minyak curah (per kendi) dan dus per toko. Satu JSON di database (kunci 'harga'):
+     { toko: [ { id, nama, aktif, curah: [{tgl, harga}, ...], dus: [{tgl, harga}, ...] } ] }
+   Riwayat hanya bertambah saat harga BERUBAH, jadi "harga sama = tidak perlu diisi" berlaku dengan sendirinya:
+   harga yang berlaku = catatan bertanggal paling akhir. Pemilik menulis (minyak_harga_tulis), karyawan membaca
+   (minyak_harga_baca). Kotak yang tidak disentuh pemilik tidak pernah ikut disimpan.
+   ===================================================================================================== */
+let harga = null, hargaDiubah = null, hargaKotor = false, cariToko = '';
+const PRODUK = [['curah', 'Curah', 'per kendi'], ['dus', 'Dus', 'per dus']];
+const angkaRp = v => Math.round(parseFloat(String(v ?? '').replace(/[^0-9]/g, '')) || 0);   // "295.000" -> 295000
+const hariIni = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const tglPendek = t => t ? new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '';
+const tglPanjang = t => t ? new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+const riwayat = (t, p) => [...(t[p] || [])].sort((a, b) => a.tgl < b.tgl ? -1 : a.tgl > b.tgl ? 1 : 0);   // urut tanggal naik
+const hargaKini = (t, p) => { const r = riwayat(t, p); return r[r.length - 1] || null; };
+const hargaSebelum = (t, p) => { const r = riwayat(t, p); return r[r.length - 2] || null; };
+const baruSaja = tgl => !!tgl && (Date.now() - new Date(tgl + 'T00:00:00')) < 3 * 864e5;   // berubah dalam 3 hari terakhir
+const punyaHarga = t => PRODUK.some(([p]) => hargaKini(t, p));
+const tokoUrut = () => [...harga.toko].sort((a, b) => (b.aktif !== false) - (a.aktif !== false) || punyaHarga(b) - punyaHarga(a) || a.nama.localeCompare(b.nama));   // aktif dulu, yang sudah berharga dulu, lalu abjad
+const cocok = t => !cariToko || t.nama.toLowerCase().includes(cariToko.toLowerCase());
+const panah = (k, s) => !s || k.harga === s.harga ? '' : k.harga > s.harga ? '▲ ' : '▼ ';
+
+async function muatHarga(paksa) { if (harga && !paksa) return harga;
+  const r = await rpc('minyak_harga_baca', { p_token: sesi.baca().token }); if (!r.ok) throw new Error(r.pesan);
+  harga = r.nilai || {}; harga.toko = Array.isArray(harga.toko) ? harga.toko : []; hargaDiubah = r.diubah; return harga; }
+
+/* ----- Sisi karyawan: hanya membaca ----- */
+function kartuHargaBaca(t) {
+  const baru = PRODUK.some(([p]) => hargaSebelum(t, p) && baruSaja(hargaKini(t, p)?.tgl));   // "Baru" hanya kalau memang BERUBAH dari harga sebelumnya
+  return `<div class="toko"><div class="toko-nama"><span>${esc(t.nama)}</span>${baru ? '<span class="keping hijau" style="font-size:11px;padding:2px 9px">Baru</span>' : ''}</div>
+    <div class="toko-harga">${PRODUK.map(([p, nm, sat]) => { const k = hargaKini(t, p), s = hargaSebelum(t, p);
+      return `<div class="hp"><span class="l">${nm} <small>${sat}</small></span><b>${k ? rp(k.harga) : '—'}</b><small>${k ? panah(k, s) + (s ? 'dari ' + rp(s.harga) + ' · ' : '') + 'sejak ' + tglPendek(k.tgl) : 'belum ada harga'}</small></div>`; }).join('')}</div></div>`; }
+function panelHargaKaryawan(el) {
+  el.innerHTML = '<section class="kartu angkat">Memuat harga…</section>';
+  muatHarga().then(() => {
+    const daftar = tokoUrut().filter(t => t.aktif !== false), berubah = daftar.filter(t => PRODUK.some(([p]) => hargaSebelum(t, p) && baruSaja(hargaKini(t, p)?.tgl))).length;
+    const kapan = hargaDiubah ? new Date(hargaDiubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    el.innerHTML = `<section class="kartu angkat"><h2>Harga per toko<span class="keping">${daftar.length} toko</span></h2>
+      <div class="keping-baris" style="margin:0 0 12px">${berubah ? `<span class="keping hijau">${berubah} toko harga baru</span>` : '<span class="keping">Tidak ada perubahan 3 hari terakhir</span>'}${kapan ? `<span class="keping">Diperbarui ${esc(kapan)}</span>` : ''}</div>
+      <input class="isian" id="cariToko" placeholder="Cari toko…" value="${esc(cariToko)}" autocomplete="off" aria-label="Cari toko">
+      <div class="daftar-toko" id="daftarToko"></div>
+      <div class="catatan">Curah = harga per kendi, Dus = harga per dus. "Sejak" adalah tanggal harga itu mulai berlaku. Harga diisi oleh pemilik; tanda ▲▼ berarti naik/turun dari harga sebelumnya.</div></section>`;
+    const gambarDaftar = () => { $('#daftarToko', el).innerHTML = daftar.filter(cocok).map(kartuHargaBaca).join('') || '<div class="catatan" style="margin:0">Tidak ada toko yang cocok.</div>'; };
+    gambarDaftar(); $('#cariToko', el).oninput = ev => { cariToko = ev.target.value; gambarDaftar(); };
+  }).catch(e => { el.innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; }); }
+
+/* ----- Sisi pemilik: mengisi ----- */
+async function layarHarga() {
+  akar.innerHTML = kepalaPemilik('Harga Toko', 'Harga curah (per kendi) dan dus per toko. Ubah hanya kotak yang berubah, lalu Simpan.', true) +
+    `<main class="bungkus"><div id="isiHarga"><section class="kartu">Memuat…</section></div>
+     <div class="bilah"><span class="st" id="st">—</span><span style="display:flex;gap:6px;flex:none;align-items:center"><input type="date" id="tglHarga" class="isian" style="width:auto;padding:6px 10px;font-size:13px" title="Tanggal harga mulai berlaku" aria-label="Berlaku sejak"><button class="pil emas" id="bSimpanHarga">Simpan</button></span></div></main>`;
+  $('#bBeranda').onclick = () => { if (hargaKotor && !confirm('Ada harga belum disimpan. Tetap kembali ke beranda?')) return; hargaKotor = false; harga = null; layarBeranda(); };
+  $('#tglHarga').value = hariIni(); $('#tglHarga').max = hariIni(); $('#bSimpanHarga').onclick = simpanHarga; cariToko = '';
+  try { await muatHarga(true); gambarHarga(); status(harga.toko.length + ' toko dimuat', 'ok'); }
+  catch (e) { $('#isiHarga').innerHTML = `<section class="kartu"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
+function gambarHarga() {
+  const semua = tokoUrut(), aktif = semua.filter(t => t.aktif !== false), h = hariIni();
+  const hariIniN = aktif.filter(t => PRODUK.some(([p]) => hargaKini(t, p)?.tgl === h)).length;
+  $('#isiHarga').innerHTML = `<section class="kartu"><h2>Daftar toko<button class="pil kecil" id="bTokoBaru">+ Toko</button></h2>
+    <div class="keping-baris" style="margin:0 0 12px"><span class="keping"><b>${aktif.length}</b> toko aktif</span><span class="keping ${hariIniN ? 'hijau' : ''}"><b>${hariIniN}</b> harga diubah hari ini</span></div>
+    <input class="isian" id="cariToko" placeholder="Cari toko…" value="${esc(cariToko)}" autocomplete="off" aria-label="Cari toko">
+    <div class="daftar-toko" id="daftarToko"></div>
+    <div class="catatan">Ketik harga baru hanya di toko yang berubah; kotak yang tidak disentuh tidak ikut disimpan. Harga yang sama dengan sebelumnya tidak dicatat ulang. Tombol ⋯ untuk ganti nama, nonaktifkan, atau melihat riwayat.</div></section>`;
+  gambarDaftarToko(); $('#cariToko').oninput = ev => { cariToko = ev.target.value; gambarDaftarToko(); }; $('#bTokoBaru').onclick = dialogTokoBaru; }
+function gambarDaftarToko() {
+  const el = $('#daftarToko'); if (!el) return;
+  el.innerHTML = tokoUrut().filter(cocok).map(t => `<div class="toko ${t.aktif === false ? 'mati' : ''}"><div class="toko-nama"><span>${esc(t.nama)}${t.aktif === false ? ' <span class="keping" style="font-size:11px;padding:2px 8px">nonaktif</span>' : ''}</span><button class="pil halus kecil" data-atur="${esc(t.id)}" aria-label="Atur ${esc(t.nama)}">⋯</button></div>
+    <div class="toko-harga">${PRODUK.map(([p, nm, sat]) => { const k = hargaKini(t, p), u = t._ubah?.[p];
+      return `<label class="hp"><span class="l">${nm} <small>${sat}</small></span><input class="isian angka ${u !== undefined ? 'ubah' : ''}" inputmode="numeric" data-id="${esc(t.id)}" data-p="${p}" value="${u !== undefined ? ribu(u) : k ? ribu(k.harga) : ''}" placeholder="—"><small>${k ? 'sejak ' + tglPendek(k.tgl) : 'belum ada harga'}</small></label>`; }).join('')}</div></div>`).join('') || '<div class="catatan" style="margin:0">Tidak ada toko yang cocok.</div>';
+  $$('input[data-p]', el).forEach(i => { i.onfocus = () => i.select();
+    i.oninput = () => { const t = harga.toko.find(x => x.id === i.dataset.id), p = i.dataset.p, v = angkaRp(i.value), k = hargaKini(t, p);
+      t._ubah ??= {}; if (!v || (k && v === k.harga)) delete t._ubah[p]; else t._ubah[p] = v;
+      i.classList.toggle('ubah', t._ubah[p] !== undefined); hargaKotor = harga.toko.some(x => x._ubah && Object.keys(x._ubah).length) || hargaKotor;
+      status(t._ubah[p] !== undefined ? 'Ada harga belum disimpan' : hargaKotor ? 'Ada perubahan belum disimpan' : 'Tidak ada perubahan', hargaKotor ? 'ubah' : ''); };
+    i.onblur = () => { if (i.value.trim()) i.value = ribu(angkaRp(i.value)); }; });
+  $$('[data-atur]', el).forEach(b => b.onclick = () => dialogToko(b.dataset.atur)); }
+const hargaBersih = () => ({ ...harga, toko: harga.toko.map(({ _ubah, ...t }) => t) });
+async function simpanHarga() {
+  if (!hargaKotor) { status('Tidak ada perubahan', 'ok'); return; }
+  const tgl = $('#tglHarga').value || hariIni(); let n = 0;
+  harga.toko.forEach(t => { for (const [p, v] of Object.entries(t._ubah || {})) { const r = riwayat(t, p).filter(x => x.tgl !== tgl), akhir = r[r.length - 1];   // tanggal sama = koreksi, timpa
+      t[p] = akhir && akhir.harga === v ? r : [...r, { tgl, harga: v }]; n++; } delete t._ubah; });
+  status('Menyimpan…');
+  try { const r = await rpc('minyak_harga_tulis', { p_token: sesi.baca().token, p_nilai: hargaBersih() }); if (!r.ok) throw new Error(r.pesan);
+    hargaDiubah = r.diubah; hargaKotor = false; gambarHarga(); status(n ? `Tersimpan · ${n} harga berlaku sejak ${tglPendek(tgl)}` : 'Tersimpan', 'ok'); }
+  catch (e) { status('Gagal menyimpan: ' + e.message, 'salah'); } }
+function dialogTokoBaru() {
+  dialog(`<h3>Toko baru</h3><label class="medan"><span>Nama toko</span><input id="tNama" placeholder="mis. TK Sinar Jaya"></label>
+    ${PRODUK.map(([p, nm, sat]) => `<label class="medan"><span>Harga ${nm.toLowerCase()} (${sat}, boleh kosong)</span><input id="t_${p}" inputmode="numeric" placeholder="mis. 290.000"></label>`).join('')}<div id="tPesan"></div>
+    <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil" id="tOk">Tambah</button></div>`, (d, tutup) => { $('#tNama', d).focus();
+    $('#tOk', d).onclick = () => { const n = $('#tNama', d).value.trim().replace(/\s+/g, ' '), id = slug(n); if (!id) return;
+      if (harga.toko.some(x => x.id === id)) { $('#tPesan', d).innerHTML = '<div class="pesan-salah">Toko itu sudah ada di daftar.</div>'; return; }
+      const baru = { id, nama: n, aktif: true, curah: [], dus: [] }, tgl = $('#tglHarga')?.value || hariIni();
+      PRODUK.forEach(([p]) => { const v = angkaRp($(`#t_${p}`, d).value); if (v) baru[p] = [{ tgl, harga: v }]; });
+      harga.toko.push(baru); hargaKotor = true; cariToko = ''; tutup(); gambarHarga(); status('Toko baru belum disimpan', 'ubah'); }; }); }
+function dialogToko(id) { const t = harga.toko.find(x => x.id === id); if (!t) return;
+  const riw = PRODUK.map(([p, nm]) => { const r = riwayat(t, p).reverse(); return r.length ? `<div class="sub-judul">Riwayat ${nm.toLowerCase()}</div>` + r.map((x, i) => `<div class="baris-data"><div class="kiri">${esc(tglPanjang(x.tgl))}</div><div class="kanan">${rp(x.harga)}${r[i + 1] ? `<small style="display:block;font-weight:500;color:var(--redup)">${panah(x, r[i + 1])}dari ${rp(r[i + 1].harga)}</small>` : ''}</div></div>`).join('') : ''; }).join('');
+  dialog(`<h3>${esc(t.nama)}</h3><label class="medan"><span>Nama toko</span><input id="uNama" value="${esc(t.nama)}"></label>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:14px"><input type="checkbox" id="uAktif" ${t.aktif !== false ? 'checked' : ''}> Masih pelanggan (tampil untuk karyawan)</label>
+    <div style="max-height:40vh;overflow:auto">${riw || '<div class="catatan" style="margin:0">Belum ada riwayat harga.</div>'}</div>
+    <div class="tombol-baris">${riw ? '' : '<button class="pil bahaya" id="uHapus">Hapus</button>'}<button class="pil halus" data-tutup>Batal</button><button class="pil" id="uOk">Simpan</button></div>`, (d, tutup) => {
+    $('#uOk', d).onclick = () => { const n = $('#uNama', d).value.trim().replace(/\s+/g, ' '); if (n) t.nama = n; t.aktif = $('#uAktif', d).checked; hargaKotor = true; tutup(); gambarHarga(); status('Perubahan toko belum disimpan', 'ubah'); };
+    const h = $('#uHapus', d); if (h) h.onclick = () => { if (!confirm('Hapus ' + t.nama + ' dari daftar?')) return; harga.toko = harga.toko.filter(x => x !== t); hargaKotor = true; tutup(); gambarHarga(); status('Toko dihapus, belum disimpan', 'ubah'); }; }); }
+
 /* ---------- PDF: pustaka jsPDF + AutoTable dimuat dari cdnjs hanya saat pertama kali dibutuhkan ---------- */
 let pustakaPdf = null;
 function muatPdf() { return pustakaPdf ||= (async () => { const muat = src => new Promise((ok, gagal) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => gagal(new Error('Gagal memuat pembuat PDF. Cek internet.')); document.head.append(s); });
@@ -652,7 +785,7 @@ function pdfKeuangan(w) { return denganTunggu(async () => { const k = await muat
    MULAI: ada token tersimpan? ambil data. Tidak ada atau sudah habis? tampilkan layar masuk.
    ===================================================================================================== */
 async function mulai() { const s = sesi.baca(); if (!s?.token) return layarMasuk();
-  akar.innerHTML = '<main class="masuk"><div style="color:#cfe3de">Memuat…</div></main>';
+  akar.innerHTML = '<main class="masuk"><div style="color:#cfe3de">Memuat…</div></main>'; harga = null;   // harga toko diambil ulang tiap muat
   try { const r = await rpc('minyak_data', { p_token: s.token });
     if (!r.ok) { sesi.hapus(); return layarMasuk(r.pesan); }
     if (r.peran === 'pemilik') { data = r.karyawan || {}; punyaPin = r.pin || {}; kotor.clear(); Object.values(data).forEach(hitung); if (kini !== '__ringkasan__' && !data[kini]) kini = '__ringkasan__'; layarBeranda(); status('Data dimuat ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), 'ok'); }

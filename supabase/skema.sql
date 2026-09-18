@@ -185,3 +185,33 @@ begin
 end $f$;
 grant execute on function public.minyak_tulis_nilai(text,text,jsonb) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- =====================================================================================================
+-- HARGA TOKO: harga jual minyak curah (per kendi) dan dus per toko, lengkap dengan riwayat perubahan.
+-- Disimpan di minyak_nilai kunci 'harga' berbentuk
+--   { toko: [ { id, nama, aktif, curah: [{tgl, harga}, ...], dus: [{tgl, harga}, ...] }, ... ] }
+-- Riwayat hanya bertambah saat harga BERUBAH (harga sama = tidak dicatat lagi). Semua yang punya sesi sah
+-- (pemilik maupun karyawan) boleh MEMBACA; hanya pemilik boleh MENULIS.
+-- =====================================================================================================
+create or replace function public.minyak_harga_baca(p_token text) returns jsonb language plpgsql stable security definer
+set search_path = public, extensions as $f$
+declare s minyak_sesi := minyak__sesi(p_token);
+begin
+  if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
+  return jsonb_build_object('ok', true, 'nilai', coalesce((select nilai from minyak_nilai where kunci = 'harga'), '{"toko":[]}'::jsonb),
+    'diubah', (select diubah from minyak_nilai where kunci = 'harga'));
+end $f$;
+
+create or replace function public.minyak_harga_tulis(p_token text, p_nilai jsonb) returns jsonb language plpgsql security definer
+set search_path = public, extensions as $f$
+declare s minyak_sesi := minyak__sesi(p_token);
+begin
+  if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
+  if s.peran <> 'pemilik' then return jsonb_build_object('ok', false, 'pesan', 'Hanya pemilik.'); end if;
+  if jsonb_typeof(p_nilai->'toko') is distinct from 'array' then return jsonb_build_object('ok', false, 'pesan', 'Bentuk data salah.'); end if;
+  if length(p_nilai::text) > 500000 then return jsonb_build_object('ok', false, 'pesan', 'Data terlalu besar.'); end if;
+  insert into minyak_nilai(kunci, nilai) values ('harga', p_nilai) on conflict (kunci) do update set nilai = excluded.nilai, diubah = now();
+  return jsonb_build_object('ok', true, 'diubah', now());
+end $f$;
+grant execute on function public.minyak_harga_baca(text), public.minyak_harga_tulis(text,jsonb) to anon, authenticated;
+notify pgrst, 'reload schema';
