@@ -557,7 +557,7 @@ async function simpan() { if (!kotor.size) { status('Tidak ada perubahan', 'ok')
    DASHBOARD MINYAK (pemilik): beranda berisi menu, halaman Keuangan, dan Laporan PDF.
    Data keuangan diambil dari database (kunci 'keuangan') yang diisi supaya hanya pemilik yang bisa membacanya.
    ===================================================================================================== */
-let keu = null, keuDiubah = null, mingguKeu = null;
+let keu = null, keuDiubah = null, bulanPilih = null;
 const jt = n => (n / 1e6).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' jt';
 const pc = n => (n * 100).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 const judulKecil = s => String(s).toLowerCase().replace(/(^|[\s-])\S/g, c => c.toUpperCase());   // "BANG HEN" -> "Bang Hen"
@@ -590,9 +590,9 @@ async function layarBeranda() {
       <div class="keping-baris"><span class="keping"><b>${Object.values(data).filter(e => e.aktif).length}</b> karyawan aktif</span><span class="keping">Sisa hutang besar <b>${rp(sisaHutang)}</b></span><span class="keping" id="kepingLaba">Laba bersih …</span></div></section>
     <section class="menu">
       <button class="ubin" data-ke="gaji"><span class="ik">${ikon('gaji')}</span><b>Absensi & Gaji</b><small>${bacaSaja ? 'Gaji, absensi, dan hutang tiap karyawan (hanya melihat)' : 'Isi gaji harian, potongan, hutang, dan PIN karyawan'}</small></button>
-      <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Dari omzet ke laba bersih, per hari, pengantar, biaya</small></button>
+      <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Laporan laba rugi per bulan: omzet, modal, biaya, gaji, laba bersih</small></button>
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
-      <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan keuangan</small></button>
+      <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
       <a class="ubin" id="ubinHarian" target="_blank" rel="noopener" href="https://doc.farm/laporan-harian-minyak-minggu-${w || ''}"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''} (Docfarm)</small></a>
       <a class="ubin" target="_blank" rel="noopener" href="https://doc.farm/dashboard-keuangan-minyak"><span class="ik">${ikon('grafik')}</span><b>Dashboard bergrafik</b><small>Versi lengkap dengan grafik tren (Docfarm)</small></a>
       ${bacaSaja ? '' : `<button class="ubin" id="ubinBagi"><span class="ik emas">${ikon('bagi')}</span><b>Bagikan ke karyawan</b><small>Kirim link aplikasi supaya mereka bisa memasang</small></button>`}
@@ -600,7 +600,7 @@ async function layarBeranda() {
     <div class="catatan" style="text-align:center;margin-top:18px">${bacaSaja ? 'Akun bos hanya bisa melihat. Mengubah data hanya bisa dari akun pemilik.' : 'Halaman ini hanya untuk pemilik. Karyawan yang masuk hanya melihat gajinya sendiri.'}</div></main>`;
   $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); const ub = $('#ubinBagi'); if (ub) ub.onclick = bagikan; siapkanPasang();
   $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga })[b.dataset.ke]());
-  try { const k = await muatKeuangan(), t = k.D[k.CURW].tot; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih M${k.CURW} <b>${rp(t.bersih)}</b>`;
+  try { const k = await muatKeuangan(), bl = bulanKeu(k)[0]; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih ${esc(bl.nama.split(' ')[0])} <b>${rp(bl.tot.bersih)}</b>`;
     const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) { u.href = 'https://doc.farm/laporan-harian-minyak-minggu-' + mh; $('small', u).textContent = `Rincian penjualan per hari minggu ${mh} (Docfarm)`; }
   } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
 }
@@ -610,58 +610,81 @@ async function layarKeuangan() {
   $('#bBeranda').onclick = layarBeranda;
   let k; try { k = await muatKeuangan(); } catch (e) { $('main').innerHTML = `<section class="kartu"><div class="pesan-salah">${esc(e.message)}</div></section>`; return; }
   if (!k) { $('main').innerHTML = '<section class="kartu">Data keuangan belum dimuat ke aplikasi.</section>'; return; }
-  if (!k.WK.includes(mingguKeu)) mingguKeu = k.CURW;
-  const w = mingguKeu, R = ringkasKeu(k, w), { d, t, p } = R;
-  const beda = (a, b, balik) => { if (!b) return ''; const x = (a - b) / Math.abs(b), naik = x >= 0, baik = balik ? !naik : naik; return `<span class="keping ${Math.abs(x) < .0005 ? '' : baik ? 'hijau' : 'merah'}">${naik ? '▲' : '▼'} ${Math.abs(x * 100).toFixed(1).replace('.', ',')}% vs minggu ${w - 1}</span>`; };
-  const mxB = Math.max(1, ...k.WK.map(x => k.D[x].tot.bersih)), mxH = Math.max(1, ...(d.days || []).map(x => x.omset));
-  const P = Object.entries(d.pengantar || {}).map(([n, v]) => ({ n, q: v.qty, lk: v.lk, op: v.ops, lu: v.lk - v.ops })).filter(r => r.q || r.lk).sort((a, b) => b.lu - a.lu), mxP = Math.max(1, ...P.map(r => r.lu));
-  const J = Object.entries(d.jenis || {}).map(([n, v]) => ({ n, q: v.qty, o: v.omset, lk: v.omset - v.hpp })).sort((a, b) => b.o - a.o), tO = J.reduce((a, r) => a + r.o, 0) || 1;
-  const B = kelompokBiaya(d.biaya), tB = B.reduce((a, x) => a + x.total, 0), G = d.gaji || [];
+  const daftar = bulanKeu(k); if (!daftar.some(b => b.key === bulanPilih)) bulanPilih = daftar[0].key;
+  const B = daftar.find(b => b.key === bulanPilih), lalu = daftar[daftar.indexOf(B) + 1], t = B.tot, R = ringkasKeu(k, B, lalu);
+  const perHari = b => b.tot.bersih / (b.hari || 1), mxB = Math.max(1, ...daftar.map(perHari));
+  const P = Object.entries(B.pengantar).map(([n, v]) => ({ n, q: v.qty, lk: v.lk, op: v.ops, lu: v.lk - v.ops })).filter(r => r.q || r.lk).sort((a, b) => b.lu - a.lu), mxP = Math.max(1, ...P.map(r => r.lu));
+  const J = Object.entries(B.jenis).map(([n, v]) => ({ n, q: v.qty, o: v.omset, lk: v.omset - v.hpp })).sort((a, b) => b.o - a.o), tO = J.reduce((a, r) => a + r.o, 0) || 1;
+  const KB = kelompokBiaya(B.biaya), sisaOps = Math.round(t.ops - B.opsRinci), G = Object.values(B.gaji).sort((a, b) => b.total - a.total), sisaGaji = Math.round(t.gaji - B.gajiRinci);
+  const rentang = a => a.length ? (a.length > 1 ? `minggu ${a[0]}–${a[a.length - 1]}` : `minggu ${a[0]}`) : '';
   const kapan = keuDiubah ? new Date(keuDiubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-  akar.innerHTML = kepalaPemilik('Keuangan', esc(k.sub || ''), true) + `<main class="bungkus">
-    <nav class="tab-baris" aria-label="Minggu">${[...k.WK].reverse().map(x => `<button class="tab ${x === w ? 'aktif' : ''}" data-w="${x}">Minggu ${x}</button>`).join('')}</nav>
-    <section class="besar" style="margin-top:6px"><div class="label">Laba bersih minggu ${w} · ${esc(k.PER[w] || '')}</div><div class="nilai">${rp(t.bersih)}</div>
-      <div class="keping-baris">${beda(t.bersih, p?.bersih)}<span class="keping">Omzet <b>${rp(t.omset)}</b></span><span class="keping"><b>${ribu(t.qty)}</b> unit</span><span class="keping">Margin bersih <b>${pc(t.bersih / t.omset)}</b></span><span class="keping"><b>${k.HARI[w] || '?'}</b> hari kerja</span></div></section>
+  akar.innerHTML = kepalaPemilik('Keuangan', 'Laporan laba rugi per bulan. Rincian per hari ada di Laporan harian (mingguan).', true) + `<main class="bungkus">
+    <nav class="tab-baris" aria-label="Bulan">${daftar.map(b => `<button class="tab ${b.key === B.key ? 'aktif' : ''}" data-b="${b.key}">${esc(b.nama)}</button>`).join('')}</nav>
+    <section class="besar" style="margin-top:6px"><div class="label">Laba bersih ${esc(B.nama)}${B.berjalan ? ' · bulan berjalan' : ''}</div><div class="nilai">${rp(t.bersih)}</div>
+      <div class="keping-baris"><span class="keping">Omzet <b>${rp(t.omset)}</b></span><span class="keping"><b>${ribu(t.qty)}</b> unit</span><span class="keping">Margin bersih <b>${pc(t.bersih / (t.omset || 1))}</b></span>
+        <span class="keping"><b>${B.minggu.length}</b> minggu · <b>${B.hari}</b> hari kerja</span><span class="keping">Rata-rata <b>${rp(perHari(B))}</b> per hari</span></div></section>
 
-    <section class="kartu"><h2>Dari omzet ke laba bersih</h2>
+    <section class="kartu"><h2>Laporan laba rugi</h2>
       <p class="kalimat">${esc(R.kalimat)}</p>
       <div class="alur">${R.alur.map(([nama, nilai, ket, jenis]) => `<div class="baris-data ${jenis === 'hasil' || jenis === 'akhir' ? 'alur-hasil' : ''} ${jenis === 'akhir' ? 'alur-akhir' : ''}"><div class="kiri">${jenis === 'kurang' ? '− ' : jenis === 'awal' ? '' : '= '}${esc(nama)}<small>${esc(ket)}</small></div><div class="kanan ${jenis === 'kurang' ? 'minus' : ''}">${rp(Math.abs(nilai))}</div></div>`).join('')}</div>
-      <div class="tombol-baris" style="justify-content:flex-start"><button class="pil kecil" id="bPdfKeu">${ikon('pdf').replace('width="26" height="26"', 'width="16" height="16" style="vertical-align:-3px"')} Unduh PDF minggu ${w}</button></div></section>
+      <div class="tombol-baris" style="justify-content:flex-start"><button class="pil kecil" id="bPdfKeu">${ikon('pdf').replace('width="26" height="26"', 'width="16" height="16" style="vertical-align:-3px"')} Unduh PDF ${esc(B.nama)}</button></div></section>
 
-    ${d.days?.length ? `<section class="kartu"><h2>Per hari</h2>${d.days.map(x => `<div class="orang" style="cursor:default"><span class="nama" style="font-size:16px">${esc(judulKecil(x.hari))}</span><span class="bayar" style="font-size:17px">${rp(x.omset)}</span>
-      <span class="garis-batang"><i style="width:${Math.round(x.omset / mxH * 100)}%"></i></span><span class="rinci"><span class="keping">${ribu(x.qty)} unit</span><span class="keping">Laba kotor ${rp(x.lk)}</span><span class="keping">Margin ${pc(x.lk / (x.omset || 1))}</span></span></div>`).join('')}
-      <div class="catatan">Angka besar = omzet hari itu. Hari yang tidak ada berarti belum diisi di laporan harian.</div></section>` : ''}
+    <section class="kartu"><h2>Minggu yang masuk bulan ini</h2>${B.minggu.map(w => { const x = k.D[w].tot; return `<div class="baris-data"><div class="kiri">Minggu ${w}<small>${esc(k.PER[w] || '')} · ${k.HARI[w] || '?'} hari kerja · omzet ${jt(x.omset)}</small></div><div class="kanan">${rp(x.bersih)}</div></div>`; }).join('')}
+      <div class="baris-data total"><div class="kiri">Laba bersih ${esc(B.nama)}</div><div class="kanan">${rp(t.bersih)}</div></div>
+      <div class="catatan">Satu minggu kerja (Senin–Sabtu) dihitung masuk ke bulan tempat hari Sabtunya jatuh, karena gaji dibayar per minggu. Rincian per hari ada di Laporan harian.</div></section>
 
     <section class="kartu"><h2>Per pengantar</h2>${P.map(r => `<div class="orang" style="cursor:default"><span class="nama" style="font-size:16px">${esc(judulKecil(r.n))}</span><span class="bayar" style="font-size:17px">${rp(r.lu)}</span>
       <span class="garis-batang"><i style="width:${Math.max(0, Math.round(r.lu / mxP * 100))}%"></i></span><span class="rinci"><span class="keping">${ribu(r.q)} unit</span><span class="keping">Laba kotor ${rp(r.lk)}</span><span class="keping">Biaya ${rp(r.op)}</span></span></div>`).join('') || '<div class="catatan" style="margin:0">Belum ada data.</div>'}
-      <div class="catatan">Angka besar = laba kotor pengantar itu dikurangi biaya operasionalnya sendiri.</div></section>
-    ${J.length ? `<section class="kartu"><h2>Per jenis minyak</h2>${J.map(r => `<div class="baris-data"><div class="kiri">${esc(r.n)}<small>${ribu(r.q)} unit · margin ${pc(r.lk / (r.o || 1))} · ${pc(r.o / tO)} dari omzet</small></div><div class="kanan">${rp(r.o)}<small style="display:block;font-weight:500;color:var(--redup)">laba kotor ${rp(r.lk)}</small></div></div>`).join('')}</section>` : ''}
-    ${B.length ? `<section class="kartu"><h2>Biaya operasional <span class="keping merah">${rp(tB)}</span></h2>${B.map(x => `<div class="baris-data"><div class="kiri">${esc(x.jenis)}<small>${x.rinci.length} kali · ${esc(x.rinci.join(' · '))}</small></div><div class="kanan">${rp(x.total)}</div></div>`).join('')}
-      <div class="baris-data total"><div class="kiri">Total biaya</div><div class="kanan">${rp(tB)}</div></div><div class="catatan">Dikelompokkan per jenis biaya; rinciannya per hari dan pengantar.</div></section>` : ''}
-    ${G.length ? `<section class="kartu"><h2>Gaji minggu ${w} <span class="keping">${rp(G.reduce((a, x) => a + x.total, 0))} bruto</span></h2>${G.map(x => `<div class="baris-data"><div class="kiri">${esc(judulKecil(x.nama))}<small>bruto ${rp(x.total)}${x.hm + x.hb ? ' · potongan ' + rp(x.hm + x.hb) : ''}</small></div><div class="kanan">${rp(x.terima)}</div></div>`).join('')}</section>` : ''}
+      <div class="catatan">Angka besar = laba kotor pengantar itu dikurangi biaya operasionalnya sendiri, selama ${esc(B.nama)}.</div></section>
+    ${J.length ? `<section class="kartu"><h2>Per jenis minyak</h2>${J.map(r => `<div class="baris-data"><div class="kiri">${esc(r.n)}<small>${ribu(r.q)} unit · margin ${pc(r.lk / (r.o || 1))} · ${pc(r.o / tO)} dari omzet</small></div><div class="kanan">${rp(r.o)}<small style="display:block;font-weight:500;color:var(--redup)">laba kotor ${rp(r.lk)}</small></div></div>`).join('')}
+      ${B.tanpaRinci.length ? `<div class="catatan">Rincian jenis hanya tersedia untuk ${rentang(B.minggu.filter(w => !B.tanpaRinci.includes(w))) || 'sebagian minggu'}; ${rentang(B.tanpaRinci)} hanya punya angka total.</div>` : ''}</section>` : ''}
+    ${t.ops ? `<section class="kartu"><h2>Biaya operasional <span class="keping merah">${rp(t.ops)}</span></h2>${KB.map(x => `<div class="baris-data"><div class="kiri">${esc(x.jenis)}<small>${x.kali} kali · ${esc(Object.entries(x.orang).map(([o, v]) => judulKecil(o) + ' ' + ribu(v)).join(' · '))}</small></div><div class="kanan">${rp(x.total)}</div></div>`).join('')}
+      ${sisaOps > 0 ? `<div class="baris-data"><div class="kiri">Biaya ${rentang(B.tanpaRinci)}<small>hanya ada angka total, tanpa rincian jenis</small></div><div class="kanan">${rp(sisaOps)}</div></div>` : ''}
+      <div class="baris-data total"><div class="kiri">Total biaya operasional</div><div class="kanan">${rp(t.ops)}</div></div></section>` : ''}
+    ${t.gaji ? `<section class="kartu"><h2>Gaji karyawan <span class="keping">${rp(t.gaji)} bruto</span></h2>${G.map(x => `<div class="baris-data"><div class="kiri">${esc(judulKecil(x.nama))}<small>${x.n} minggu · diterima ${rp(x.terima)}${x.hm + x.hb ? ' · potongan hutang ' + rp(x.hm + x.hb) : ''}</small></div><div class="kanan">${rp(x.total)}</div></div>`).join('')}
+      ${sisaGaji > 0 ? `<div class="baris-data"><div class="kiri">Gaji ${rentang(B.tanpaRinci)}<small>hanya ada angka total, tanpa rincian per orang</small></div><div class="kanan">${rp(sisaGaji)}</div></div>` : ''}
+      <div class="baris-data total"><div class="kiri">Total gaji bruto</div><div class="kanan">${rp(t.gaji)}</div></div><div class="catatan">Angka kanan = gaji bruto (beban usaha). Potongan hutang bukan pengurang biaya, hanya mengurangi uang yang diterima karyawan.</div></section>` : ''}
 
-    <section class="kartu"><h2>Tren ${k.WK.length} minggu</h2>${[...k.WK].reverse().map(x => { const tt = k.D[x].tot; return `<div class="orang" style="cursor:default${x === w ? ';box-shadow:inset 0 0 0 2px var(--emas)' : ''}"><span class="nama" style="font-size:15px">Minggu ${x} <small style="font-family:var(--sans);color:var(--redup);font-size:12px">${esc(k.PER[x] || '')}</small></span><span class="bayar" style="font-size:16px">${rp(tt.bersih)}</span>
-      <span class="garis-batang"><i style="width:${Math.max(0, Math.round(tt.bersih / mxB * 100))}%"></i></span><span class="rinci"><span class="keping">Omzet ${jt(tt.omset)}</span><span class="keping">Margin bersih ${pc(tt.bersih / tt.omset)}</span><span class="keping">${ribu(tt.qty)} unit</span></span></div>`; }).join('')}
-      <div class="catatan">Angka besar = laba bersih tiap minggu. Ketuk pil minggu di atas untuk membuka rinciannya.</div></section>
+    <section class="kartu"><h2>Perbandingan antarbulan</h2>${daftar.map(b => `<div class="orang" style="cursor:default${b.key === B.key ? ';box-shadow:inset 0 0 0 2px var(--emas)' : ''}"><span class="nama" style="font-size:15px">${esc(b.nama)}${b.berjalan ? ' <small style="font-family:var(--sans);color:var(--redup);font-size:12px">berjalan</small>' : ''}</span><span class="bayar" style="font-size:16px">${rp(b.tot.bersih)}</span>
+      <span class="garis-batang"><i style="width:${Math.max(0, Math.round(perHari(b) / mxB * 100))}%"></i></span><span class="rinci"><span class="keping">Omzet ${jt(b.tot.omset)}</span><span class="keping">Margin bersih ${pc(b.tot.bersih / (b.tot.omset || 1))}</span><span class="keping">${b.hari} hari kerja</span><span class="keping">${rp(perHari(b))} per hari</span></span></div>`).join('')}
+      <div class="catatan">Angka besar = laba bersih sebulan. Batang = laba bersih rata-rata per hari kerja, supaya bulan yang belum selesai tetap adil dibandingkan.</div></section>
     ${k.catatan?.length ? `<section class="kartu"><h2>Catatan & anomali</h2>${k.catatan.map(c => `<div class="kotak ${c.jenis === 'flag' ? 'merah' : c.jenis === 'ok' ? '' : 'emas'}" style="margin-bottom:10px"><div class="l" style="color:${c.jenis === 'ok' ? 'var(--naik)' : 'inherit'}">${esc(c.judul)}</div><div style="font-size:13px;margin-top:4px">${c.isi}</div></div>`).join('')}</section>` : ''}
     <div class="catatan" style="margin-top:16px">${(k.kaki || []).join('<br>')}<br>Data disalin dari Dashboard Keuangan Minyak di Docfarm${kapan ? ', terakhir ' + esc(kapan) : ''}.</div></main>`;
-  $('#bBeranda').onclick = layarBeranda; $('#bPdfKeu').onclick = () => pdfKeuangan(w);
-  $$('.tab[data-w]').forEach(b => b.onclick = () => { mingguKeu = +b.dataset.w; layarKeuangan(); scrollTo({ top: 0 }); });
+  $('#bBeranda').onclick = layarBeranda; $('#bPdfKeu').onclick = () => pdfKeuangan(B.key);
+  $$('.tab[data-b]').forEach(b => b.onclick = () => { bulanPilih = b.dataset.b; layarKeuangan(); scrollTo({ top: 0 }); });
 }
-/* Ringkasan satu minggu dalam bentuk ALUR (omzet -> modal -> laba kotor -> biaya -> laba bersih) + satu kalimat bahasa sehari-hari.
+/* BULAN: minggu kerja digabung menjadi bulan. Satu minggu masuk ke bulan tempat hari Sabtunya jatuh (tanggal akhir di k.PER),
+   karena gaji dan rekap dibuat per minggu. Minggu lama (tanpa `days`) hanya punya angka total, jadi rinciannya dicatat terpisah. */
+const BLN_P = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'], BLN_L = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+function bulanKeu(k) { const kini = new Date(k.diambil || Date.now()), peta = {};
+  for (const w of k.WK) { const d = k.D[w]; if (!d) continue;
+    const m = [...String(k.PER[w] || '').matchAll(/(\d+)\s+([A-Za-z]{3})/g)].pop(); let bi = m ? BLN_P.indexOf(m[2][0].toUpperCase() + m[2].slice(1).toLowerCase()) : -1; if (bi < 0) bi = kini.getMonth();
+    const th = kini.getFullYear() - (bi > kini.getMonth() + 1 ? 1 : 0), key = `${th}-${String(bi + 1).padStart(2, '0')}`;
+    const b = peta[key] ??= { key, nama: BLN_L[bi] + ' ' + th, minggu: [], hari: 0, tot: { omset: 0, hpp: 0, qty: 0, lk: 0, ops: 0, gaji: 0, biayaops: 0, bersih: 0 }, pengantar: {}, jenis: {}, biaya: [], gaji: {}, opsRinci: 0, gajiRinci: 0, tanpaRinci: [] };
+    b.minggu.push(w); b.hari += k.HARI[w] || 0; for (const f in b.tot) b.tot[f] += d.tot[f] || 0;
+    for (const [n, v] of Object.entries(d.pengantar || {})) { const p = b.pengantar[n] ??= { qty: 0, lk: 0, ops: 0 }; p.qty += v.qty || 0; p.lk += v.lk || 0; p.ops += v.ops || 0; }
+    for (const [n, v] of Object.entries(d.jenis || {})) { const j = b.jenis[n] ??= { qty: 0, omset: 0, hpp: 0 }; j.qty += v.qty; j.omset += v.omset; j.hpp += v.hpp; }
+    (d.biaya || []).forEach(x => { b.biaya.push({ ...x, w }); b.opsRinci += x.nilai; });
+    (d.gaji || []).forEach(x => { const g = b.gaji[x.nama] ??= { nama: x.nama, total: 0, hm: 0, hb: 0, terima: 0, n: 0 }; g.total += x.total; g.hm += x.hm; g.hb += x.hb; g.terima += x.terima; g.n++; b.gajiRinci += x.total; });
+    if (!d.days) b.tanpaRinci.push(w); }
+  const daftar = Object.values(peta).sort((a, b) => b.key.localeCompare(a.key)), mxW = Math.max(...k.WK);
+  daftar.forEach(b => { b.minggu.sort((x, y) => x - y); b.berjalan = b.minggu.includes(mxW); b.gajiTertunda = b.berjalan && !(k.D[mxW].tot.gaji > 0) ? mxW : null; }); return daftar; }
+/* Ringkasan satu BULAN dalam bentuk ALUR (omzet -> modal -> laba kotor -> biaya -> gaji -> laba bersih) + kalimat bahasa sehari-hari.
    Dipakai halaman Keuangan dan PDF supaya keduanya bercerita sama. */
-function ringkasKeu(k, w) { const d = k.D[w], t = d.tot, p = k.D[w - 1]?.tot;
-  const alur = [['Omzet', t.omset, 'semua penjualan minggu ini', 'awal'], ['Modal minyak (HPP)', t.hpp, 'harga beli minyak yang terjual', 'kurang'],
+function ringkasKeu(k, B, lalu) { const t = B.tot, hr = B.hari || 1;
+  const alur = [['Omzet', t.omset, 'semua penjualan selama ' + B.nama, 'awal'], ['Modal minyak (HPP)', t.hpp, 'harga beli minyak yang terjual', 'kurang'],
     ['Laba kotor', t.lk, pc(t.lk / (t.omset || 1)) + ' dari omzet', 'hasil'], ['Biaya operasional', t.ops, 'bensin, parkir, makan, dan biaya harian pengantar', 'kurang']];
-  if (t.gaji) alur.push(['Gaji karyawan', t.gaji, 'gaji bruto minggu ini', 'kurang']);
+  if (t.gaji) alur.push(['Gaji karyawan', t.gaji, 'gaji bruto ' + B.minggu.length + ' minggu' + (B.gajiTertunda ? ' (minggu ' + B.gajiTertunda + ' belum dihitung)' : ''), 'kurang']);
   alur.push(['Laba bersih', t.bersih, pc(t.bersih / (t.omset || 1)) + ' dari omzet · ' + rp(t.bersih / (t.qty || 1)) + ' per unit', 'akhir']);
-  const banding = p ? (t.bersih - p.bersih) / Math.abs(p.bersih || 1) : null;
-  const kalimat = `Minggu ${w} (${k.PER[w] || ''}, ${k.HARI[w] || '?'} hari kerja) terjual ${ribu(t.qty)} unit dengan omzet ${rp(t.omset)}. Setelah dikurangi modal minyak ${rp(t.hpp)}, laba kotor ${rp(t.lk)} (${pc(t.lk / (t.omset || 1))}). ` +
-    `Dikurangi biaya operasional${t.gaji ? ' dan gaji' : ''} ${rp(t.biayaops)}, laba bersih ${rp(t.bersih)}` + (banding === null ? '.' : `, ${banding >= 0 ? 'naik' : 'turun'} ${Math.abs(banding * 100).toFixed(1).replace('.', ',')}% dari minggu ${w - 1} (${rp(p.bersih)}).`);
-  return { d, t, p, alur, banding, kalimat }; }
-/* Biaya harian dikelompokkan per jenis (Bensin, Parkir, ...), rincian "Sen Eja 30.000". */
+  let kalimat = `${B.nama}${B.berjalan ? ' (bulan berjalan)' : ''}: ${B.minggu.length} minggu kerja, ${B.hari} hari kerja, terjual ${ribu(t.qty)} unit dengan omzet ${rp(t.omset)}. Setelah dikurangi modal minyak ${rp(t.hpp)}, laba kotor ${rp(t.lk)} (${pc(t.lk / (t.omset || 1))}). ` +
+    `Dikurangi biaya operasional ${rp(t.ops)}${t.gaji ? ' dan gaji ' + rp(t.gaji) : ''}, laba bersih ${rp(t.bersih)}, rata-rata ${rp(t.bersih / hr)} per hari kerja.`;
+  if (B.gajiTertunda) kalimat += ` Gaji minggu ${B.gajiTertunda} belum masuk karena minggunya belum selesai, jadi laba bersih ini masih akan berkurang.`;
+  if (lalu) { const a = t.bersih / hr, b = lalu.tot.bersih / (lalu.hari || 1), x = (a - b) / Math.abs(b || 1);
+    kalimat += ` ${lalu.nama}: laba bersih ${rp(lalu.tot.bersih)} dari ${lalu.hari} hari kerja (${rp(b)} per hari), jadi rata-rata harian bulan ini ${x >= 0 ? 'naik' : 'turun'} ${Math.abs(x * 100).toFixed(1).replace('.', ',')}%.`; }
+  return { t, alur, kalimat }; }
+/* Biaya dikelompokkan per jenis (Bensin, Parkir, ...), dengan subtotal per orang. */
 function kelompokBiaya(biaya) { const by = {};
-  (biaya || []).forEach(x => { const g = by[x.jenis] ??= { jenis: x.jenis, total: 0, rinci: [] }; g.total += x.nilai; g.rinci.push(`${judulKecil(x.hari).slice(0, 3)} ${judulKecil(x.orang)} ${ribu(x.nilai)}`); });
+  (biaya || []).forEach(x => { const nm = judulKecil(x.jenis), g = by[nm] ??= { jenis: nm, total: 0, kali: 0, orang: {} }; g.total += x.nilai; g.kali++; const o = judulKecil(x.orang || '-'); g.orang[o] = (g.orang[o] || 0) + x.nilai; });
   return Object.values(by).sort((a, b) => b.total - a.total); }
 
 function layarLaporan() {
@@ -670,11 +693,11 @@ function layarLaporan() {
     $('#isiLaporan').innerHTML = `<section class="kartu"><h2>Gaji minggu ${w}<select id="pilihW" class="isian" style="width:auto" aria-label="Pilih minggu">${[...wl].reverse().map(x => `<option ${x === w ? 'selected' : ''}>${x}</option>`).join('')}</select></h2>
         <button class="orang" id="bRekap"><span class="nama">Rekap gaji semua karyawan</span><span class="bayar" style="font-size:14px;font-family:var(--sans);font-weight:700;color:var(--emas)">PDF</span><span class="rinci"><span class="keping">${daftar.length} karyawan</span><span class="keping">untuk arsip & tanda terima</span></span></button>
         ${daftar.map(([k, e]) => `<button class="orang" data-slip="${esc(k)}"><span class="nama" style="font-size:16px">Slip gaji ${esc(e.nama)}</span><span class="bayar" style="font-size:14px;font-family:var(--sans);font-weight:700;color:var(--emas)">PDF</span></button>`).join('')}</section>
-      <section class="kartu"><h2>Keuangan</h2><div id="daftarKeu" class="catatan" style="margin:0">Memuat…</div></section>`;
+      <section class="kartu"><h2>Keuangan per bulan</h2><div id="daftarKeu" class="catatan" style="margin:0">Memuat…</div></section>`;
     $('#pilihW').onchange = ev => { w = num(ev.target.value); gambarIsi(); };
     $('#bRekap').onclick = () => pdfRekapGaji(w); $$('[data-slip]').forEach(b => b.onclick = () => pdfSlip(data[b.dataset.slip], w));
-    muatKeuangan().then(k => { $('#daftarKeu').outerHTML = [...k.WK].reverse().map(x => `<button class="orang" data-keu="${x}"><span class="nama" style="font-size:16px">Laporan keuangan minggu ${x}</span><span class="bayar" style="font-size:14px;font-family:var(--sans);font-weight:700;color:var(--emas)">PDF</span><span class="rinci"><span class="keping">${esc(k.PER[x] || '')}</span><span class="keping">Omzet ${jt(k.D[x].tot.omset)}</span></span></button>`).join('');
-      $$('[data-keu]').forEach(b => b.onclick = () => pdfKeuangan(+b.dataset.keu)); }).catch(e => { $('#daftarKeu').textContent = e.message; }); };
+    muatKeuangan().then(k => { $('#daftarKeu').outerHTML = bulanKeu(k).map(b => `<button class="orang" data-keu="${b.key}"><span class="nama" style="font-size:16px">Laporan laba rugi ${esc(b.nama)}</span><span class="bayar" style="font-size:14px;font-family:var(--sans);font-weight:700;color:var(--emas)">PDF</span><span class="rinci"><span class="keping">${b.minggu.length} minggu${b.berjalan ? ' · berjalan' : ''}</span><span class="keping">Omzet ${jt(b.tot.omset)}</span><span class="keping">Laba bersih ${jt(b.tot.bersih)}</span></span></button>`).join('');
+      $$('[data-keu]').forEach(b => b.onclick = () => pdfKeuangan(b.dataset.keu)); }).catch(e => { $('#daftarKeu').textContent = e.message; }); };
   akar.innerHTML = kepalaPemilik('Laporan PDF', 'Ketuk untuk mengunduh. Berkas dibuat di HP ini, tidak dikirim ke mana-mana.', true) + '<main class="bungkus"><div id="isiLaporan"></div></main>';
   $('#bBeranda').onclick = layarBeranda; gambarIsi();
 }
@@ -818,26 +841,30 @@ function pdfRekapGaji(w) { return denganTunggu(async () => { const baris = Objec
     foot: [['TOTAL', '', rp(T('total')), rp(T('hm')), rp(T('hb')), rp(T('terima')), rp(baris.reduce((a, x) => a + Math.max(0, x.sisa), 0)), '']], columnStyles: { ...kanan([2, 3, 4, 5, 6]), 7: { cellWidth: 20 } }, styles: { ...gayaTabel.styles, fontSize: 8.5 } });
   tutupDok(doc, `rekap-gaji-minggu-${w}.pdf`); }); }
 
-function pdfKeuangan(w) { return denganTunggu(async () => { const k = await muatKeuangan(), d = k.D[w]; if (!d) throw new Error('Minggu itu tidak ada di data keuangan.'); const t = d.tot;
-  const doc = await dokumen('Laporan Keuangan', `Minggu ${w} · ${k.PER[w] || ''} · ${k.HARI[w] || '?'} hari kerja`);
-  const R = ringkasKeu(k, w);
-  // 1. Satu paragraf bahasa sehari-hari, lalu alur omzet -> laba bersih. Urutannya sama dengan halaman Keuangan.
+function pdfKeuangan(key) { return denganTunggu(async () => { const k = await muatKeuangan(), daftar = bulanKeu(k), B = daftar.find(b => b.key === key); if (!B) throw new Error('Bulan itu tidak ada di data keuangan.');
+  const lalu = daftar[daftar.indexOf(B) + 1], t = B.tot, R = ringkasKeu(k, B, lalu);
+  const doc = await dokumen('Laporan Laba Rugi', `${B.nama}${B.berjalan ? ' (bulan berjalan)' : ''} · ${B.minggu.length} minggu · ${B.hari} hari kerja`);
+  // Urutannya sama dengan halaman Keuangan: paragraf, alur laba rugi, minggu yang masuk, pengantar, jenis, biaya, gaji.
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(22, 48, 44);
   const par = doc.splitTextToSize(R.kalimat, 182); doc.text(par, 14, 38);
   const tanda = j => j === 'kurang' ? '−  ' : j === 'awal' ? '' : '=  ';
-  doc.autoTable({ ...gayaTabel, startY: 38 + par.length * 4.6 + 4, head: [['Dari omzet ke laba bersih', 'Rupiah', '% omzet']],
+  doc.autoTable({ ...gayaTabel, startY: 38 + par.length * 4.6 + 4, head: [['Laporan laba rugi', 'Rupiah', '% omzet']],
     body: R.alur.filter(a => a[3] !== 'akhir').map(([n, v, ket, j]) => [tanda(j) + n + '  (' + ket + ')', (j === 'kurang' ? '− ' : '') + rp(v), pc(v / (t.omset || 1))]),
-    foot: [['=  LABA BERSIH  (' + ribu(t.qty) + ' unit, ' + rp(t.bersih / (t.qty || 1)) + ' per unit)', rp(t.bersih), pc(t.bersih / (t.omset || 1))]], columnStyles: { 0: { cellWidth: 112 }, ...kanan([1, 2]) } });
+    foot: [['=  LABA BERSIH  (' + ribu(t.qty) + ' unit, ' + rp(t.bersih / (B.hari || 1)) + ' per hari kerja)', rp(t.bersih), pc(t.bersih / (t.omset || 1))]], columnStyles: { 0: { cellWidth: 112 }, ...kanan([1, 2]) } });
   const lanjut = () => doc.lastAutoTable.finalY + 7;
-  if (d.days?.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Per hari', 'Unit', 'Omzet', 'Laba kotor', 'Margin']], body: d.days.map(x => [judulKecil(x.hari), ribu(x.qty), rp(x.omset), rp(x.lk), pc(x.lk / x.omset)]), columnStyles: kanan([1, 2, 3, 4]) });
-  const P = Object.entries(d.pengantar || {}).sort((a, b) => (b[1].lk - b[1].ops) - (a[1].lk - a[1].ops)).map(([n, v]) => [judulKecil(n), ribu(v.qty), rp(v.lk), rp(v.ops), rp(v.lk - v.ops)]);
+  doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Minggu', 'Periode', 'Hari', 'Omzet', 'Laba kotor', 'Biaya + gaji', 'Laba bersih']], body: B.minggu.map(w => { const x = k.D[w].tot; return ['Minggu ' + w, k.PER[w] || '', String(k.HARI[w] || ''), rp(x.omset), rp(x.lk), rp(x.biayaops), rp(x.bersih)]; }),
+    foot: [[B.nama, '', String(B.hari), rp(t.omset), rp(t.lk), rp(t.biayaops), rp(t.bersih)]], columnStyles: kanan([2, 3, 4, 5, 6]) });
+  const P = Object.entries(B.pengantar).sort((a, b) => (b[1].lk - b[1].ops) - (a[1].lk - a[1].ops)).map(([n, v]) => [judulKecil(n), ribu(v.qty), rp(v.lk), rp(v.ops), rp(v.lk - v.ops)]);
   if (P.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Per pengantar', 'Unit', 'Laba kotor', 'Biaya ops', 'Laba setelah biaya']], body: P, columnStyles: kanan([1, 2, 3, 4]) });
-  const J = Object.entries(d.jenis || {}).map(([n, v]) => [n, ribu(v.qty), rp(v.omset), rp(v.omset - v.hpp), pc((v.omset - v.hpp) / (v.omset || 1))]);
-  if (J.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Per jenis minyak', 'Unit', 'Omzet', 'Laba kotor', 'Margin']], body: J, columnStyles: kanan([1, 2, 3, 4]) });
-  const B = kelompokBiaya(d.biaya);
-  if (B.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Biaya operasional', 'Rincian (hari, pengantar, jumlah)', 'Total']], body: B.map(x => [x.jenis, x.rinci.join(' · '), rp(x.total)]), foot: [['Total biaya', '', rp(B.reduce((a, x) => a + x.total, 0))]], columnStyles: { 1: { cellWidth: 100 }, ...kanan([2]) } });
-  if (d.gaji?.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Karyawan', 'Gaji bruto', 'Hutang mingguan', 'Hutang besar', 'Diterima']], body: d.gaji.map(x => [judulKecil(x.nama), rp(x.total), rp(x.hm), rp(x.hb), rp(x.terima)]), columnStyles: kanan([1, 2, 3, 4]) });
-  tutupDok(doc, `laporan-keuangan-minggu-${w}.pdf`); }); }
+  const J = Object.entries(B.jenis).map(([n, v]) => [n, ribu(v.qty), rp(v.omset), rp(v.omset - v.hpp), pc((v.omset - v.hpp) / (v.omset || 1))]);
+  if (J.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Per jenis minyak' + (B.tanpaRinci.length ? ' (minggu yang punya rincian)' : ''), 'Unit', 'Omzet', 'Laba kotor', 'Margin']], body: J, columnStyles: kanan([1, 2, 3, 4]) });
+  const KB = kelompokBiaya(B.biaya).map(x => [x.jenis, x.kali + ' kali · ' + Object.entries(x.orang).map(([o, v]) => o + ' ' + ribu(v)).join(' · '), rp(x.total)]), sisaOps = Math.round(t.ops - B.opsRinci);
+  if (sisaOps > 0) KB.push(['Minggu ' + B.tanpaRinci.join(', '), 'hanya angka total, tanpa rincian', rp(sisaOps)]);
+  if (KB.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Biaya operasional', 'Rincian per orang', 'Total']], body: KB, foot: [['Total biaya operasional', '', rp(t.ops)]], columnStyles: { 1: { cellWidth: 100 }, ...kanan([2]) } });
+  const G = Object.values(B.gaji).sort((a, b) => b.total - a.total).map(x => [judulKecil(x.nama), String(x.n), rp(x.total), rp(x.hm + x.hb), rp(x.terima)]), sisaGaji = Math.round(t.gaji - B.gajiRinci);
+  if (sisaGaji > 0) G.push(['Minggu ' + B.tanpaRinci.join(', ') + ' (total saja)', '', rp(sisaGaji), '', '']);
+  if (G.length) doc.autoTable({ ...gayaTabel, startY: lanjut(), head: [['Gaji karyawan', 'Minggu', 'Gaji bruto', 'Potongan hutang', 'Diterima']], body: G, foot: [['Total gaji bruto', '', rp(t.gaji), '', '']], columnStyles: kanan([1, 2, 3, 4]) });
+  tutupDok(doc, `laporan-laba-rugi-${B.key}.pdf`); }); }
 
 /* =====================================================================================================
    MULAI: ada token tersimpan? ambil data. Tidak ada atau sudah habis? tampilkan layar masuk.
