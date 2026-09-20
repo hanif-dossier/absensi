@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#0f3d3a">
 <title>Minyak Andre</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="ikon.svg?v=3" type="image/svg+xml">
-<link rel="apple-touch-icon" href="ikon-any-512.png?v=3">
+<link rel="icon" href="ikon.svg?v=4" type="image/svg+xml">
+<link rel="apple-touch-icon" href="ikon-any-512.png?v=4">
 <meta name="apple-mobile-web-app-title" content="Minyak Andre">
 <meta name="application-name" content="Minyak Andre">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -300,7 +300,7 @@ const LS_TAWAR = 'minyak-tawar-pasang';
 function tawarkanPasang() { if (sudahTerpasang() || document.querySelector('.tawar')) return;
   try { if (Date.now() - (+localStorage.getItem(LS_TAWAR) || 0) < 3 * 864e5) return; } catch {}
   const t = document.createElement('div'); t.className = 'tawar'; t.setAttribute('role', 'dialog'); t.setAttribute('aria-label', 'Pasang aplikasi');
-  t.innerHTML = `<img src="ikon-any-192.png?v=3" alt=""><div class="isi"><b>Pasang Minyak Andre</b><span>Jadi aplikasi di HP. Gratis, ringan, tanpa Play Store.</span></div>
+  t.innerHTML = `<img src="ikon-any-192.png?v=4" alt=""><div class="isi"><b>Pasang Minyak Andre</b><span>Jadi aplikasi di HP. Gratis, ringan, tanpa Play Store.</span></div>
     <div class="aksi"><button class="pil emas kecil" id="tInstal">Instal</button><button class="pil halus kecil" id="tNanti">Nanti</button></div>`;
   document.body.append(t); requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('muncul')));
   const tutup = ingat => { if (ingat) try { localStorage.setItem(LS_TAWAR, Date.now()); } catch {} t.classList.remove('muncul'); setTimeout(() => t.remove(), 450); };
