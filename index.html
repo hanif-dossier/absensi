@@ -644,6 +644,7 @@ async function tampilkanPembaruan() {
       <p style="margin:6px 0 0">${p.galat ? `<span class="pesan-salah">Pembaruan minggu ${esc(p.minggu)} gagal: ${esc(p.galat)}. Laporan di aplikasi masih versi sebelumnya.</span>`
         : `Minggu ${esc(p.minggu)} terisi sampai <b>${esc(p.hariTerakhir?.hari || '')}</b>${p.tutupMinggu ? `, minggu sudah <b>ditutup</b> dengan gaji ${esc(p.tutupMinggu.gajiBruto)}` : ''}. Laporan harian, dashboard, keuangan, dan harga toko sudah ikut diperbarui.`}</p>
       ${(p.periksa || []).map(t => `<div class="pesan-salah" style="margin-top:8px">${esc(t)}</div>`).join('')}
+      ${(p.tokoMirip || []).map(t => `<div class="catatan" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff7e6;color:#7a5200">${esc(t)}</div>`).join('')}
       ${p.ringkasan ? `<p style="margin:10px 0 0;white-space:pre-line">${esc(p.ringkasan)}</p><div class="catatan" style="margin-top:6px">Catatan ditulis Gemini dari angka laporan.</div>` : ''}`;
     el.hidden = false;
     // Pemeriksaan mentor: routine Claude di cloud mengecek ulang kerja agen tiap malam (repo privat minyak-mentor).
