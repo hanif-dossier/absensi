@@ -641,8 +641,9 @@ async function tampilkanPembaruan() {
     const p = r.ok && r.nilai; if (!p) return;
     const kapan = new Date(r.diubah).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
     el.innerHTML = `<div class="label">Pembaruan otomatis · ${esc(kapan)}</div>
-      <p style="margin:6px 0 0">${p.galat ? `<span class="pesan-salah">Gagal membaca Excel minggu ${esc(p.minggu)}: ${esc(p.galat)}</span>`
-        : `Minggu ${esc(p.minggu)} terisi sampai <b>${esc(p.hariTerakhir?.hari || '')}</b>. Laporan harian, dashboard, keuangan, dan harga toko sudah ikut diperbarui.`}</p>
+      <p style="margin:6px 0 0">${p.galat ? `<span class="pesan-salah">Pembaruan minggu ${esc(p.minggu)} gagal: ${esc(p.galat)}. Laporan di aplikasi masih versi sebelumnya.</span>`
+        : `Minggu ${esc(p.minggu)} terisi sampai <b>${esc(p.hariTerakhir?.hari || '')}</b>${p.tutupMinggu ? `, minggu sudah <b>ditutup</b> dengan gaji ${esc(p.tutupMinggu.gajiBruto)}` : ''}. Laporan harian, dashboard, keuangan, dan harga toko sudah ikut diperbarui.`}</p>
+      ${(p.periksa || []).map(t => `<div class="pesan-salah" style="margin-top:8px">${esc(t)}</div>`).join('')}
       ${p.ringkasan ? `<p style="margin:10px 0 0;white-space:pre-line">${esc(p.ringkasan)}</p><div class="catatan" style="margin-top:6px">Catatan ditulis Gemini dari angka laporan.</div>` : ''}`;
     el.hidden = false;
   } catch { /* kartu tetap tersembunyi */ }
