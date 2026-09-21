@@ -188,8 +188,9 @@ create or replace function public.minyak_tulis_nilai(p_rahasia text, p_kunci tex
 set search_path = public, extensions as $f$
 begin
   -- 'laporan-harian' dan 'dashboard' berisi halaman HTML laporan; 'pembaruan' berisi catatan pembaruan otomatis
-  -- (n8n di laptop pemilik, lihat alat/perbarui-otomatis.mjs). Semuanya hanya bisa dibaca pemilik dan bos.
-  if p_kunci not in ('keuangan', 'laporan-harian', 'dashboard', 'pembaruan') then return jsonb_build_object('ok', false, 'pesan', 'kunci tidak diizinkan'); end if;
+  -- (n8n di laptop pemilik, lihat alat/perbarui-otomatis.mjs); 'mentor' berisi pemeriksaan routine Claude atas kerja
+  -- agen itu (repo privat minyak-mentor). Semuanya hanya bisa dibaca pemilik dan bos.
+  if p_kunci not in ('keuangan', 'laporan-harian', 'dashboard', 'pembaruan', 'mentor') then return jsonb_build_object('ok', false, 'pesan', 'kunci tidak diizinkan'); end if;
   if coalesce(length(p_rahasia), 0) < 32 or not exists (select 1 from minyak_pemilik where id = 1 and sinkron_hash = minyak__h(p_rahasia)) then
     return jsonb_build_object('ok', false, 'pesan', 'ditolak'); end if;
   insert into minyak_nilai(kunci, nilai) values (p_kunci, p_nilai) on conflict (kunci) do update set nilai = excluded.nilai, diubah = now();

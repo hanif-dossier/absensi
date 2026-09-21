@@ -646,6 +646,14 @@ async function tampilkanPembaruan() {
       ${(p.periksa || []).map(t => `<div class="pesan-salah" style="margin-top:8px">${esc(t)}</div>`).join('')}
       ${p.ringkasan ? `<p style="margin:10px 0 0;white-space:pre-line">${esc(p.ringkasan)}</p><div class="catatan" style="margin-top:6px">Catatan ditulis Gemini dari angka laporan.</div>` : ''}`;
     el.hidden = false;
+    // Pemeriksaan mentor: routine Claude di cloud mengecek ulang kerja agen tiap malam (repo privat minyak-mentor).
+    const rm = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'mentor' }).catch(() => null);
+    const mt = rm?.ok && rm.nilai;
+    if (mt?.catatan) el.insertAdjacentHTML('beforeend', `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7e3">
+      <div class="label">Pemeriksaan mentor · ${esc(new Date(mt.waktu).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</div>
+      <p style="margin:6px 0 0;white-space:pre-line">${esc(mt.catatan)}</p>
+      ${(mt.masalah || []).map(t => `<div class="pesan-salah" style="margin-top:8px">${esc(t)}</div>`).join('')}
+      <div class="catatan" style="margin-top:6px">Diperiksa Claude: angka laporan dicocokkan ulang dan catatan agen dinilai.</div></div>`);
   } catch { /* kartu tetap tersembunyi */ }
 }
 
