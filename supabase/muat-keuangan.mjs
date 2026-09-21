@@ -2,6 +2,7 @@
 // supaya aplikasi bisa menampilkannya HANYA untuk pemilik. Tanpa dependensi: Node 18+ saja.
 //   node muat-keuangan.mjs            -> ambil, tampilkan ringkasan, simpan
 //   node muat-keuangan.mjs --lihat    -> ambil dan tampilkan saja (tidak menyimpan)
+//   node muat-keuangan.mjs --berkas <dashboard.html>  -> dari berkas lokal, bukan Docfarm
 // Kunci: variabel lingkungan SINKRON_KUNCI (GitHub Actions) atau berkas rahasia lokal. Ini kunci SEMPIT: hanya bisa
 // menulis data keuangan lewat fungsi minyak_tulis_nilai, bukan kunci service database.
 import fs from 'fs';
@@ -14,10 +15,16 @@ if (!KUNCI) KUNCI = (fs.readFileSync('D:/Ai Agent/rahasia/absensi-minyak.txt', '
 if (!KUNCI && !lihatSaja) throw new Error('SINKRON_KUNCI tidak ada');
 
 // 1. Halaman Docfarm membungkus isi dalam <iframe src="/api/documents/<id>/raw-html?...token">; ikuti iframe itu.
-const bungkus = await (await fetch(HALAMAN)).text();
-const src = (bungkus.match(/<iframe src="([^"]+)"/) || [])[1];
-if (!src) throw new Error('iframe Docfarm tidak ditemukan; format halaman berubah?');
-const html = await (await fetch('https://doc.farm' + src.replace(/&amp;/g, '&'))).text();
+//    --berkas <html>: baca dari berkas dashboard di laptop (pembaruan otomatis n8n), bukan dari Docfarm.
+const iB = process.argv.indexOf('--berkas'), berkas = iB > 0 ? process.argv[iB + 1] : null;
+let html;
+if (berkas) html = fs.readFileSync(berkas, 'utf8');
+else {
+  const bungkus = await (await fetch(HALAMAN)).text();
+  const src = (bungkus.match(/<iframe src="([^"]+)"/) || [])[1];
+  if (!src) throw new Error('iframe Docfarm tidak ditemukan; format halaman berubah?');
+  html = await (await fetch('https://doc.farm' + src.replace(/&amp;/g, '&'))).text();
+}
 
 // 2. Petik variabel dari skrip halaman. D adalah JSON murni; sisanya literal JS sederhana yang dipetik dengan regex (tanpa eval).
 const ambil = (re, nama) => { const m = html.match(re); if (!m) throw new Error('tidak menemukan ' + nama); return m[1]; };
@@ -40,7 +47,7 @@ const catatan = [...gabung(flagsJs).matchAll(/<div class="(ok|flag|info)"><h4>([
 const kakiJs = ambil(/getElementById\('foot'\)\.innerHTML=([\s\S]*?);\s*\n\}\)\(\);/, 'foot');
 const kaki = gabung(kakiJs).split(/<br\s*\/?>/).map(hanyaTebal).filter(Boolean);
 
-const nilai = { D, WK, PER, HARI, TGL, CURW, sub, catatan, kaki, sumber: HALAMAN, diambil: new Date().toISOString() };
+const nilai = { D, WK, PER, HARI, TGL, CURW, sub, catatan, kaki, sumber: berkas ? 'laptop pemilik' : HALAMAN, diambil: new Date().toISOString() };
 const t = D[CURW].tot;
 console.log(`minggu ${WK[0]}–${WK[WK.length - 1]}, sorotan M${CURW}: omzet ${t.omset.toLocaleString('id-ID')}, laba bersih ${t.bersih.toLocaleString('id-ID')}; catatan ${catatan.length}, kaki ${kaki.length}`);
 if (lihatSaja) process.exit(0);

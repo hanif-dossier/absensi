@@ -593,16 +593,59 @@ async function layarBeranda() {
       <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Laporan laba rugi per bulan: omzet, modal, biaya, gaji, laba bersih</small></button>
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
       <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
-      <a class="ubin" id="ubinHarian" target="_blank" rel="noopener" href="https://doc.farm/laporan-harian-minyak-minggu-${w || ''}"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''} (Docfarm)</small></a>
-      <a class="ubin" target="_blank" rel="noopener" href="https://doc.farm/dashboard-keuangan-minyak"><span class="ik">${ikon('grafik')}</span><b>Dashboard bergrafik</b><small>Versi lengkap dengan grafik tren (Docfarm)</small></a>
+      <button class="ubin" id="ubinHarian" data-laporan="laporan-harian"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''}</small></button>
+      <button class="ubin" data-laporan="dashboard"><span class="ik">${ikon('grafik')}</span><b>Dashboard bergrafik</b><small>Versi lengkap dengan grafik tren</small></button>
       ${bacaSaja ? '' : `<button class="ubin" id="ubinBagi"><span class="ik emas">${ikon('bagi')}</span><b>Bagikan ke karyawan</b><small>Kirim link aplikasi supaya mereka bisa memasang</small></button>`}
     </section>
+    <section class="kartu" id="kartuPembaruan" hidden style="margin-top:14px"></section>
     <div class="catatan" style="text-align:center;margin-top:18px">${bacaSaja ? 'Akun bos hanya bisa melihat. Mengubah data hanya bisa dari akun pemilik.' : 'Halaman ini hanya untuk pemilik. Karyawan yang masuk hanya melihat gajinya sendiri.'}</div></main>`;
   $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); const ub = $('#ubinBagi'); if (ub) ub.onclick = bagikan; siapkanPasang();
+  $$('.ubin[data-laporan]').forEach(b => b.onclick = () => bukaLaporan(b.dataset.laporan));
+  tampilkanPembaruan();
   $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga })[b.dataset.ke]());
   try { const k = await muatKeuangan(), bl = bulanKeu(k)[0]; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih ${esc(bl.nama.split(' ')[0])} <b>${rp(bl.tot.bersih)}</b>`;
-    const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) { u.href = 'https://doc.farm/laporan-harian-minyak-minggu-' + mh; $('small', u).textContent = `Rincian penjualan per hari minggu ${mh} (Docfarm)`; }
+    const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) $('small', u).textContent = `Rincian penjualan per hari minggu ${mh}`;
   } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
+}
+
+// Laporan harian & dashboard bergrafik: halaman HTML-nya disimpan di database oleh pembaruan otomatis
+// (alat/perbarui-otomatis.mjs, dijalankan n8n tiap Excel penjualan disimpan), lalu ditampilkan di sini.
+// Kalau belum ada di database, jatuh ke versi Docfarm yang lama.
+const DOCFARM = { 'laporan-harian': 'https://doc.farm/laporan-harian-minyak-minggu-', dashboard: 'https://doc.farm/dashboard-keuangan-minyak' };
+async function bukaLaporan(kunci) {
+  const lapis = document.createElement('div');
+  lapis.style.cssText = 'position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column';
+  lapis.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #e5e7e3;background:#fff">
+    <button class="pil kecil" id="tutupLaporan" style="white-space:nowrap;flex:none">← Kembali</button><b style="font-size:15px;white-space:nowrap">${kunci === 'dashboard' ? 'Dashboard bergrafik' : 'Laporan harian'}</b>
+    <span class="catatan" id="waktuLaporan" style="margin-left:auto;text-align:right;font-size:12px"></span></div><div style="flex:1;display:grid;place-items:center">Memuat…</div>`;
+  document.body.appendChild(lapis); document.body.style.overflow = 'hidden';
+  const tutup = () => { lapis.remove(); document.body.style.overflow = ''; };
+  $('#tutupLaporan', lapis).onclick = tutup;
+  try {
+    const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: kunci });
+    if (!r.ok) throw new Error(r.pesan);
+    if (!r.nilai?.html) { tutup(); const k = await muatKeuangan().catch(() => null);
+      window.open(kunci === 'dashboard' ? DOCFARM.dashboard : DOCFARM[kunci] + (k ? Math.max(...k.WK) : ''), '_blank', 'noopener'); return; }
+    const bingkai = document.createElement('iframe');
+    bingkai.style.cssText = 'flex:1;width:100%;border:0'; bingkai.title = 'Laporan'; bingkai.srcdoc = r.nilai.html;
+    lapis.lastElementChild.replaceWith(bingkai);
+    $('#waktuLaporan', lapis).textContent = new Date(r.diubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch (e) { lapis.lastElementChild.innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; }
+}
+
+// Kartu "Pembaruan otomatis": kapan Excel terakhir terbaca dan catatan singkat dari Gemini.
+async function tampilkanPembaruan() {
+  const el = $('#kartuPembaruan'); if (!el) return;
+  try {
+    const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'pembaruan' });
+    const p = r.ok && r.nilai; if (!p) return;
+    const kapan = new Date(r.diubah).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    el.innerHTML = `<div class="label">Pembaruan otomatis · ${esc(kapan)}</div>
+      <p style="margin:6px 0 0">${p.galat ? `<span class="pesan-salah">Gagal membaca Excel minggu ${esc(p.minggu)}: ${esc(p.galat)}</span>`
+        : `Minggu ${esc(p.minggu)} terisi sampai <b>${esc(p.hariTerakhir?.hari || '')}</b>. Laporan harian, dashboard, keuangan, dan harga toko sudah ikut diperbarui.`}</p>
+      ${p.ringkasan ? `<p style="margin:10px 0 0;white-space:pre-line">${esc(p.ringkasan)}</p><div class="catatan" style="margin-top:6px">Catatan ditulis Gemini dari angka laporan.</div>` : ''}`;
+    el.hidden = false;
+  } catch { /* kartu tetap tersembunyi */ }
 }
 
 async function layarKeuangan() {

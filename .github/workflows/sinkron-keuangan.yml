@@ -1,8 +1,9 @@
 name: Sinkron keuangan dari Docfarm
 # Menyalin data Dashboard Keuangan Minyak (Docfarm) ke database aplikasi, supaya halaman Keuangan selalu terbaru.
+# 21 Sep 2026: jadwal tiap jam dimatikan. Sumber keuangan sekarang berkas di laptop pemilik, dikirim n8n lewat
+# alat/perbarui-otomatis.mjs setiap Excel penjualan disimpan. Docfarm tidak lagi ikut otomatis, jadi kalau jadwal
+# ini tetap jalan, data Docfarm yang lebih lama akan menimpa data terbaru. Tombol manual tetap ada.
 on:
-  schedule:
-    - cron: "17 * * * *"      # tiap jam, menit ke-17
   workflow_dispatch:
 jobs:
   sinkron:
