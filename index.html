@@ -594,7 +594,7 @@ async function layarBeranda() {
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
       <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
       <button class="ubin" id="ubinHarian" data-laporan="laporan-harian"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''}</small></button>
-      <button class="ubin" data-laporan="dashboard"><span class="ik">${ikon('grafik')}</span><b>Dashboard bergrafik</b><small>Versi lengkap dengan grafik tren</small></button>
+      <button class="ubin" data-laporan="dashboard"><span class="ik">${ikon('grafik')}</span><b>Dashboard bulanan</b><small>Laporan per bulan dengan grafik tren</small></button>
       ${bacaSaja ? '' : `<button class="ubin" id="ubinBagi"><span class="ik emas">${ikon('bagi')}</span><b>Bagikan ke karyawan</b><small>Kirim link aplikasi supaya mereka bisa memasang</small></button>`}
     </section>
     <section class="kartu" id="kartuPembaruan" hidden style="margin-top:14px"></section>
@@ -616,7 +616,7 @@ async function bukaLaporan(kunci) {
   const lapis = document.createElement('div');
   lapis.style.cssText = 'position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column';
   lapis.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #e5e7e3;background:#fff">
-    <button class="pil kecil" id="tutupLaporan" style="white-space:nowrap;flex:none">← Kembali</button><b style="font-size:15px;white-space:nowrap">${kunci === 'dashboard' ? 'Dashboard bergrafik' : 'Laporan harian'}</b>
+    <button class="pil kecil" id="tutupLaporan" style="white-space:nowrap;flex:none">← Kembali</button><b style="font-size:15px;white-space:nowrap">${kunci === 'dashboard' ? 'Dashboard bulanan' : 'Laporan harian'}</b>
     <span class="catatan" id="waktuLaporan" style="margin-left:auto;text-align:right;font-size:12px"></span></div><div style="flex:1;display:grid;place-items:center">Memuat…</div>`;
   document.body.appendChild(lapis); document.body.style.overflow = 'hidden';
   const tutup = () => { lapis.remove(); document.body.style.overflow = ''; };

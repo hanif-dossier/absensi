@@ -35,7 +35,8 @@ const PER = pasangan(ambil(/const PER=\{([^}]*)\}/, 'PER'), /(\d+):'([^']*)'/g);
 const HARI = Object.fromEntries(Object.entries(pasangan(ambil(/const HARI=\{([^}]*)\}/, 'HARI'), /(\d+):(\d+)/g)).map(([k, v]) => [k, +v]));
 const TGL = pasangan(ambil(/const TGL=\{([^}]*)\}/, 'TGL'), /([A-Z]+):'([^']*)'/g);
 const CURW = +ambil(/const CURW=(\d+)/, 'CURW');
-const sub = ambil(/<p class="sub">([\s\S]*?)<\/p>/, 'sub').replace(/&nbsp;/g, ' ').replace(/&middot;/g, '·').replace(/\s+/g, ' ').trim();
+// Sejak 22 Sep 2026 dashboard bulanan mengisi <p class="sub" id="sub"> lewat JS; teks statisnya hanya keterangan umum.
+const sub = ambil(/<p class="sub"[^>]*>([\s\S]*?)<\/p>/, 'sub').replace(/&nbsp;/g, ' ').replace(/&middot;/g, '·').replace(/\s+/g, ' ').trim();
 
 // 3. Catatan anomali & kaki halaman ditulis sebagai gabungan string JS ('...'+'...'). Gabungkan lalu rapikan HTML-nya.
 const gabung = js => [...js.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map(m => m[1].replace(/\\'/g, "'")).join('');
