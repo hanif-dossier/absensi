@@ -802,37 +802,56 @@ function kartuHargaBaca(t) {
       return `<div class="hp"><span class="l">${nm} <small>${sat}</small></span><b>${k ? rp(k.harga) : '—'}</b><small>${k ? panah(k, s) + (s ? 'dari ' + rp(s.harga) + ' · ' : '') + 'sejak ' + tglPendek(k.tgl) : 'belum ada harga'}</small></div>`; }).join('')}</div></div>`; }
 /* ---------- Pembelian minyak dari pemasok (24 Sep 2026) ----------
    Data disusun di laptop pemilik oleh alat/pembelian-perbarui.mjs dari berkas LAPORAN TONASE (baris TAMBAH yang
-   menyebut pemasok), disimpan di minyak_nilai kunci 'pembelian'. Di sini hanya dijumlahkan dan ditampilkan. */
+   menyebut pemasok), disimpan di minyak_nilai kunci 'pembelian'. Di sini hanya dijumlahkan dan ditampilkan.
+   Dilihat pemilik dan bos (fungsi database menolak sesi karyawan). Ada pilihan bulan dan tahun supaya enak dilihat. */
+let pbBulan = '';   // bulan yang sedang dilihat, YYYY-MM
 async function layarPembelian() {
   akar.innerHTML = kepalaPemilik('Pembelian Minyak', 'Minyak yang dibeli di jalan dari pemasok (Ahong, Pak Sekhim, dan lainnya), dibaca otomatis dari laporan tonase harian.', true) +
     '<main class="bungkus"><div id="pb" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
   $('#bBeranda').onclick = layarBeranda; const el = $('#pb');
   const kg = n => (Math.round((n || 0) * 10) / 10).toLocaleString('id-ID', { maximumFractionDigits: 1 });
-  const tglId = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
-  const tglPendek = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  const tglId = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const tglPendek = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  const namaBulan = mk => new Date(mk + '-01T00:00:00').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  const jum = rows => rows.reduce((a, b) => ({ kendi: a.kendi + b.kendi, kg: a.kg + b.kg, nilai: a.nilai + b.nilai, n: a.n + 1 }), { kendi: 0, kg: 0, nilai: 0, n: 0 });
   try {
     const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'pembelian' }); if (!r.ok) throw new Error(r.pesan);
-    const P = r.nilai; const B = (P && P.baris) || [];
+    const P = r.nilai;
     if (!P) { el.innerHTML = '<section class="kartu angkat"><h2>Belum ada data</h2><div class="catatan" style="margin:0">Pembelian dibaca dari berkas laporan tonase di laptop tiap 10 menit. Kalau berkasnya sudah diisi, tunggu sebentar lalu buka lagi.</div></section>'; return; }
+    const B = (P.baris || []).slice().sort((a, b) => a.tanggal.localeCompare(b.tanggal));
     const kini = new Date(); const hariIni = kini.toLocaleDateString('sv-SE'); const senin = new Date(kini); senin.setDate(kini.getDate() - ((kini.getDay() + 6) % 7)); const sn = senin.toLocaleDateString('sv-SE');
-    const jum = rows => rows.reduce((a, b) => ({ kendi: a.kendi + b.kendi, kg: a.kg + b.kg, nilai: a.nilai + b.nilai }), { kendi: 0, kg: 0, nilai: 0 });
-    const hari = jum(B.filter(b => b.tanggal === hariIni)), minggu = jum(B.filter(b => b.tanggal >= sn)), bulan = jum(B.filter(b => b.tanggal.slice(0, 7) === hariIni.slice(0, 7))), semua = jum(B);
-    const perPemasok = {}; B.forEach(b => { (perPemasok[b.pemasok] = perPemasok[b.pemasok] || []).push(b); });
-    const perHari = {}; B.forEach(b => { (perHari[b.tanggal] = perHari[b.tanggal] || []).push(b); });
+    const bulanAda = [...new Set(B.map(b => b.tanggal.slice(0, 7)))].sort(); if (!bulanAda.includes(hariIni.slice(0, 7))) bulanAda.push(hariIni.slice(0, 7));
+    if (!pbBulan || !bulanAda.includes(pbBulan)) pbBulan = hariIni.slice(0, 7);
     const kapan = P.diperbarui ? new Date(P.diperbarui).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '';
-    const ubin = (judul, j, ket) => `<div><div class="label">${judul}</div><div class="nilai">${rp(j.nilai)}</div><small><b>${j.kendi}</b> kendi · <b>${kg(j.kg)}</b> kg${ket ? ' · ' + ket : ''}</small></div>`;
     const hargaTeks = [...new Set(B.map(b => b.hargaKg))].length > 1 ? 'harga per kg mengikuti yang tertulis di berkas' : `Rp ${(P.hargaKg || 19400).toLocaleString('id-ID')} per kg bersih`;
-    el.innerHTML = `<section class="besar angkat"><div class="label">Pembelian bulan ini · ${kini.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</div><div class="nilai">${rp(bulan.nilai)}</div>
-        <div class="keping-baris"><span class="keping"><b>${bulan.kendi}</b> kendi</span><span class="keping"><b>${kg(bulan.kg)}</b> kg bersih</span><span class="keping">${esc(hargaTeks)}</span></div></section>
-      <div class="ubin-pb">${ubin('Hari ini', hari, tglPendek(hariIni))}${ubin('Minggu ini', minggu, 'sejak Senin ' + tglPendek(sn))}${ubin('Sejak ' + tglPendek(P.mulai || '2026-09-24'), semua, Object.keys(perHari).length + ' hari ada pembelian')}</div>
-      <section class="kartu angkat" style="margin-top:14px"><h2>Per pemasok<span class="keping">${Object.keys(perPemasok).length}</span></h2>
-        ${Object.entries(perPemasok).sort((a, b) => jum(b[1]).kg - jum(a[1]).kg).map(([nama, rows]) => { const j = jum(rows); const ukuran = [...new Set(rows.map(x => x.kgPerKendi))].sort((a, b) => a - b);
-          return `<div style="display:flex;justify-content:space-between;gap:6px 10px;padding:9px 0;border-bottom:1px solid rgba(127,127,127,.18);flex-wrap:wrap"><div><b>${esc(nama)}</b><div class="catatan" style="margin:2px 0 0">${rows.length} kali · kendi ${ukuran.map(u => kg(u) + ' kg').join(', ')}</div></div><div style="text-align:right"><b>${rp(j.nilai)}</b><div class="catatan" style="margin:2px 0 0">${j.kendi} kendi · ${kg(j.kg)} kg</div></div></div>`; }).join('') || `<div class="catatan" style="margin:0">Belum ada pembelian sejak ${tglPendek(P.mulai || '2026-09-24')}.</div>`}</section>
-      <section class="kartu angkat" style="margin-top:14px"><h2>Per hari<span class="keping">${B.length} baris</span></h2>
-        ${Object.keys(perHari).sort().reverse().map(t => { const rows = perHari[t], j = jum(rows); return `<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;gap:6px 10px;align-items:baseline;flex-wrap:wrap"><b>${esc(tglId(t))}</b><span style="text-align:right"><b>${rp(j.nilai)}</b> <span class="catatan">· ${j.kendi} kendi · ${kg(j.kg)} kg</span></span></div>
-          <div class="bungkus-tabel"><table class="tabel-pb"><thead><tr><th>Pemasok</th><th>Pengantar</th><th class="angka">Kendi</th><th class="angka">Kg/kendi</th><th class="angka">Kg</th><th class="angka">Rp/kg</th><th class="angka">Nilai</th></tr></thead><tbody>${rows.map(b => `<tr><td><b>${esc(b.pemasok)}</b>${b.label && b.label.toUpperCase() !== b.pemasok.toUpperCase() ? `<div class="catatan" style="margin:0">${esc(b.label)}</div>` : ''}</td><td>${esc(b.kru)}</td><td class="angka">${b.kendi}</td><td class="angka">${kg(b.kgPerKendi)}</td><td class="angka">${kg(b.kg)}</td><td class="angka">${(b.hargaKg || 0).toLocaleString('id-ID')}${b.hargaDariBerkas ? '' : '<span title="harga bawaan, belum ditulis di berkas">*</span>'}</td><td class="angka"><b>${rp(b.nilai)}</b></td></tr>`).join('')}</tbody></table></div></div>`; }).join('') || '<div class="catatan" style="margin:0">Belum ada.</div>'}
-        <div class="catatan">Nilai = kg bersih × harga per kg. Tanda * berarti memakai harga bawaan Rp ${(P.hargaKg || 19400).toLocaleString('id-ID')} karena harga belum ditulis di berkas tonase; tulis harga per kg di kolom kanan JUMLAH pada baris pembelian itu supaya dipakai. Baris tambahan tanpa nama pemasok, dari mobil lain, atau dari rumah tidak dihitung pembelian.${kapan ? ' Diperbarui ' + esc(kapan) + '.' : ''}</div>
-        ${(P.lewati || []).length ? `<div class="catatan" style="margin-top:6px">Lembar yang dilewati: ${P.lewati.map(l => esc(l.berkas.replace('.xlsx', '') + ' › ' + l.sheet)).join(', ')} (tanggalnya di luar minggu berkas).</div>` : ''}</section>`;
+    const ubin = (judul, j, ket) => `<div><div class="label">${judul}</div><div class="nilai">${rp(j.nilai)}</div><small><b>${j.kendi}</b> kendi · <b>${kg(j.kg)}</b> kg${ket ? ' · ' + ket : ''}</small></div>`;
+    const gambar = () => {
+      const tahun = pbBulan.slice(0, 4); const tahunAda = [...new Set(bulanAda.map(m => m.slice(0, 4)))].sort();
+      const bulanTahun = bulanAda.filter(m => m.startsWith(tahun));
+      const dB = B.filter(b => b.tanggal.startsWith(pbBulan)), dT = B.filter(b => b.tanggal.startsWith(tahun));
+      const hari = jum(B.filter(b => b.tanggal === hariIni)), minggu = jum(B.filter(b => b.tanggal >= sn)), bulan = jum(dB), setahun = jum(dT), semua = jum(B);
+      const perPemasok = {}; dB.forEach(b => { (perPemasok[b.pemasok] = perPemasok[b.pemasok] || []).push(b); });
+      const perHari = {}; dB.forEach(b => { (perHari[b.tanggal] = perHari[b.tanggal] || []).push(b); });
+      el.innerHTML = `<section class="kartu angkat" style="padding:12px 16px"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+          <div style="display:flex;flex-wrap:wrap;gap:6px" aria-label="Tahun">${tahunAda.map(t => `<button class="tab ${t === tahun ? 'aktif' : ''}" data-tahun="${t}">${t}</button>`).join('')}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px" aria-label="Bulan">${bulanTahun.map(m => `<button class="tab ${m === pbBulan ? 'aktif' : ''}" data-bulan="${m}">${new Date(m + '-01T00:00:00').toLocaleDateString('id-ID', { month: 'short' })}</button>`).join('')}</div></div></section>
+        <section class="besar angkat" style="margin-top:12px"><div class="label">Pembelian · ${esc(namaBulan(pbBulan))}</div><div class="nilai">${rp(bulan.nilai)}</div>
+          <div class="keping-baris"><span class="keping"><b>${bulan.kendi}</b> kendi</span><span class="keping"><b>${kg(bulan.kg)}</b> kg bersih</span><span class="keping"><b>${Object.keys(perHari).length}</b> hari</span><span class="keping">${esc(hargaTeks)}</span></div></section>
+        <div class="ubin-pb">${ubin('Hari ini', hari, tglPendek(hariIni))}${ubin('Minggu ini', minggu, 'sejak Senin ' + tglPendek(sn))}${ubin('Tahun ' + tahun, setahun, bulanTahun.length + ' bulan')}${ubin('Sejak ' + tglPendek(P.mulai || '2026-09-24'), semua, semua.n + ' pembelian')}</div>
+        <section class="kartu angkat" style="margin-top:14px"><h2>Per bulan · ${tahun}<span class="keping">${bulanTahun.length}</span></h2>
+          <div class="bungkus-tabel"><table class="tabel-pb"><thead><tr><th>Bulan</th><th class="angka">Hari</th><th class="angka">Kendi</th><th class="angka">Kg</th><th class="angka">Nilai</th></tr></thead><tbody>${bulanTahun.slice().reverse().map(m => { const rows = B.filter(b => b.tanggal.startsWith(m)), j = jum(rows); return `<tr style="${m === pbBulan ? 'font-weight:700' : ''}"><td><button class="tab ${m === pbBulan ? 'aktif' : ''}" data-bulan="${m}" style="padding:4px 10px">${esc(namaBulan(m))}</button></td><td class="angka">${new Set(rows.map(b => b.tanggal)).size}</td><td class="angka">${j.kendi}</td><td class="angka">${kg(j.kg)}</td><td class="angka"><b>${rp(j.nilai)}</b></td></tr>`; }).join('')}</tbody></table></div></section>
+        <section class="kartu angkat" style="margin-top:14px"><h2>Per pemasok · ${esc(namaBulan(pbBulan))}<span class="keping">${Object.keys(perPemasok).length}</span></h2>
+          ${Object.entries(perPemasok).sort((a, b) => jum(b[1]).kg - jum(a[1]).kg).map(([nama, rows]) => { const j = jum(rows); const ukuran = [...new Set(rows.map(x => x.kgPerKendi))].sort((a, b) => a - b);
+            return `<div style="display:flex;justify-content:space-between;gap:6px 10px;padding:9px 0;border-bottom:1px solid rgba(127,127,127,.18);flex-wrap:wrap"><div><b>${esc(nama)}</b><div class="catatan" style="margin:2px 0 0">${rows.length} kali · kendi ${ukuran.map(u => kg(u) + ' kg').join(', ')}</div></div><div style="text-align:right"><b>${rp(j.nilai)}</b><div class="catatan" style="margin:2px 0 0">${j.kendi} kendi · ${kg(j.kg)} kg</div></div></div>`; }).join('') || `<div class="catatan" style="margin:0">Belum ada pembelian di ${esc(namaBulan(pbBulan))}.</div>`}</section>
+        <section class="kartu angkat" style="margin-top:14px"><h2>Per hari · ${esc(namaBulan(pbBulan))}<span class="keping">${dB.length} baris</span></h2>
+          ${Object.keys(perHari).sort().reverse().map(t => { const rows = perHari[t], j = jum(rows); return `<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;gap:6px 10px;align-items:baseline;flex-wrap:wrap"><b>${esc(tglId(t))}</b><span style="text-align:right"><b>${rp(j.nilai)}</b> <span class="catatan">· ${j.kendi} kendi · ${kg(j.kg)} kg</span></span></div>
+            <div class="bungkus-tabel"><table class="tabel-pb"><thead><tr><th>Pemasok</th><th>Pengantar</th><th class="angka">Kendi</th><th class="angka">Kg/kendi</th><th class="angka">Kg</th><th class="angka">Rp/kg</th><th class="angka">Nilai</th></tr></thead><tbody>${rows.map(b => `<tr><td><b>${esc(b.pemasok)}</b>${b.label && b.label.toUpperCase() !== b.pemasok.toUpperCase() ? `<div class="catatan" style="margin:0">${esc(b.label)}</div>` : ''}</td><td>${esc(b.kru)}</td><td class="angka">${b.kendi}</td><td class="angka">${kg(b.kgPerKendi)}</td><td class="angka">${kg(b.kg)}</td><td class="angka">${(b.hargaKg || 0).toLocaleString('id-ID')}${b.hargaDariBerkas ? '' : '<span title="harga bawaan, belum ditulis di berkas">*</span>'}</td><td class="angka"><b>${rp(b.nilai)}</b></td></tr>`).join('')}</tbody></table></div></div>`; }).join('') || '<div class="catatan" style="margin:0">Belum ada.</div>'}
+          <div class="catatan">Nilai = kg bersih × harga per kg. Tanda * berarti memakai harga bawaan Rp ${(P.hargaKg || 19400).toLocaleString('id-ID')} karena harga belum ditulis di berkas tonase; tulis harga per kg di kolom kanan JUMLAH pada baris pembelian itu supaya dipakai. Baris tambahan tanpa nama pemasok, dari mobil lain, atau dari rumah tidak dihitung pembelian.${kapan ? ' Diperbarui ' + esc(kapan) + '.' : ''}</div>
+          ${(P.lewati || []).length ? `<div class="catatan" style="margin-top:6px">Lembar yang dilewati: ${P.lewati.map(l => esc(l.berkas.replace('.xlsx', '') + ' › ' + l.sheet)).join(', ')} (tanggalnya di luar minggu berkas).</div>` : ''}</section>`;
+      $$('[data-bulan]', el).forEach(b => b.onclick = () => { pbBulan = b.dataset.bulan; gambar(); });
+      $$('[data-tahun]', el).forEach(b => b.onclick = () => { const t = b.dataset.tahun; pbBulan = bulanAda.filter(m => m.startsWith(t)).pop() || pbBulan; gambar(); });
+    };
+    gambar();
   } catch (e) { el.innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; }
 }
 function panelHargaKaryawan(el) {
