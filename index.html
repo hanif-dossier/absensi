@@ -129,6 +129,11 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 
 /* ---------- Menu beranda pemilik ---------- */
 .menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-top:16px}
+.tabel-pb{width:100%;border-collapse:collapse;font-size:13.5px}.tabel-pb th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--redup);font-weight:700}
+.tabel-pb th,.tabel-pb td{padding:8px 6px;border-bottom:1px solid rgba(127,127,127,.18);text-align:left;vertical-align:top}.tabel-pb tr:last-child td{border-bottom:0}
+.tabel-pb .angka{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.bungkus-tabel{overflow-x:auto}
+.ubin-pb{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}.ubin-pb>div{background:var(--kartu);border-radius:14px;padding:12px 14px;box-shadow:var(--bayang)}
+.ubin-pb .label{margin:0}.ubin-pb .nilai{font-family:var(--serif);font-size:24px;line-height:1.1;margin-top:4px}.ubin-pb small{color:var(--redup);display:block;margin-top:4px}
 .ubin{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;background:var(--kartu);border:0;border-radius:var(--r);padding:16px;box-shadow:var(--bayang);cursor:pointer;color:var(--tinta);text-decoration:none;transition:transform .12s}
 .ubin:hover{transform:translateY(-2px)}.ubin:active{transform:scale(.98)}
 .ubin b{font-family:var(--serif);font-weight:600;font-size:18px;margin-top:8px}
@@ -562,6 +567,7 @@ const jt = n => (n / 1e6).toLocaleString('id-ID', { minimumFractionDigits: 1, ma
 const pc = n => (n * 100).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 const judulKecil = s => String(s).toLowerCase().replace(/(^|[\s-])\S/g, c => c.toUpperCase());   // "BANG HEN" -> "Bang Hen"
 const IKON = {
+  beli: '<path d="M3 6h2l2.4 10.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.5L21 8H6.5"/><circle cx="10" cy="20.5" r="1"/><circle cx="17" cy="20.5" r="1"/><path d="M9 11h9M9.8 14h7.4"/>',
   gaji: '<path d="M4 7h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M9 13l2 2 4-4"/>',
   uang: '<path d="M4 19V5M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-3M20 16V6"/>',
   harian: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/>',
@@ -591,6 +597,7 @@ async function layarBeranda() {
     <section class="menu">
       <button class="ubin" data-ke="gaji"><span class="ik">${ikon('gaji')}</span><b>Absensi & Gaji</b><small>${bacaSaja ? 'Gaji, absensi, dan hutang tiap karyawan (hanya melihat)' : 'Isi gaji harian, potongan, hutang, dan PIN karyawan'}</small></button>
       <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Laporan laba rugi per bulan: omzet, modal, biaya, gaji, laba bersih</small></button>
+      <button class="ubin" data-ke="pembelian"><span class="ik emas">${ikon('beli')}</span><b>Pembelian minyak</b><small>Minyak yang dibeli dari pemasok di jalan, dihitung sejak 24 Sep 2026</small></button>
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
       <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
       <button class="ubin" id="ubinHarian" data-laporan="laporan-harian"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''}</small></button>
@@ -602,7 +609,7 @@ async function layarBeranda() {
   $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); const ub = $('#ubinBagi'); if (ub) ub.onclick = bagikan; siapkanPasang();
   $$('.ubin[data-laporan]').forEach(b => b.onclick = () => bukaLaporan(b.dataset.laporan));
   tampilkanPembaruan();
-  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga })[b.dataset.ke]());
+  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga, pembelian: layarPembelian })[b.dataset.ke]());
   try { const k = await muatKeuangan(), bl = bulanKeu(k)[0]; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih ${esc(bl.nama.split(' ')[0])} <b>${rp(bl.tot.bersih)}</b>`;
     const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) $('small', u).textContent = `Rincian penjualan per hari minggu ${mh}`;
   } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
@@ -793,6 +800,41 @@ function kartuHargaBaca(t) {
   return `<div class="toko"><div class="toko-nama"><span>${esc(t.nama)}</span>${baru ? '<span class="keping hijau" style="font-size:11px;padding:2px 9px">Baru</span>' : ''}</div>
     <div class="toko-harga">${PRODUK.map(([p, nm, sat]) => { const k = hargaKini(t, p), s = hargaSebelum(t, p);
       return `<div class="hp"><span class="l">${nm} <small>${sat}</small></span><b>${k ? rp(k.harga) : '—'}</b><small>${k ? panah(k, s) + (s ? 'dari ' + rp(s.harga) + ' · ' : '') + 'sejak ' + tglPendek(k.tgl) : 'belum ada harga'}</small></div>`; }).join('')}</div></div>`; }
+/* ---------- Pembelian minyak dari pemasok (24 Sep 2026) ----------
+   Data disusun di laptop pemilik oleh alat/pembelian-perbarui.mjs dari berkas LAPORAN TONASE (baris TAMBAH yang
+   menyebut pemasok), disimpan di minyak_nilai kunci 'pembelian'. Di sini hanya dijumlahkan dan ditampilkan. */
+async function layarPembelian() {
+  akar.innerHTML = kepalaPemilik('Pembelian Minyak', 'Minyak yang dibeli di jalan dari pemasok (Ahong, Pak Sekhim, dan lainnya), dibaca otomatis dari laporan tonase harian.', true) +
+    '<main class="bungkus"><div id="pb" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
+  $('#bBeranda').onclick = layarBeranda; const el = $('#pb');
+  const kg = n => (Math.round((n || 0) * 10) / 10).toLocaleString('id-ID', { maximumFractionDigits: 1 });
+  const tglId = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+  const tglPendek = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  try {
+    const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'pembelian' }); if (!r.ok) throw new Error(r.pesan);
+    const P = r.nilai; const B = (P && P.baris) || [];
+    if (!P) { el.innerHTML = '<section class="kartu angkat"><h2>Belum ada data</h2><div class="catatan" style="margin:0">Pembelian dibaca dari berkas laporan tonase di laptop tiap 10 menit. Kalau berkasnya sudah diisi, tunggu sebentar lalu buka lagi.</div></section>'; return; }
+    const kini = new Date(); const hariIni = kini.toLocaleDateString('sv-SE'); const senin = new Date(kini); senin.setDate(kini.getDate() - ((kini.getDay() + 6) % 7)); const sn = senin.toLocaleDateString('sv-SE');
+    const jum = rows => rows.reduce((a, b) => ({ kendi: a.kendi + b.kendi, kg: a.kg + b.kg, nilai: a.nilai + b.nilai }), { kendi: 0, kg: 0, nilai: 0 });
+    const hari = jum(B.filter(b => b.tanggal === hariIni)), minggu = jum(B.filter(b => b.tanggal >= sn)), bulan = jum(B.filter(b => b.tanggal.slice(0, 7) === hariIni.slice(0, 7))), semua = jum(B);
+    const perPemasok = {}; B.forEach(b => { (perPemasok[b.pemasok] = perPemasok[b.pemasok] || []).push(b); });
+    const perHari = {}; B.forEach(b => { (perHari[b.tanggal] = perHari[b.tanggal] || []).push(b); });
+    const kapan = P.diperbarui ? new Date(P.diperbarui).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+    const ubin = (judul, j, ket) => `<div><div class="label">${judul}</div><div class="nilai">${rp(j.nilai)}</div><small><b>${j.kendi}</b> kendi · <b>${kg(j.kg)}</b> kg${ket ? ' · ' + ket : ''}</small></div>`;
+    const hargaTeks = [...new Set(B.map(b => b.hargaKg))].length > 1 ? 'harga per kg mengikuti yang tertulis di berkas' : `Rp ${(P.hargaKg || 19400).toLocaleString('id-ID')} per kg bersih`;
+    el.innerHTML = `<section class="besar angkat"><div class="label">Pembelian bulan ini · ${kini.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</div><div class="nilai">${rp(bulan.nilai)}</div>
+        <div class="keping-baris"><span class="keping"><b>${bulan.kendi}</b> kendi</span><span class="keping"><b>${kg(bulan.kg)}</b> kg bersih</span><span class="keping">${esc(hargaTeks)}</span></div></section>
+      <div class="ubin-pb">${ubin('Hari ini', hari, tglPendek(hariIni))}${ubin('Minggu ini', minggu, 'sejak Senin ' + tglPendek(sn))}${ubin('Sejak ' + tglPendek(P.mulai || '2026-09-24'), semua, Object.keys(perHari).length + ' hari ada pembelian')}</div>
+      <section class="kartu angkat" style="margin-top:14px"><h2>Per pemasok<span class="keping">${Object.keys(perPemasok).length}</span></h2>
+        ${Object.entries(perPemasok).sort((a, b) => jum(b[1]).kg - jum(a[1]).kg).map(([nama, rows]) => { const j = jum(rows); const ukuran = [...new Set(rows.map(x => x.kgPerKendi))].sort((a, b) => a - b);
+          return `<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(127,127,127,.18)"><div><b>${esc(nama)}</b><div class="catatan" style="margin:2px 0 0">${rows.length} kali · kendi ${ukuran.map(u => kg(u) + ' kg').join(', ')}</div></div><div style="text-align:right;white-space:nowrap"><b>${rp(j.nilai)}</b><div class="catatan" style="margin:2px 0 0">${j.kendi} kendi · ${kg(j.kg)} kg</div></div></div>`; }).join('') || `<div class="catatan" style="margin:0">Belum ada pembelian sejak ${tglPendek(P.mulai || '2026-09-24')}.</div>`}</section>
+      <section class="kartu angkat" style="margin-top:14px"><h2>Per hari<span class="keping">${B.length} baris</span></h2>
+        ${Object.keys(perHari).sort().reverse().map(t => { const rows = perHari[t], j = jum(rows); return `<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><b>${esc(tglId(t))}</b><span style="white-space:nowrap"><b>${rp(j.nilai)}</b> <span class="catatan">· ${j.kendi} kendi · ${kg(j.kg)} kg</span></span></div>
+          <div class="bungkus-tabel"><table class="tabel-pb"><thead><tr><th>Pemasok</th><th>Pengantar</th><th class="angka">Kendi</th><th class="angka">Kg/kendi</th><th class="angka">Kg</th><th class="angka">Rp/kg</th><th class="angka">Nilai</th></tr></thead><tbody>${rows.map(b => `<tr><td><b>${esc(b.pemasok)}</b>${b.label && b.label.toUpperCase() !== b.pemasok.toUpperCase() ? `<div class="catatan" style="margin:0">${esc(b.label)}</div>` : ''}</td><td>${esc(b.kru)}</td><td class="angka">${b.kendi}</td><td class="angka">${kg(b.kgPerKendi)}</td><td class="angka">${kg(b.kg)}</td><td class="angka">${(b.hargaKg || 0).toLocaleString('id-ID')}${b.hargaDariBerkas ? '' : '<span title="harga bawaan, belum ditulis di berkas">*</span>'}</td><td class="angka"><b>${rp(b.nilai)}</b></td></tr>`).join('')}</tbody></table></div></div>`; }).join('') || '<div class="catatan" style="margin:0">Belum ada.</div>'}
+        <div class="catatan">Nilai = kg bersih × harga per kg. Tanda * berarti memakai harga bawaan Rp ${(P.hargaKg || 19400).toLocaleString('id-ID')} karena harga belum ditulis di berkas tonase; tulis harga per kg di kolom kanan JUMLAH pada baris pembelian itu supaya dipakai. Baris tambahan tanpa nama pemasok, dari mobil lain, atau dari rumah tidak dihitung pembelian.${kapan ? ' Diperbarui ' + esc(kapan) + '.' : ''}</div>
+        ${(P.lewati || []).length ? `<div class="catatan" style="margin-top:6px">Lembar yang dilewati: ${P.lewati.map(l => esc(l.berkas.replace('.xlsx', '') + ' › ' + l.sheet)).join(', ')} (tanggalnya di luar minggu berkas).</div>` : ''}</section>`;
+  } catch (e) { el.innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; }
+}
 function panelHargaKaryawan(el) {
   el.innerHTML = '<section class="kartu angkat">Memuat harga…</section>';
   muatHarga().then(() => {
