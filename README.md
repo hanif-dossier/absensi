@@ -15,11 +15,12 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   "Harga Toko" (hanya kotak yang berubah yang disimpan; harga sama tidak dicatat ulang); karyawan melihatnya di tab
   "Harga toko". Data satu JSON di `minyak_nilai` kunci `harga`: fungsi `minyak_harga_baca` (semua sesi) dan
   `minyak_harga_tulis` (pemilik saja).
-- **Invoice & Surat Jalan** (ubin di beranda pemilik): nota penjualan ke toko. Satu nomor invoice diunduh jadi dua PDF
-  hitam-putih: invoice (No, Nama Barang, Qty, Berat, Harga, Jumlah, total, terbilang, tanda terima dan hormat kami) dan
-  surat jalan tanpa harga (Nama Barang, Qty, Berat, Keterangan, PERHATIAN, tiga tanda tangan), mengikuti berkas Word
-  surat jalan pemilik. Harga terisi dari Harga Toko pada tanggal invoice. Status belum lunas atau lunas; invoice bisa
-  diubah atau dibatalkan (tidak dihapus). Data di `minyak_nilai` kunci `invoice`, ditulis lewat `minyak_invoice_tulis`
-  (pemilik saja). Kepala surat (nama usaha, alamat, telepon) hanya ada di database, tidak di kode.
+- **Invoice Harian** (ubin di beranda pemilik): satu invoice untuk satu hari pengantaran (satu pengantar), berisi
+  semua toko, disusun seperti lembar harian Excel penjualan (toko, barang, qty, berat, harga, jumlah, retur, hutang) dan
+  rekapan akhirnya (toko hutang, bayar hutang lama, pengeluaran, setoran, selisih kas). Unduhan: invoice harian PDF,
+  surat jalan harian PDF (tanpa harga, kolom tanda tangan tiap toko), nota dan surat jalan per toko (format berkas Word
+  surat jalan, satu halaman per toko dalam satu PDF), dan Excel bersusunan lembar penjualan. Daftar hutang toko bisa
+  ditandai lunas. Data di `minyak_nilai` kunci `invoice`, ditulis lewat `minyak_invoice_tulis` (pemilik saja); kepala
+  surat hanya ada di database, tidak di kode.
 
 Tidak ada data gaji maupun rahasia di repo ini.
