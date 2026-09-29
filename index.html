@@ -144,8 +144,8 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .inv-baris{display:grid;grid-template-columns:30px repeat(6,minmax(0,1fr));gap:10px;align-items:end;padding:14px 0;border-bottom:1px dashed var(--garis)}
 .inv-baris .medan{margin-bottom:0}.inv-baris .medan input,.inv-baris select{width:100%;padding:10px 12px;font-size:15px;border-radius:14px;background:var(--kartu2);border:1.5px solid var(--garis)}
 .inv-baris .b-no{grid-row:span 3;align-self:start;margin-top:26px;font-weight:800;color:var(--redup);text-align:center}
-.inv-baris .b-toko,.inv-baris .b-barang{grid-column:span 3}.inv-baris .b-ket{grid-column:span 4}
-.b-jumlah{grid-column:span 2;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-bottom:6px}.b-jumlah span{font-size:12px;font-weight:700;color:var(--redup)}
+.inv-baris .b-toko,.inv-baris .b-barang{grid-column:span 3}.inv-baris .b-ket,.inv-baris .b-modal{grid-column:span 2}
+.b-jumlah{grid-column:span 2;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;padding-bottom:6px}.b-jumlah small{flex-basis:100%;text-align:right}.b-jumlah span{font-size:12px;font-weight:700;color:var(--redup)}
 .inv-kecil{display:grid;grid-template-columns:minmax(0,1fr) 150px auto;gap:8px;margin-bottom:8px}
 .inv-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;font-size:15px}.inv-total b{font-family:var(--serif);font-size:26px}
 textarea.isian{font:inherit;resize:vertical}
@@ -661,7 +661,7 @@ const ikon = k => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" s
 
 async function muatKeuangan() { if (keu) return keu;
   const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'keuangan' });
-  if (!r.ok) throw new Error(r.pesan); keuDiubah = r.diubah;
+  if (!r.ok) throw new Error(r.pesan); keuDiubah = r.diubah; MODAL_EXCEL = modalDariKeu(r.nilai);
   let inv = null; try { inv = await muatInvoice(); } catch { /* invoice gagal dimuat: laporan tetap tampil dari Excel saja */ }
   keu = gabungInvoiceKeu(r.nilai, inv); return keu; }
 /* Invoice harian ikut laporan keuangan (29 Sep 2026). Data keuangan disusun laptop dari Excel penjualan (minggu -> hari
@@ -669,6 +669,12 @@ async function muatKeuangan() { if (keu) return keu;
    (database keuangan tidak diubah). Kalau penjualan yang sama nanti juga diketik di Excel, invoice itu otomatis tidak
    dihitung lagi, jadi tidak terhitung dua kali. Kendi kosong tidak masuk omzet (sama seperti tabel modal di Excel).
    Modal: curah = kg x modal per kg minggu Excel terakhir; dus = modal per dus Minyak Kita terakhir di Excel. */
+// Modal acuan dari data Excel terbaru: curah per kg (modal curah / tonase) dan dus per dus (Minyak Kita).
+let MODAL_EXCEL = { kg: 0, dus: 0 };
+function modalDariKeu(k) { if (!k?.WK) return { kg: 0, dus: 0 }; const mundur = [...k.WK].sort((a, b) => b - a);
+  const tr = mundur.map(w => k.D[w]?.tot).find(t => t && t.tonase > 0 && t.modal_curah > 0);
+  const jk = mundur.map(w => Object.entries(k.D[w]?.jenis || {}).find(([n, v]) => /kita|dus|kemasan/i.test(n) && v.qty > 0 && v.hpp > 0)).find(Boolean);
+  return { kg: tr ? Math.round(tr.modal_curah / tr.tonase) : 0, dus: jk ? Math.round(jk[1].hpp / jk[1].qty) : 0 }; }
 const HARI_K = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
 const isoTgl = d => d.toLocaleDateString('sv-SE');
 function awalMinggu(k, w) {   // Senin minggu w dari teks periode, mis. "28 Sep – 3 Okt" atau "3 – 8 Agu"
@@ -679,9 +685,7 @@ function gabungInvoiceKeu(k0, inv) {
   const H = (inv?.daftar || []).filter(h => !h.batal && h.tgl).sort((a, b) => a.tgl.localeCompare(b.tgl)); if (!k0 || !H.length) return k0;
   const k = JSON.parse(JSON.stringify(k0)), status = {}, senin = {};
   k.WK.forEach(w => { const d = awalMinggu(k, w); if (d) senin[w] = isoTgl(d); });
-  const wAkhir = Math.max(...k.WK), sAkhir = senin[wAkhir], mundur = [...k.WK].sort((a, b) => b - a);
-  const tr = mundur.map(w => k.D[w]?.tot).find(t => t && t.tonase > 0 && t.modal_curah > 0), modalKg = tr ? tr.modal_curah / tr.tonase : 0;
-  const jk = mundur.map(w => Object.entries(k.D[w]?.jenis || {}).find(([n, v]) => /kita|dus|kemasan/i.test(n) && v.qty > 0 && v.hpp > 0)).find(Boolean), modalDus = jk ? jk[1].hpp / jk[1].qty : 0;
+  const wAkhir = Math.max(...k.WK), sAkhir = senin[wAkhir], acuan = modalDariKeu(k0);
   let tambah = 0; const dariInv = new Set();   // hari+pengantar yang barusan ditambah dari invoice (dua invoice sehari tetap dihitung)
   for (const h of H) {
     const d = new Date(h.tgl + 'T00:00:00'), hari = HARI_K[d.getDay()], sn = new Date(d); sn.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const snI = isoTgl(sn);
@@ -699,7 +703,7 @@ function gabungInvoiceKeu(k0, inv) {
     if (!dariInv.has(kunci) && D.pengantar[kru]?.hari?.[hari] !== undefined) { status[h.id] = 'excel'; continue; }
     let omset = 0, hpp = 0, qty = 0, kg = 0, qc = 0, oc = 0, mc = 0; const jen = {};
     for (const r of h.baris || []) { const j = jenisBarang(r)?.[3] || 'curah', nilai = jmlBaris(r); if (j === 'ken' || !r.qty || !nilai) continue;
-      const nama = j === 'dus' ? 'Minyak Kita' : 'Minyak Curah', kgs = j === 'dus' ? 0 : r.qty * (r.berat || 14.4), m = j === 'dus' ? r.qty * modalDus : kgs * modalKg;
+      const nama = j === 'dus' ? 'Minyak Kita' : 'Minyak Curah', kgs = j === 'dus' ? 0 : r.qty * (r.berat || 14.4), m = modalBaris(h, r, acuan);
       omset += nilai; hpp += m; qty += r.qty; if (j !== 'dus') { kg += kgs; qc += r.qty; oc += nilai; mc += m; }
       const x = jen[nama] ||= { hpp: 0, qty: 0, omset: 0 }; x.hpp += m; x.qty += r.qty; x.omset += nilai; }
     const ops = sumBy(h.keluar, x => x.jumlah); hpp = Math.round(hpp); mc = Math.round(mc); const lk = omset - hpp;
@@ -712,9 +716,9 @@ function gabungInvoiceKeu(k0, inv) {
     (h.keluar || []).filter(x => x.jumlah).forEach(x => D.biaya.push({ hari, jenis: judulKecil(x.ket || 'Pengeluaran'), nilai: x.jumlah, orang: judulKecil(kru) }));
     const p = D.pengantar[kru] ||= { lk: 0, ops: 0, qty: 0, hari: {} }; p.lk += lk; p.ops += ops; p.qty += qty; p.hari[hari] = (p.hari[hari] || 0) + lk;
     status[h.id] = 'masuk'; tambah++; dariInv.add(kunci); }
-  if (tambah) k.kaki = [...(k.kaki || []), `Ditambah <b>${tambah} invoice harian</b> dari aplikasi yang hari dan pengantarnya belum ada di Excel penjualan. Modal curah dihitung Rp ${ribu(modalKg)} per kg (minggu Excel terakhir)${modalDus ? `, dus Rp ${ribu(modalDus)} per dus` : ''}; kendi kosong tidak masuk omzet.`];
+  if (tambah) k.kaki = [...(k.kaki || []), `Ditambah <b>${tambah} invoice harian</b> dari aplikasi yang hari dan pengantarnya belum ada di Excel penjualan. Modal memakai isian modal di invoice; kalau kosong, modal minggu Excel terakhir (curah Rp ${ribu(acuan.kg)} per kg${acuan.dus ? `, dus Rp ${ribu(acuan.dus)} per dus` : ''}). Kendi kosong tidak masuk omzet.`];
   k._invoice = status; return k; }
-const STATUS_KEU = { masuk: ['hijau', 'Masuk laporan keuangan'], excel: ['', 'Sudah ada di Excel, tidak dihitung dua kali'], luar: ['merah', 'Di luar periode laporan keuangan'], kosong: ['', 'Tidak ada penjualan minyak'] };
+const STATUS_KEU = { masuk: ['hijau', 'Masuk laporan keuangan'], excel: ['', 'Sudah tercatat di laporan, tidak dihitung dua kali'], luar: ['merah', 'Di luar periode laporan keuangan'], kosong: ['', 'Tidak ada penjualan minyak'] };
 const kepingKeu = id => { const s = STATUS_KEU[keu?._invoice?.[id]]; return s ? `<span class="keping ${s[0]}">${s[1]}</span>` : ''; };
 
 
@@ -1170,11 +1174,17 @@ function terbilang(n) { n = Math.floor(Math.abs(n || 0)); if (!n) return 'Nol ru
 // Hitungan satu hari, sama dengan REKAPAN AKHIR di Excel:
 //   uang yang harus ada = penjualan - hutang toko hari ini + toko bayar hutang lama
 //   selisih = uang yang harus ada - pengeluaran - setoran (0 berarti kas cocok)
+// Modal satu baris: curah = qty x berat (kosong = 14,4 kg) x modal per kg; dus = qty x modal per dus; kendi kosong 0.
+// Urutan modal: isian di baris itu, lalu modal hari itu (atas formulir), lalu modal Excel terakhir.
+const modalSatuan = (h, r, cad = MODAL_EXCEL) => { const j = jenisBarang(r)?.[3] || 'curah'; return j === 'ken' ? 0 : r.modal || (j === 'dus' ? h.modalDus || cad.dus : h.modalKg || cad.kg) || 0; };
+const modalBaris = (h, r, cad = MODAL_EXCEL) => { const j = jenisBarang(r)?.[3] || 'curah', m = modalSatuan(h, r, cad); return j === 'ken' ? 0 : j === 'dus' ? (r.qty || 0) * m : (r.qty || 0) * (r.berat || 14.4) * m; };
+const minyakBaris = r => (jenisBarang(r)?.[3] || 'curah') !== 'ken';
 function hitungHarian(h) { const b = (h.baris || []).filter(r => r.toko && (r.qty || r.retur));
   const jual = sumBy(b, jmlBaris), hutang = sumBy(b, hutangBaris), lama = sumBy(h.bayarLama, x => x.jumlah), keluar = sumBy(h.keluar, x => x.jumlah), setor = sumBy(h.setor, x => x.jumlah);
   const harus = jual - hutang + lama;
   return { b, jual, hutang, bayar: jual - hutang, lama, keluar, setor, harus, selisih: harus - keluar - setor, toko: [...new Set(b.map(r => r.toko.trim().toUpperCase()))].length,
-    kendi: sumBy(b.filter(r => (jenisBarang(r)?.[3] || 'curah') === 'curah' && r.satuan === 'kendi'), r => r.qty), kg: sumBy(b, r => (r.berat || 0) * (r.qty || 0)), retur: sumBy(b, r => r.retur) }; }
+    kendi: sumBy(b.filter(r => (jenisBarang(r)?.[3] || 'curah') === 'curah' && r.satuan === 'kendi'), r => r.qty), kg: sumBy(b, r => (r.berat || 0) * (r.qty || 0)), retur: sumBy(b, r => r.retur),
+    omsetMinyak: sumBy(b.filter(minyakBaris), jmlBaris), modal: Math.round(sumBy(b, r => modalBaris(h, r))), get laba() { return this.omsetMinyak - this.modal; } }; }
 // Hutang toko yang belum lunas, dari semua invoice harian
 const semuaHutang = () => INV.daftar.filter(h => !h.batal).flatMap(h => (h.baris || []).filter(r => hutangBaris(r) > 0 && !r.lunas).map(r => ({ h, r })));
 
@@ -1247,6 +1257,7 @@ function lembarHarian(h) { const c = hitungHarian(h), P = INV.profil || {};
     <tbody>${c.b.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.toko)}</td><td>${esc(r.barang)}${r.retur ? `<div class="kecil">retur ${angkaId(r.retur)} kendi</div>` : ''}</td><td class="kanan">${r.qty ? angkaId(r.qty) + ' ' + esc(r.satuan || '') : '-'}</td><td class="kanan">${r.berat ? angkaId(r.berat) + ' kg' : ''}</td><td class="kanan">${r.harga ? rp(r.harga) : ''}</td><td class="kanan">${rp(jmlBaris(r))}</td><td class="kanan">${hutangBaris(r) ? rp(hutangBaris(r)) + (r.lunas ? '<div class="kecil">lunas</div>' : '') : ''}</td></tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:#777">Belum ada toko</td></tr>'}</tbody>
     <tfoot><tr><td colspan="6" class="kanan"><b>Total penjualan</b></td><td class="kanan"><b>${rp(c.jual)}</b></td><td class="kanan"><b>${c.hutang ? rp(c.hutang) : ''}</b></td></tr></tfoot></table></div>
     <div class="kecil" style="margin-top:8px">Terbilang: <i>${esc(terbilang(c.jual))}</i></div>
+    ${c.omsetMinyak ? `<div class="kecil" style="margin-top:4px">Modal minyak ${rp(c.modal)} (curah Rp ${ribu(h.modalKg || MODAL_EXCEL.kg)}/kg${h.modalDus || MODAL_EXCEL.dus ? ', dus Rp ' + ribu(h.modalDus || MODAL_EXCEL.dus) + '/dus' : ''}) · <b>laba kotor ${rp(c.laba)}</b> · hanya tampil di aplikasi</div>` : ''}
     <h3 style="font-size:12px">REKAPAN AKHIR</h3>
     <table class="rekap"><tbody>${rekapBaris(h, c).map(([l, n, t]) => `<tr${t ? ' class="tebal"' : ''}><td>${esc(l)}</td><td class="kanan">${n}</td></tr>`).join('')}</tbody></table>
     ${h.catatan ? `<div class="kecil" style="margin-top:8px">Catatan: ${esc(h.catatan)}</div>` : ''}</div>`; }
@@ -1288,6 +1299,7 @@ function formHarian(asal) {
   const barisBaru = () => ({ id: idBaru('r'), toko: '', alamat: '', barang: 'Minyak Curah', qty: 0, satuan: 'kendi', berat: 0, harga: 0, retur: 0, hutang: 0, ket: '', _auto: true });
   const lalu0 = INV.daftar.filter(x => !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl))[0];
   const h = asal ? JSON.parse(JSON.stringify(asal)) : { id: idBaru('h'), no: noBerikut(), tgl: hariIni(), pengantar: lalu0?.pengantar || '', ekspedisi: lalu0?.ekspedisi || 'Pick-up', catatan: '',
+    modalKg: lalu0?.modalKg || MODAL_EXCEL.kg || 0, modalDus: lalu0?.modalDus || MODAL_EXCEL.dus || 0,
     baris: [barisBaru()], keluar: [{ ket: 'Parkir', jumlah: 0 }, { ket: 'Bensin', jumlah: 0 }], setor: [{ ket: '', jumlah: 0 }], bayarLama: [] };
   ['keluar', 'setor', 'bayarLama'].forEach(k => { h[k] = h[k] || []; }); h.baris.forEach(r => { r.id ||= idBaru('r'); });
   let kotorF = false;
@@ -1300,13 +1312,16 @@ function formHarian(asal) {
       <label class="medan"><span>No. invoice</span><input id="fNo" inputmode="numeric"></label>
       <label class="medan"><span>Pengantar</span><input id="fPengantar" list="dlPengantar" placeholder="mis. Riyan dan Eja"></label>
       <label class="medan"><span>Ekspedisi</span><input id="fEksp" list="dlEksp"></label></div>
+      <div class="inv-empat"><label class="medan"><span>Modal curah hari ini (Rp per kg)</span><input id="fModalKg" class="angka" inputmode="numeric" placeholder="${MODAL_EXCEL.kg ? ribu(MODAL_EXCEL.kg) : 'mis. 19.400'}"></label>
+        <label class="medan"><span>Modal dus hari ini (Rp per dus)</span><input id="fModalDus" class="angka" inputmode="numeric" placeholder="${MODAL_EXCEL.dus ? ribu(MODAL_EXCEL.dus) : '—'}"></label>
+        <div class="catatan" style="grid-column:span 2;align-self:center;margin:0">Modal berubah-ubah, jadi isi tiap hari. Berlaku untuk semua toko; kalau ada minyak dari pemasok lain, isi modalnya di baris toko itu. Modal tidak tercetak di PDF untuk toko.</div></div>
       <datalist id="dlPengantar">${pengantarList.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>
       <datalist id="dlEksp"><option value="Pick-up"></option><option value="Truk"></option><option value="Motor"></option></datalist>
       <datalist id="dlToko">${tokoList.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>
       <datalist id="dlBarang">${BARANG.map(([n]) => `<option value="${n}"></option>`).join('')}</datalist></section>
     <section class="kartu angkat" style="margin-top:14px"><h2>Penjualan per toko <button class="pil kecil" id="fTambah">+ Toko</button></h2><div id="fBaris"></div>
       <div style="margin-top:12px"><button class="pil halus kecil" id="fTambah2">+ Toko</button></div>
-      <div class="inv-total"><span>Total penjualan</span><b id="fTotal"></b></div><div class="catatan" id="fRingkas" style="margin:2px 0 0"></div></section>
+      <div class="inv-total"><span>Total penjualan</span><b id="fTotal"></b></div><div class="catatan" id="fRingkas" style="margin:2px 0 0"></div><div class="catatan" id="fLaba" style="margin:2px 0 0;font-weight:700"></div></section>
     <section class="kartu angkat" style="margin-top:14px"><h2>Rekapan akhir</h2>
       <div class="sub-judul"><span>Toko bayar hutang lama</span><button class="pil halus kecil" data-tambah="bayarLama">+ Tambah</button></div><div id="fLama"></div>
       <div class="sub-judul"><span>Pengeluaran (parkir, bensin, uang makan…)</span><button class="pil halus kecil" data-tambah="keluar">+ Tambah</button></div><div id="fKeluar"></div>
@@ -1320,6 +1335,8 @@ function formHarian(asal) {
   const ubah = () => { if (!kotorF) { kotorF = true; status('Belum disimpan', 'ubah'); } };
   [['fTgl', 'tgl'], ['fNo', 'no'], ['fPengantar', 'pengantar'], ['fEksp', 'ekspedisi'], ['fCatatan', 'catatan']].forEach(([i, k]) => {
     const el = $('#' + i); el.value = h[k] || ''; el.addEventListener('input', () => { h[k] = el.value; ubah(); }); });
+  [['fModalKg', 'modalKg'], ['fModalDus', 'modalDus']].forEach(([i, k]) => { const el = $('#' + i); el.value = h[k] ? ribu(h[k]) : '';
+    el.addEventListener('input', () => { h[k] = angkaRp(el.value); segarModal(); segar(); ubah(); }); el.addEventListener('blur', () => { if (el.value.trim()) el.value = ribu(angkaRp(el.value)); }); });
 
   // Harga dari Harga Toko pada tanggal invoice; alamat dan berat dari catatan terakhir toko yang sama.
   const catatanToko = (toko, barang) => INV.daftar.filter(x => x.id !== h.id && !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl)).flatMap(x => x.baris || [])
@@ -1332,6 +1349,8 @@ function formHarian(asal) {
 
   const segar = () => { const c = hitungHarian(h);
     $('#fTotal').textContent = rp(c.jual);
+    const tanpaModal = c.b.some(r => minyakBaris(r) && r.qty > 0 && !modalSatuan(h, r));
+    $('#fLaba').textContent = tanpaModal ? 'Modal belum diisi, jadi laba kotor belum bisa dihitung. Isi modal hari ini di bagian atas.' : c.omsetMinyak ? `Modal minyak ${rp(c.modal)} · laba kotor ${rp(c.laba)}${c.omsetMinyak ? ' (' + (c.laba / c.omsetMinyak * 100).toFixed(1).replace('.', ',') + '%)' : ''}` : '';
     $('#fRingkas').textContent = `${c.toko} toko${c.kendi ? ' · ' + angkaId(c.kendi) + ' kendi curah' : ''}${c.kg ? ' · ' + angkaId(c.kg) + ' kg' : ''}${c.retur ? ' · retur ' + angkaId(c.retur) + ' kendi' : ''}${c.hutang ? ' · hutang ' + rp(c.hutang) : ''}`;
     $('#fRekap').innerHTML = `<table class="tabel-pb"><tbody>${rekapBaris(h, c).map(([l, n, t]) => `<tr><td>${t ? '<b>' + esc(l) + '</b>' : esc(l)}</td><td class="angka">${t ? '<b>' + n + '</b>' : n}</td></tr>`).join('')}</tbody></table>
       <div class="catatan">${c.selisih ? (c.selisih > 0 ? 'Uang yang disetor dan dikeluarkan masih kurang dari yang seharusnya.' : 'Uang yang disetor dan dikeluarkan lebih besar dari yang seharusnya.') + ' Periksa lagi setoran, pengeluaran, atau hutang toko.' : 'Selisih 0 berarti kas hari ini cocok.'}</div>`; };
@@ -1341,7 +1360,12 @@ function formHarian(asal) {
   // Isian otomatis cukup mengganti kotak di baris itu (tanpa menggambar ulang semua baris), supaya fokus di HP tidak lompat.
   const isiUlang = (row, r) => { const set = (f, v) => { const i = $(`[data-f="${f}"]`, row); if (i && document.activeElement !== i) i.value = v; };
     set('harga', r.harga ? ribu(r.harga) : ''); set('berat', r.berat ? angkaId(r.berat) : ''); set('alamat', r.alamat || ''); set('satuan', r.satuan || 'kendi');
-    $('[data-jml]', row).textContent = rp(jmlBaris(r)); segar(); };
+    $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); segar(); };
+  // Label & contoh isian modal per baris mengikuti jenis barang dan modal hari itu
+  const segarModal = () => $$('.inv-baris', $('#fBaris')).forEach(row => { const r = h.baris[+row.dataset.i], j = jenisBarang(r)?.[3] || 'curah', i = $('[data-f="modal"]', row); if (!i) return;
+    $('[data-lbl]', row).textContent = j === 'ken' ? 'Modal (tidak dihitung)' : j === 'dus' ? 'Modal (Rp per dus)' : 'Modal (Rp per kg)'; i.disabled = j === 'ken';
+    i.placeholder = j === 'ken' ? '—' : ribu(j === 'dus' ? h.modalDus || MODAL_EXCEL.dus : h.modalKg || MODAL_EXCEL.kg) || '0';
+    $('[data-laba]', row).textContent = j === 'ken' || !r.qty ? '' : modalSatuan(h, r) ? 'laba ' + rp(jmlBaris(r) - modalBaris(h, r)) : 'modal belum diisi'; });
   const gambarBaris = () => {
     $('#fBaris').innerHTML = h.baris.map((r, i) => `<div class="inv-baris" data-i="${i}">
       <div class="b-no">${i + 1}</div>
@@ -1354,16 +1378,17 @@ function formHarian(asal) {
       <label class="medan"><span>Retur (kendi)</span><input data-f="retur" inputmode="decimal" value="${r.retur ? angkaId(r.retur) : ''}" placeholder="—"></label>
       <label class="medan"><span>Hutang (Rp)</span><input data-f="hutang" inputmode="numeric" value="${r.hutang ? ribu(r.hutang) : ''}" placeholder="lunas"></label>
       <label class="medan b-ket"><span>Alamat / pasar (boleh kosong)</span><input data-f="alamat" value="${esc(r.alamat || '')}" placeholder="mis. Psr Tengah"></label>
-      <div class="b-jumlah"><span>Jumlah</span><b data-jml>${rp(jmlBaris(r))}</b><button class="pil bahaya kecil" data-hapus aria-label="Hapus baris ${i + 1}">Hapus</button></div></div>`).join('');
+      <label class="medan b-modal"><span data-lbl>Modal</span><input data-f="modal" inputmode="numeric" value="${r.modal ? ribu(r.modal) : ''}"></label>
+      <div class="b-jumlah"><span>Jumlah</span><b data-jml>${rp(jmlBaris(r))}</b><small data-laba class="catatan" style="margin:0"></small><button class="pil bahaya kecil" data-hapus aria-label="Hapus baris ${i + 1}">Hapus</button></div></div>`).join('');
     $$('.inv-baris', $('#fBaris')).forEach(row => { const r = h.baris[+row.dataset.i];
       $$('[data-f]', row).forEach(inp => { const f = inp.dataset.f;
-        if (['qty', 'berat', 'retur'].includes(f)) ikatAngka(inp, n => { r[f] = n; $('[data-jml]', row).textContent = rp(jmlBaris(r)); });
-        else if (f === 'harga' || f === 'hutang') ikatAngka(inp, n => { r[f] = n; if (f === 'harga') r._auto = false; $('[data-jml]', row).textContent = rp(jmlBaris(r)); }, true);
+        if (['qty', 'berat', 'retur'].includes(f)) ikatAngka(inp, n => { r[f] = n; $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); });
+        else if (f === 'harga' || f === 'hutang' || f === 'modal') ikatAngka(inp, n => { r[f] = n; if (f === 'harga') r._auto = false; $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); }, true);
         else inp.addEventListener('input', () => { r[f] = inp.value; segar(); ubah(); });
         if (f === 'toko') inp.addEventListener('change', () => { isiOtomatis(r); isiUlang(row, r); });
         if (f === 'barang') inp.addEventListener('change', () => { const j = jenisBarang(r); if (j) { r.satuan = j[1]; if (r._auto !== false || !r.harga) { r.harga = 0; r._auto = true; } isiOtomatis(r); isiUlang(row, r); } }); });
       $('[data-hapus]', row).onclick = () => { if ((r.toko || r.qty) && !confirm(`Hapus baris ${r.toko || 'ini'}?`)) return; h.baris.splice(+row.dataset.i, 1); if (!h.baris.length) h.baris.push(barisBaru()); ubah(); gambarBaris(); }; });
-    segar(); };
+    segarModal(); segar(); };
   const tambahToko = () => { const r = barisBaru(); h.baris.push(r); gambarBaris(); ubah(); $$('#fBaris [data-f="toko"]').pop().focus(); };
   $('#fTambah').onclick = tambahToko; $('#fTambah2').onclick = tambahToko;
 
@@ -1384,6 +1409,7 @@ function formHarian(asal) {
     const salah = !h.tgl ? 'Tanggal wajib diisi.' : !String(h.no).trim() ? 'Nomor invoice wajib diisi.' : !baris.length ? 'Isi minimal satu toko dengan qty.'
       : h.baris.some(r => r.toko.trim() && !(r.qty > 0 || r.retur > 0)) ? 'Ada toko tanpa qty. Isi qty-nya atau hapus barisnya.'
       : h.baris.some(r => !r.toko.trim() && r.qty > 0) ? 'Ada baris dengan qty tapi nama tokonya kosong.'
+      : baris.some(r => minyakBaris(r) && r.qty > 0 && !modalSatuan(h, r)) ? `Isi modal ${baris.some(r => (jenisBarang(r)?.[3] || 'curah') === 'dus' && r.qty > 0 && !modalSatuan(h, r)) ? 'dus' : 'curah'} hari ini dulu, supaya laba kotor di laporan benar.`
       : INV.daftar.some(x => x.id !== h.id && !x.batal && String(x.no).trim() === String(h.no).trim()) ? `Nomor ${h.no} sudah dipakai invoice lain.` : '';
     if (salah) { status(salah, 'salah'); return; }
     const bersih = a => a.filter(x => (x.ket || x.toko || '').trim() || x.jumlah).map(x => ({ ...x, ...(x.ket !== undefined ? { ket: x.ket.trim() } : {}), ...(x.toko !== undefined ? { toko: x.toko.trim() } : {}) }));

@@ -25,6 +25,11 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
 - **Invoice masuk Keuangan** (`gabungInvoiceKeu`): saat data keuangan dimuat, invoice harian yang hari dan pengantarnya
   belum ada di Excel penjualan ditambahkan ke minggu, hari, pengantar, jenis, dan biaya (hanya di aplikasi; database
   keuangan tetap hasil Excel). Yang sudah ada di Excel dilewati supaya tidak terhitung dua kali. Kendi kosong tidak masuk
-  omzet; modal curah = kg x modal per kg minggu Excel terakhir. Kartu invoice menampilkan statusnya.
+  omzet. Kartu invoice menampilkan statusnya.
+- **Modal di invoice harian**: modal curah per kg dan dus per dus hari itu (wajib diisi, bisa beda per baris toko).
+  Dipakai untuk laba kotor di aplikasi, keuangan, laporan harian, dan dashboard; tidak tercetak di PDF untuk toko.
+- **Laporan harian & dashboard** (laptop, `alat/gabung-invoice.mjs` dipanggil `perbarui-otomatis.mjs`): invoice harian
+  minggu itu dijadikan blok pengantar seperti sheet Excel sebelum laporan disusun (anti dobel per hari + pengantar).
+  `--terbaru` memilih minggu terbaru dari Excel atau invoice, jadi minggu tanpa berkas Excel tetap dilaporkan.
 
 Tidak ada data gaji maupun rahasia di repo ini.
