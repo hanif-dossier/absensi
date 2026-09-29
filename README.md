@@ -26,8 +26,12 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   belum ada di Excel penjualan ditambahkan ke minggu, hari, pengantar, jenis, dan biaya (hanya di aplikasi; database
   keuangan tetap hasil Excel). Yang sudah ada di Excel dilewati supaya tidak terhitung dua kali. Kendi kosong tidak masuk
   omzet. Kartu invoice menampilkan statusnya.
-- **Modal di invoice harian**: modal curah per kg dan dus per dus hari itu (wajib diisi, bisa beda per baris toko).
+- **Modal di invoice harian**: otomatis dari data Pembelian minyak (rata-rata harga per kg pembelian curah 7 hari
+  terakhir sampai tanggal invoice, ditimbang kg; dus dari pembelian dus terakhir; cadangan modal Excel terakhir).
+  Diketik hanya kalau beda, per hari atau per toko (tombol "Lain"). Nilai yang dipakai disimpan di invoice.
   Dipakai untuk laba kotor di aplikasi, keuangan, laporan harian, dan dashboard; tidak tercetak di PDF untuk toko.
+- **Lembar isian** seperti Excel di laptop: satu toko satu baris (retur, alamat, modal toko dilipat di "Lain"), Enter
+  pindah ke kotak berikutnya dan menambah toko baru di kotak terakhir. Di HP tetap berbentuk kartu.
 - **Laporan harian & dashboard** (laptop, `alat/gabung-invoice.mjs` dipanggil `perbarui-otomatis.mjs`): invoice harian
   minggu itu dijadikan blok pengantar seperti sheet Excel sebelum laporan disusun (anti dobel per hari + pengantar).
   `--terbaru` memilih minggu terbaru dari Excel atau invoice, jadi minggu tanpa berkas Excel tetap dilaporkan.

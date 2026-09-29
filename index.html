@@ -141,11 +141,26 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .inv-kartu:hover{border-color:var(--emas)}.inv-kartu.mati{opacity:.55}
 .inv-unduh{display:flex;flex-wrap:wrap;gap:8px}
 .inv-empat{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 12px}
-.inv-baris{display:grid;grid-template-columns:30px repeat(6,minmax(0,1fr));gap:10px;align-items:end;padding:14px 0;border-bottom:1px dashed var(--garis)}
+.inv-kepala{display:none}
+.inv-baris{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;padding:14px 0;border-bottom:1px dashed var(--garis)}
 .inv-baris .medan{margin-bottom:0}.inv-baris .medan input,.inv-baris select{width:100%;padding:10px 12px;font-size:15px;border-radius:14px;background:var(--kartu2);border:1.5px solid var(--garis)}
-.inv-baris .b-no{grid-row:span 3;align-self:start;margin-top:26px;font-weight:800;color:var(--redup);text-align:center}
-.inv-baris .b-toko,.inv-baris .b-barang{grid-column:span 3}.inv-baris .b-ket,.inv-baris .b-modal{grid-column:span 2}
-.b-jumlah{grid-column:span 2;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;padding-bottom:6px}.b-jumlah small{flex-basis:100%;text-align:right}.b-jumlah span{font-size:12px;font-weight:700;color:var(--redup)}
+.inv-baris .b-no{grid-column:1/-1;font-weight:800;color:var(--redup)}
+.inv-baris .b-toko,.inv-baris .b-barang,.inv-baris .b-jumlah,.inv-baris .b-lain{grid-column:1/-1}
+.b-jumlah{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 10px}.b-jumlah .b-angka{display:flex;flex-direction:column}.b-jumlah small{margin:0}
+.b-aksi{display:flex;gap:6px}
+.b-lain{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--kartu2);border-radius:14px;padding:10px}.b-lain .b-alamat{grid-column:1/-1}.b-lain[hidden]{display:none}
+.b-lain .medan input{background:var(--kartu)}
+@media (min-width:900px){
+  .inv-kepala,.inv-baris{grid-template-columns:20px minmax(0,1.9fr) minmax(0,1.45fr) minmax(0,.6fr) minmax(0,.8fr) minmax(0,.6fr) minmax(0,1fr) minmax(0,1fr) 196px;gap:6px}
+  .inv-kepala{display:grid;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--redup);padding:4px 0 6px;border-bottom:1px solid var(--garis)}
+  .inv-kepala .kn{text-align:right}
+  .inv-baris{padding:5px 0;align-items:center;border-bottom:1px solid rgba(127,127,127,.12)}
+  .inv-baris .b-no{grid-column:auto;text-align:center;font-size:13px}
+  .inv-baris .b-toko,.inv-baris .b-barang,.inv-baris .b-jumlah{grid-column:auto}
+  .inv-baris>.medan>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .inv-baris>.medan input,.inv-baris>.medan select{padding:7px 8px;font-size:14px;border-radius:9px}
+  .b-jumlah{flex-wrap:nowrap;gap:6px}.b-jumlah .b-angka{align-items:flex-end;flex:1;font-size:13.5px;white-space:nowrap}.b-jumlah small{font-size:11px}.b-aksi .pil{padding:5px 9px}
+  .inv-baris .b-lain{grid-column:2/-1;grid-template-columns:130px minmax(0,1fr) 200px;margin:2px 0 6px}.b-lain .b-alamat{grid-column:auto}}
 .inv-kecil{display:grid;grid-template-columns:minmax(0,1fr) 150px auto;gap:8px;margin-bottom:8px}
 .inv-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;font-size:15px}.inv-total b{font-family:var(--serif);font-size:26px}
 textarea.isian{font:inherit;resize:vertical}
@@ -158,8 +173,8 @@ textarea.isian{font:inherit;resize:vertical}
 .lembar th{background:#eef3ef;font-size:11px;letter-spacing:.05em;text-transform:uppercase;text-align:left}
 .lembar .kanan{text-align:right;white-space:nowrap}.lembar .kecil{font-size:11.5px;color:#444}
 .lembar table.rekap{width:auto;min-width:0;max-width:100%}.lembar table.rekap td{padding:4px 10px}.lembar tr.tebal td{font-weight:700}
-@media (max-width:640px){.inv-empat{grid-template-columns:1fr 1fr}.inv-baris{grid-template-columns:1fr 1fr}.inv-baris .b-no{grid-row:auto;grid-column:1/-1;margin:0;text-align:left}
-  .inv-baris .b-toko,.inv-baris .b-barang,.inv-baris .b-ket,.b-jumlah{grid-column:1/-1}.b-jumlah{justify-content:space-between}.inv-kecil{grid-template-columns:minmax(0,1fr) 110px auto}.lembar{padding:16px}}
+@media (max-width:640px){.inv-empat{grid-template-columns:1fr 1fr}
+  .inv-kecil{grid-template-columns:minmax(0,1fr) 110px auto}.lembar{padding:16px}}
 .ubin{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;background:var(--kartu);border:0;border-radius:var(--r);padding:16px;box-shadow:var(--bayang);cursor:pointer;color:var(--tinta);text-decoration:none;transition:transform .12s}
 .ubin:hover{transform:translateY(-2px)}.ubin:active{transform:scale(.98)}
 .ubin b{font-family:var(--serif);font-weight:600;font-size:18px;margin-top:8px}
@@ -1176,8 +1191,22 @@ function terbilang(n) { n = Math.floor(Math.abs(n || 0)); if (!n) return 'Nol ru
 //   selisih = uang yang harus ada - pengeluaran - setoran (0 berarti kas cocok)
 // Modal satu baris: curah = qty x berat (kosong = 14,4 kg) x modal per kg; dus = qty x modal per dus; kendi kosong 0.
 // Urutan modal: isian di baris itu, lalu modal hari itu (atas formulir), lalu modal Excel terakhir.
-const modalSatuan = (h, r, cad = MODAL_EXCEL) => { const j = jenisBarang(r)?.[3] || 'curah'; return j === 'ken' ? 0 : r.modal || (j === 'dus' ? h.modalDus || cad.dus : h.modalKg || cad.kg) || 0; };
-const modalBaris = (h, r, cad = MODAL_EXCEL) => { const j = jenisBarang(r)?.[3] || 'curah', m = modalSatuan(h, r, cad); return j === 'ken' ? 0 : j === 'dus' ? (r.qty || 0) * m : (r.qty || 0) * (r.berat || 14.4) * m; };
+// Modal otomatis: rata-rata harga beli per kg dari pembelian minyak curah 7 hari terakhir sampai tanggal invoice
+// (data Pembelian minyak, dibaca laptop dari laporan tonase), ditimbang dengan kg-nya; dus dari pembelian dus terakhir.
+// Kalau belum ada pembelian, modal minggu Excel terakhir. Pemilik cukup mengetik modal kalau harganya beda.
+let PEMBELIAN = null;
+async function muatPembelian() { const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'pembelian' }); if (!r.ok) throw new Error(r.pesan); PEMBELIAN = r.nilai || { baris: [] }; return PEMBELIAN; }
+function modalOtomatis(tgl) { const B = (PEMBELIAN?.baris || []).filter(b => b.tanggal <= (tgl || hariIni())), d = new Date((tgl || hariIni()) + 'T00:00:00'); d.setDate(d.getDate() - 6); const batas = isoTgl(d);
+  const cur = B.filter(b => b.satuan !== 'dus' && b.kg > 0 && b.hargaKg > 0); let pakai = cur.filter(b => b.tanggal >= batas);
+  if (!pakai.length && cur.length) { const t = cur.map(b => b.tanggal).sort().pop(); pakai = cur.filter(b => b.tanggal === t); }
+  const dus = B.filter(b => b.satuan === 'dus' && b.hargaDus > 0).sort((a, b) => a.tanggal.localeCompare(b.tanggal)).pop();
+  const kg = pakai.length ? Math.round(sumBy(pakai, b => b.kg * b.hargaKg) / sumBy(pakai, b => b.kg)) : 0, t = pakai.map(b => b.tanggal).sort();
+  return { kg: kg || MODAL_EXCEL.kg || 0, dus: dus?.hargaDus || MODAL_EXCEL.dus || 0,
+    ketKg: kg ? `rata-rata ${pakai.length} pembelian ${t[0] === t.at(-1) ? tglPendek(t[0]) : tglPendek(t[0]) + '–' + tglPendek(t.at(-1))}` : MODAL_EXCEL.kg ? 'modal Excel terakhir' : '',
+    ketDus: dus ? `pembelian dus ${tglPendek(dus.tanggal)}` : MODAL_EXCEL.dus ? 'modal Excel terakhir' : '' }; }
+const modalSatuan = (h, r, cad) => { const j = jenisBarang(r)?.[3] || 'curah'; if (j === 'ken') return 0; if (r.modal) return r.modal;
+  if (j === 'dus' ? h.modalDus : h.modalKg) return j === 'dus' ? h.modalDus : h.modalKg; const a = cad || modalOtomatis(h.tgl); return (j === 'dus' ? a.dus : a.kg) || 0; };
+const modalBaris = (h, r, cad) => { const j = jenisBarang(r)?.[3] || 'curah', m = modalSatuan(h, r, cad); return j === 'ken' ? 0 : j === 'dus' ? (r.qty || 0) * m : (r.qty || 0) * (r.berat || 14.4) * m; };
 const minyakBaris = r => (jenisBarang(r)?.[3] || 'curah') !== 'ken';
 function hitungHarian(h) { const b = (h.baris || []).filter(r => r.toko && (r.qty || r.retur));
   const jual = sumBy(b, jmlBaris), hutang = sumBy(b, hutangBaris), lama = sumBy(h.bayarLama, x => x.jumlah), keluar = sumBy(h.keluar, x => x.jumlah), setor = sumBy(h.setor, x => x.jumlah);
@@ -1199,7 +1228,7 @@ async function layarInvoice() {
   akar.innerHTML = kepalaPemilik('Invoice Harian', 'Satu invoice untuk satu hari pengantaran, berisi semua toko. Bisa diunduh jadi PDF invoice, surat jalan, nota per toko, dan Excel.', true) +
     '<main class="bungkus"><div id="inv" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
   $('#bBeranda').onclick = layarBeranda;
-  try { [INV] = await Promise.all([muatInvoice(), muatHarga().catch(() => null), muatKeuangan().catch(() => null)]); gambarInvoice(); }
+  try { [INV] = await Promise.all([muatInvoice(), muatHarga().catch(() => null), muatKeuangan().catch(() => null), muatPembelian().catch(() => null)]); gambarInvoice(); }
   catch (e) { $('#inv').innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
 
 function gambarInvoice() { const el = $('#inv'); if (!el) return;
@@ -1299,22 +1328,23 @@ function formHarian(asal) {
   const barisBaru = () => ({ id: idBaru('r'), toko: '', alamat: '', barang: 'Minyak Curah', qty: 0, satuan: 'kendi', berat: 0, harga: 0, retur: 0, hutang: 0, ket: '', _auto: true });
   const lalu0 = INV.daftar.filter(x => !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl))[0];
   const h = asal ? JSON.parse(JSON.stringify(asal)) : { id: idBaru('h'), no: noBerikut(), tgl: hariIni(), pengantar: lalu0?.pengantar || '', ekspedisi: lalu0?.ekspedisi || 'Pick-up', catatan: '',
-    modalKg: lalu0?.modalKg || MODAL_EXCEL.kg || 0, modalDus: lalu0?.modalDus || MODAL_EXCEL.dus || 0,
+    modalKg: 0, modalDus: 0,   // 0 = otomatis dari pembelian
     baris: [barisBaru()], keluar: [{ ket: 'Parkir', jumlah: 0 }, { ket: 'Bensin', jumlah: 0 }], setor: [{ ket: '', jumlah: 0 }], bayarLama: [] };
   ['keluar', 'setor', 'bayarLama'].forEach(k => { h[k] = h[k] || []; }); h.baris.forEach(r => { r.id ||= idBaru('r'); });
+  if (h.modalOtomatis) h.modalKg = 0; if (h.modalDusOtomatis) h.modalDus = 0;   // modal yang dulu otomatis tetap ikut otomatis
   let kotorF = false;
   const tokoList = [...new Set([...(harga?.toko || []).filter(t => t.aktif !== false).map(t => t.nama), ...INV.daftar.flatMap(x => (x.baris || []).map(r => r.toko))].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const pengantarList = [...new Set([...Object.values(data || {}).filter(e => e.aktif).map(e => e.nama), ...INV.daftar.map(x => x.pengantar)].filter(Boolean))];
-  akar.innerHTML = kepalaPemilik(asal ? 'Ubah Invoice ' + esc(h.no) : 'Invoice Hari Ini', 'Satu baris satu toko, seperti lembar penjualan di Excel. Harga terisi dari Harga Toko dan tetap bisa diubah.', true) +
+  akar.innerHTML = kepalaPemilik(asal ? 'Ubah Invoice ' + esc(h.no) : 'Invoice Hari Ini', 'Satu baris satu toko, seperti lembar penjualan di Excel. Harga dari Harga Toko dan modal dari pembelian terisi sendiri; Enter pindah ke kotak berikutnya.', true) +
     `<main class="bungkus"><div style="padding-top:38px">
     <section class="kartu angkat"><h2>Hari pengantaran</h2><div class="inv-empat">
       <label class="medan"><span>Tanggal</span><input id="fTgl" type="date"></label>
       <label class="medan"><span>No. invoice</span><input id="fNo" inputmode="numeric"></label>
       <label class="medan"><span>Pengantar</span><input id="fPengantar" list="dlPengantar" placeholder="mis. Riyan dan Eja"></label>
       <label class="medan"><span>Ekspedisi</span><input id="fEksp" list="dlEksp"></label></div>
-      <div class="inv-empat"><label class="medan"><span>Modal curah hari ini (Rp per kg)</span><input id="fModalKg" class="angka" inputmode="numeric" placeholder="${MODAL_EXCEL.kg ? ribu(MODAL_EXCEL.kg) : 'mis. 19.400'}"></label>
-        <label class="medan"><span>Modal dus hari ini (Rp per dus)</span><input id="fModalDus" class="angka" inputmode="numeric" placeholder="${MODAL_EXCEL.dus ? ribu(MODAL_EXCEL.dus) : '—'}"></label>
-        <div class="catatan" style="grid-column:span 2;align-self:center;margin:0">Modal berubah-ubah, jadi isi tiap hari. Berlaku untuk semua toko; kalau ada minyak dari pemasok lain, isi modalnya di baris toko itu. Modal tidak tercetak di PDF untuk toko.</div></div>
+      <div class="inv-empat"><label class="medan"><span>Modal curah (Rp per kg)</span><input id="fModalKg" class="angka" inputmode="numeric"></label>
+        <label class="medan"><span>Modal dus (Rp per dus)</span><input id="fModalDus" class="angka" inputmode="numeric"></label>
+        <div class="catatan" id="fModalInfo" style="grid-column:span 2;align-self:center;margin:0"></div></div>
       <datalist id="dlPengantar">${pengantarList.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>
       <datalist id="dlEksp"><option value="Pick-up"></option><option value="Truk"></option><option value="Motor"></option></datalist>
       <datalist id="dlToko">${tokoList.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>
@@ -1335,8 +1365,13 @@ function formHarian(asal) {
   const ubah = () => { if (!kotorF) { kotorF = true; status('Belum disimpan', 'ubah'); } };
   [['fTgl', 'tgl'], ['fNo', 'no'], ['fPengantar', 'pengantar'], ['fEksp', 'ekspedisi'], ['fCatatan', 'catatan']].forEach(([i, k]) => {
     const el = $('#' + i); el.value = h[k] || ''; el.addEventListener('input', () => { h[k] = el.value; ubah(); }); });
+  // Modal kosong = otomatis dari pembelian (contoh isian menunjukkan angkanya); diketik hanya kalau harganya beda.
+  const infoModal = () => { const a = modalOtomatis(h.tgl);
+    $('#fModalKg').placeholder = a.kg ? ribu(a.kg) + ' (otomatis)' : 'mis. 19.400'; $('#fModalDus').placeholder = a.dus ? ribu(a.dus) + ' (otomatis)' : '—';
+    $('#fModalInfo').textContent = `${h.modalKg ? 'Modal curah diketik sendiri.' : a.kg ? `Modal curah otomatis Rp ${ribu(a.kg)}/kg (${a.ketKg}).` : 'Belum ada data pembelian, ketik modal curah.'} ${h.modalDus ? '' : a.dus ? `Dus otomatis Rp ${ribu(a.dus)} (${a.ketDus}).` : ''} Kosongkan supaya ikut otomatis; ketik hanya kalau harganya beda. Tidak tercetak di PDF toko.`; };
   [['fModalKg', 'modalKg'], ['fModalDus', 'modalDus']].forEach(([i, k]) => { const el = $('#' + i); el.value = h[k] ? ribu(h[k]) : '';
-    el.addEventListener('input', () => { h[k] = angkaRp(el.value); segarModal(); segar(); ubah(); }); el.addEventListener('blur', () => { if (el.value.trim()) el.value = ribu(angkaRp(el.value)); }); });
+    el.addEventListener('input', () => { h[k] = angkaRp(el.value); infoModal(); segarModal(); segar(); ubah(); }); el.addEventListener('blur', () => { if (el.value.trim()) el.value = ribu(angkaRp(el.value)); }); });
+  infoModal();
 
   // Harga dari Harga Toko pada tanggal invoice; alamat dan berat dari catatan terakhir toko yang sama.
   const catatanToko = (toko, barang) => INV.daftar.filter(x => x.id !== h.id && !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl)).flatMap(x => x.baris || [])
@@ -1345,7 +1380,7 @@ function formHarian(asal) {
     if (t && j?.[2] && (!r.harga || r._auto)) { const hg = hargaPada(t, j[2], h.tgl); if (hg) { r.harga = hg; r._auto = true; } }
     if (r.toko && !r.berat && j?.[3] === 'curah') { const l = catatanToko(r.toko, r.barang); if (l) r.berat = l.berat; }
     if (r.toko && !r.alamat) { const l = catatanToko(r.toko); if (l) r.alamat = l.alamat; } };
-  $('#fTgl').addEventListener('change', () => { h.baris.forEach(isiOtomatis); gambarBaris(); });
+  $('#fTgl').addEventListener('change', () => { h.baris.forEach(isiOtomatis); infoModal(); gambarBaris(); });
 
   const segar = () => { const c = hitungHarian(h);
     $('#fTotal').textContent = rp(c.jual);
@@ -1363,23 +1398,26 @@ function formHarian(asal) {
     $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); segar(); };
   // Label & contoh isian modal per baris mengikuti jenis barang dan modal hari itu
   const segarModal = () => $$('.inv-baris', $('#fBaris')).forEach(row => { const r = h.baris[+row.dataset.i], j = jenisBarang(r)?.[3] || 'curah', i = $('[data-f="modal"]', row); if (!i) return;
-    $('[data-lbl]', row).textContent = j === 'ken' ? 'Modal (tidak dihitung)' : j === 'dus' ? 'Modal (Rp per dus)' : 'Modal (Rp per kg)'; i.disabled = j === 'ken';
-    i.placeholder = j === 'ken' ? '—' : ribu(j === 'dus' ? h.modalDus || MODAL_EXCEL.dus : h.modalKg || MODAL_EXCEL.kg) || '0';
+    $('[data-lbl]', row).textContent = j === 'ken' ? 'Modal (tidak dihitung)' : j === 'dus' ? 'Modal toko ini (Rp per dus)' : 'Modal toko ini (Rp per kg)'; i.disabled = j === 'ken';
+    i.placeholder = j === 'ken' ? '—' : ribu(modalSatuan(h, { ...r, modal: 0 })) || '0';
     $('[data-laba]', row).textContent = j === 'ken' || !r.qty ? '' : modalSatuan(h, r) ? 'laba ' + rp(jmlBaris(r) - modalBaris(h, r)) : 'modal belum diisi'; });
   const gambarBaris = () => {
-    $('#fBaris').innerHTML = h.baris.map((r, i) => `<div class="inv-baris" data-i="${i}">
+    const lainIsi = r => [r.retur, r.alamat, r.modal].filter(Boolean).length;
+    $('#fBaris').innerHTML = `<div class="inv-kepala" aria-hidden="true"><span></span><span>Nama toko</span><span>Barang</span><span>Qty</span><span>Satuan</span><span>Berat kg</span><span>Harga</span><span>Hutang</span><span class="kn">Jumlah</span></div>` + h.baris.map((r, i) => `<div class="inv-baris" data-i="${i}">
       <div class="b-no">${i + 1}</div>
       <label class="medan b-toko"><span>Nama toko</span><input data-f="toko" list="dlToko" value="${esc(r.toko)}" autocomplete="off" placeholder="mis. TK Sukma Jaya"></label>
       <label class="medan b-barang"><span>Barang</span><input data-f="barang" list="dlBarang" value="${esc(r.barang || '')}" autocomplete="off"></label>
       <label class="medan"><span>Qty</span><input data-f="qty" inputmode="decimal" value="${r.qty ? angkaId(r.qty) : ''}" placeholder="0"></label>
-      <label class="medan"><span>Satuan</span><select data-f="satuan">${[...new Set([...SATUAN, r.satuan || 'kendi'])].map(s => `<option ${s === r.satuan ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+      <label class="medan"><span>Satuan</span><select data-f="satuan">${[...new Set([...SATUAN, r.satuan || 'kendi'])].map(x => `<option ${x === r.satuan ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
       <label class="medan"><span>Berat (kg)</span><input data-f="berat" inputmode="decimal" value="${r.berat ? angkaId(r.berat) : ''}" placeholder="—"></label>
       <label class="medan"><span>Harga</span><input data-f="harga" inputmode="numeric" value="${r.harga ? ribu(r.harga) : ''}" placeholder="0"></label>
-      <label class="medan"><span>Retur (kendi)</span><input data-f="retur" inputmode="decimal" value="${r.retur ? angkaId(r.retur) : ''}" placeholder="—"></label>
       <label class="medan"><span>Hutang (Rp)</span><input data-f="hutang" inputmode="numeric" value="${r.hutang ? ribu(r.hutang) : ''}" placeholder="lunas"></label>
-      <label class="medan b-ket"><span>Alamat / pasar (boleh kosong)</span><input data-f="alamat" value="${esc(r.alamat || '')}" placeholder="mis. Psr Tengah"></label>
-      <label class="medan b-modal"><span data-lbl>Modal</span><input data-f="modal" inputmode="numeric" value="${r.modal ? ribu(r.modal) : ''}"></label>
-      <div class="b-jumlah"><span>Jumlah</span><b data-jml>${rp(jmlBaris(r))}</b><small data-laba class="catatan" style="margin:0"></small><button class="pil bahaya kecil" data-hapus aria-label="Hapus baris ${i + 1}">Hapus</button></div></div>`).join('');
+      <div class="b-jumlah"><span class="b-angka"><b data-jml>${rp(jmlBaris(r))}</b><small data-laba class="catatan"></small></span>
+        <span class="b-aksi"><button class="pil halus kecil" data-lain aria-expanded="${lainIsi(r) ? 'true' : 'false'}" title="Retur, alamat, modal toko ini">Lain${lainIsi(r) ? ' ' + lainIsi(r) : ''}</button><button class="pil bahaya kecil" data-hapus aria-label="Hapus baris ${i + 1}">✕</button></span></div>
+      <div class="b-lain" ${lainIsi(r) ? '' : 'hidden'}>
+        <label class="medan"><span>Retur (kendi)</span><input data-f="retur" inputmode="decimal" value="${r.retur ? angkaId(r.retur) : ''}" placeholder="—"></label>
+        <label class="medan b-alamat"><span>Alamat / pasar</span><input data-f="alamat" value="${esc(r.alamat || '')}" placeholder="mis. Psr Tengah"></label>
+        <label class="medan b-modal"><span data-lbl>Modal toko ini</span><input data-f="modal" inputmode="numeric" value="${r.modal ? ribu(r.modal) : ''}"></label></div></div>`).join('');
     $$('.inv-baris', $('#fBaris')).forEach(row => { const r = h.baris[+row.dataset.i];
       $$('[data-f]', row).forEach(inp => { const f = inp.dataset.f;
         if (['qty', 'berat', 'retur'].includes(f)) ikatAngka(inp, n => { r[f] = n; $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); });
@@ -1387,10 +1425,14 @@ function formHarian(asal) {
         else inp.addEventListener('input', () => { r[f] = inp.value; segar(); ubah(); });
         if (f === 'toko') inp.addEventListener('change', () => { isiOtomatis(r); isiUlang(row, r); });
         if (f === 'barang') inp.addEventListener('change', () => { const j = jenisBarang(r); if (j) { r.satuan = j[1]; if (r._auto !== false || !r.harga) { r.harga = 0; r._auto = true; } isiOtomatis(r); isiUlang(row, r); } }); });
+      $('[data-lain]', row).onclick = ev => { const l = $('.b-lain', row), buka = l.hidden; l.hidden = !buka; ev.currentTarget.setAttribute('aria-expanded', String(buka)); if (buka) $('input', l).focus(); };
       $('[data-hapus]', row).onclick = () => { if ((r.toko || r.qty) && !confirm(`Hapus baris ${r.toko || 'ini'}?`)) return; h.baris.splice(+row.dataset.i, 1); if (!h.baris.length) h.baris.push(barisBaru()); ubah(); gambarBaris(); }; });
     segarModal(); segar(); };
   const tambahToko = () => { const r = barisBaru(); h.baris.push(r); gambarBaris(); ubah(); $$('#fBaris [data-f="toko"]').pop().focus(); };
   $('#fTambah').onclick = tambahToko; $('#fTambah2').onclick = tambahToko;
+  $('#fBaris').addEventListener('keydown', ev => { if (ev.key !== 'Enter' || !ev.target.matches('input')) return; ev.preventDefault();
+    const semua = $$('#fBaris input, #fBaris select').filter(x => x.offsetParent !== null && !x.disabled), i = semua.indexOf(ev.target);
+    if (i === semua.length - 1) { ev.target.dispatchEvent(new Event('change')); tambahToko(); } else { semua[i + 1].focus(); semua[i + 1].select?.(); } });
 
   // Daftar kecil rekapan (bayar hutang lama, pengeluaran, setoran): [label kiri, jumlah]
   const DAFTAR = { bayarLama: ['#fLama', 'toko', 'Nama toko', 'dlToko'], keluar: ['#fKeluar', 'ket', 'mis. Parkir', ''], setor: ['#fSetor', 'ket', 'mis. Setor tunai / TF', ''] };
@@ -1413,7 +1455,8 @@ function formHarian(asal) {
       : INV.daftar.some(x => x.id !== h.id && !x.batal && String(x.no).trim() === String(h.no).trim()) ? `Nomor ${h.no} sudah dipakai invoice lain.` : '';
     if (salah) { status(salah, 'salah'); return; }
     const bersih = a => a.filter(x => (x.ket || x.toko || '').trim() || x.jumlah).map(x => ({ ...x, ...(x.ket !== undefined ? { ket: x.ket.trim() } : {}), ...(x.toko !== undefined ? { toko: x.toko.trim() } : {}) }));
-    const rec = { ...h, no: String(h.no).trim(), pengantar: (h.pengantar || '').trim(), catatan: (h.catatan || '').trim(), dibuat: h.dibuat || new Date().toISOString(), diubah: new Date().toISOString(),
+    const oto = modalOtomatis(h.tgl);
+    const rec = { ...h, modalKg: h.modalKg || oto.kg, modalDus: h.modalDus || oto.dus, modalOtomatis: !h.modalKg, modalDusOtomatis: !h.modalDus, no: String(h.no).trim(), pengantar: (h.pengantar || '').trim(), catatan: (h.catatan || '').trim(), dibuat: h.dibuat || new Date().toISOString(), diubah: new Date().toISOString(),
       baris: baris.map(({ _auto, ...r }) => ({ ...r, toko: r.toko.trim().replace(/\s+/g, ' '), barang: (r.barang || '').trim() || 'Minyak Curah', alamat: (r.alamat || '').trim(), hutang: Math.min(r.hutang || 0, jmlBaris(r)), lunas: (r.hutang || 0) > 0 ? !!r.lunas : false })),
       keluar: bersih(h.keluar), setor: bersih(h.setor), bayarLama: bersih(h.bayarLama) };
     status('Menyimpan…'); $('#fSimpan').disabled = true;
