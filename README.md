@@ -22,5 +22,9 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   surat jalan, satu halaman per toko dalam satu PDF), dan Excel bersusunan lembar penjualan. Daftar hutang toko bisa
   ditandai lunas. Data di `minyak_nilai` kunci `invoice`, ditulis lewat `minyak_invoice_tulis` (pemilik saja); kepala
   surat hanya ada di database, tidak di kode.
+- **Invoice masuk Keuangan** (`gabungInvoiceKeu`): saat data keuangan dimuat, invoice harian yang hari dan pengantarnya
+  belum ada di Excel penjualan ditambahkan ke minggu, hari, pengantar, jenis, dan biaya (hanya di aplikasi; database
+  keuangan tetap hasil Excel). Yang sudah ada di Excel dilewati supaya tidak terhitung dua kali. Kendi kosong tidak masuk
+  omzet; modal curah = kg x modal per kg minggu Excel terakhir. Kartu invoice menampilkan statusnya.
 
 Tidak ada data gaji maupun rahasia di repo ini.

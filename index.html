@@ -661,7 +661,62 @@ const ikon = k => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" s
 
 async function muatKeuangan() { if (keu) return keu;
   const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'keuangan' });
-  if (!r.ok) throw new Error(r.pesan); keu = r.nilai; keuDiubah = r.diubah; return keu; }
+  if (!r.ok) throw new Error(r.pesan); keuDiubah = r.diubah;
+  let inv = null; try { inv = await muatInvoice(); } catch { /* invoice gagal dimuat: laporan tetap tampil dari Excel saja */ }
+  keu = gabungInvoiceKeu(r.nilai, inv); return keu; }
+/* Invoice harian ikut laporan keuangan (29 Sep 2026). Data keuangan disusun laptop dari Excel penjualan (minggu -> hari
+   -> pengantar). Invoice harian yang HARI dan PENGANTARNYA belum ada di Excel ditambahkan di sini, di aplikasi saja
+   (database keuangan tidak diubah). Kalau penjualan yang sama nanti juga diketik di Excel, invoice itu otomatis tidak
+   dihitung lagi, jadi tidak terhitung dua kali. Kendi kosong tidak masuk omzet (sama seperti tabel modal di Excel).
+   Modal: curah = kg x modal per kg minggu Excel terakhir; dus = modal per dus Minyak Kita terakhir di Excel. */
+const HARI_K = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+const isoTgl = d => d.toLocaleDateString('sv-SE');
+function awalMinggu(k, w) {   // Senin minggu w dari teks periode, mis. "28 Sep – 3 Okt" atau "3 – 8 Agu"
+  const [a, b] = String(k.PER?.[w] || '').split(/\s*[–-]\s*/), mb = /(\d+)\s+([A-Za-z]{3})/.exec(b || ''), ma = /(\d+)(?:\s+([A-Za-z]{3}))?/.exec(a || ''); if (!ma || !mb) return null;
+  const bi = BLN_P.findIndex(x => x.toLowerCase() === (ma[2] || mb[2]).toLowerCase()); if (bi < 0) return null;
+  const kini = new Date(k.diambil || Date.now()); return new Date(kini.getFullYear() - (bi > kini.getMonth() + 1 ? 1 : 0), bi, +ma[1]); }
+function gabungInvoiceKeu(k0, inv) {
+  const H = (inv?.daftar || []).filter(h => !h.batal && h.tgl).sort((a, b) => a.tgl.localeCompare(b.tgl)); if (!k0 || !H.length) return k0;
+  const k = JSON.parse(JSON.stringify(k0)), status = {}, senin = {};
+  k.WK.forEach(w => { const d = awalMinggu(k, w); if (d) senin[w] = isoTgl(d); });
+  const wAkhir = Math.max(...k.WK), sAkhir = senin[wAkhir], mundur = [...k.WK].sort((a, b) => b - a);
+  const tr = mundur.map(w => k.D[w]?.tot).find(t => t && t.tonase > 0 && t.modal_curah > 0), modalKg = tr ? tr.modal_curah / tr.tonase : 0;
+  const jk = mundur.map(w => Object.entries(k.D[w]?.jenis || {}).find(([n, v]) => /kita|dus|kemasan/i.test(n) && v.qty > 0 && v.hpp > 0)).find(Boolean), modalDus = jk ? jk[1].hpp / jk[1].qty : 0;
+  let tambah = 0; const dariInv = new Set();   // hari+pengantar yang barusan ditambah dari invoice (dua invoice sehari tetap dihitung)
+  for (const h of H) {
+    const d = new Date(h.tgl + 'T00:00:00'), hari = HARI_K[d.getDay()], sn = new Date(d); sn.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const snI = isoTgl(sn);
+    let w = +(Object.keys(senin).find(x => senin[x] === snI) || 0);
+    if (!w) {   // minggu yang belum ada di Excel: dibuat, nomornya melanjutkan minggu terakhir
+      w = sAkhir ? wAkhir + Math.round((sn - new Date(sAkhir + 'T00:00:00')) / 6048e5) : 0;
+      if (w <= 0 || k.D[w]) { status[h.id] = 'luar'; continue; }
+      const sab = new Date(sn); sab.setDate(sn.getDate() + 5);
+      k.PER[w] = sn.getMonth() === sab.getMonth() ? `${sn.getDate()} – ${sab.getDate()} ${BLN_P[sab.getMonth()]}` : `${sn.getDate()} ${BLN_P[sn.getMonth()]} – ${sab.getDate()} ${BLN_P[sab.getMonth()]}`;
+      k.D[w] = { tot: { lk: 0, hpp: 0, ops: 0, qty: 0, gaji: 0, omset: 0, bersih: 0, tonase: 0, q_curah: 0, biayaops: 0, modal_curah: 0, omset_curah: 0 }, days: [], gaji: [], biaya: [], jenis: {}, pengantar: {} };
+      k.WK.push(w); k.WK.sort((a, b) => a - b); k.HARI[w] = 0; senin[w] = snI; }
+    const D = k.D[w]; D.days ||= []; D.biaya ||= []; D.jenis ||= {}; D.pengantar ||= {};
+    const kru = ((h.pengantar || '').trim().split(/\s+dan\s+|\s*[&,]\s*/i)[0] || 'Invoice').toUpperCase();
+    const kunci = w + '|' + kru + '|' + hari;
+    if (!dariInv.has(kunci) && D.pengantar[kru]?.hari?.[hari] !== undefined) { status[h.id] = 'excel'; continue; }
+    let omset = 0, hpp = 0, qty = 0, kg = 0, qc = 0, oc = 0, mc = 0; const jen = {};
+    for (const r of h.baris || []) { const j = jenisBarang(r)?.[3] || 'curah', nilai = jmlBaris(r); if (j === 'ken' || !r.qty || !nilai) continue;
+      const nama = j === 'dus' ? 'Minyak Kita' : 'Minyak Curah', kgs = j === 'dus' ? 0 : r.qty * (r.berat || 14.4), m = j === 'dus' ? r.qty * modalDus : kgs * modalKg;
+      omset += nilai; hpp += m; qty += r.qty; if (j !== 'dus') { kg += kgs; qc += r.qty; oc += nilai; mc += m; }
+      const x = jen[nama] ||= { hpp: 0, qty: 0, omset: 0 }; x.hpp += m; x.qty += r.qty; x.omset += nilai; }
+    const ops = sumBy(h.keluar, x => x.jumlah); hpp = Math.round(hpp); mc = Math.round(mc); const lk = omset - hpp;
+    if (!omset && !ops) { status[h.id] = 'kosong'; continue; }
+    let day = D.days.find(x => x.hari === hari);
+    if (!day) { day = { hari, omset: 0, hpp: 0, lk: 0, qty: 0, tonase: 0, q_curah: 0, modal_curah: 0, omset_curah: 0 }; D.days.push(day); D.days.sort((a, b) => HARI_K.indexOf(a.hari) - HARI_K.indexOf(b.hari)); k.HARI[w] = (k.HARI[w] || 0) + 1; }
+    for (const o of [day, D.tot]) { o.omset += omset; o.hpp += hpp; o.lk += lk; o.qty += qty; o.tonase += kg; o.q_curah += qc; o.modal_curah += mc; o.omset_curah += oc; }
+    D.tot.ops += ops; D.tot.biayaops += ops; D.tot.bersih += lk - ops;
+    for (const [n, v] of Object.entries(jen)) { const x = D.jenis[n] ||= { hpp: 0, qty: 0, omset: 0 }; x.hpp += Math.round(v.hpp); x.qty += v.qty; x.omset += v.omset; }
+    (h.keluar || []).filter(x => x.jumlah).forEach(x => D.biaya.push({ hari, jenis: judulKecil(x.ket || 'Pengeluaran'), nilai: x.jumlah, orang: judulKecil(kru) }));
+    const p = D.pengantar[kru] ||= { lk: 0, ops: 0, qty: 0, hari: {} }; p.lk += lk; p.ops += ops; p.qty += qty; p.hari[hari] = (p.hari[hari] || 0) + lk;
+    status[h.id] = 'masuk'; tambah++; dariInv.add(kunci); }
+  if (tambah) k.kaki = [...(k.kaki || []), `Ditambah <b>${tambah} invoice harian</b> dari aplikasi yang hari dan pengantarnya belum ada di Excel penjualan. Modal curah dihitung Rp ${ribu(modalKg)} per kg (minggu Excel terakhir)${modalDus ? `, dus Rp ${ribu(modalDus)} per dus` : ''}; kendi kosong tidak masuk omzet.`];
+  k._invoice = status; return k; }
+const STATUS_KEU = { masuk: ['hijau', 'Masuk laporan keuangan'], excel: ['', 'Sudah ada di Excel, tidak dihitung dua kali'], luar: ['merah', 'Di luar periode laporan keuangan'], kosong: ['', 'Tidak ada penjualan minyak'] };
+const kepingKeu = id => { const s = STATUS_KEU[keu?._invoice?.[id]]; return s ? `<span class="keping ${s[0]}">${s[1]}</span>` : ''; };
+
 
 function kepalaPemilik(judul, keterangan, kembali) {
   return `<header class="kepala" style="padding-bottom:30px"><div class="bungkus"><div class="baris"><div><div class="label">Minyak Andre · ${kembali ? 'Dashboard' : bacaSaja ? 'Bos · hanya melihat' : 'Pemilik'}</div><h1>${judul}</h1><p>${keterangan}</p></div>
@@ -1127,14 +1182,14 @@ async function muatInvoice() { const r = await rpc('minyak_ambil_nilai', { p_tok
   const v = r.nilai || {}; v.profil = v.profil || {}; v.daftar = Array.isArray(v.daftar) ? v.daftar : []; return v; }
 // Simpan: ambil versi terbaru dulu lalu terapkan perubahan, supaya dua HP yang menyimpan bergantian tidak saling menimpa.
 async function simpanInvoice(ubah) { const v = await muatInvoice(); ubah(v);
-  const r = await rpc('minyak_invoice_tulis', { p_token: sesi.baca().token, p_nilai: v }); if (!r.ok) throw new Error(r.pesan); INV = v; return v; }
+  const r = await rpc('minyak_invoice_tulis', { p_token: sesi.baca().token, p_nilai: v }); if (!r.ok) throw new Error(r.pesan); INV = v; keu = null; return v; }
 const gagalDialog = e => dialog(`<h3>Gagal menyimpan</h3><p class="catatan">${esc(e.message)}</p><div class="tombol-baris"><button class="pil" data-tutup>Tutup</button></div>`);
 
 async function layarInvoice() {
   akar.innerHTML = kepalaPemilik('Invoice Harian', 'Satu invoice untuk satu hari pengantaran, berisi semua toko. Bisa diunduh jadi PDF invoice, surat jalan, nota per toko, dan Excel.', true) +
     '<main class="bungkus"><div id="inv" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
   $('#bBeranda').onclick = layarBeranda;
-  try { [INV] = await Promise.all([muatInvoice(), muatHarga().catch(() => null)]); gambarInvoice(); }
+  try { [INV] = await Promise.all([muatInvoice(), muatHarga().catch(() => null), muatKeuangan().catch(() => null)]); gambarInvoice(); }
   catch (e) { $('#inv').innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
 
 function gambarInvoice() { const el = $('#inv'); if (!el) return;
@@ -1159,7 +1214,7 @@ function gambarDaftarInv() { const el = $('#invDaftar'); if (!el) return; const 
   el.innerHTML = daftar.map(h => { const c = hitungHarian(h);
     return `<button class="inv-kartu ${h.batal ? 'mati' : ''}" data-buka="${esc(h.id)}"><div class="inv-atas"><div style="min-width:0"><b>${esc(tglPanjang(h.tgl))}</b><div class="catatan" style="margin:2px 0 0">No. ${esc(h.no)}${h.pengantar ? ' · ' + esc(h.pengantar) : ''} · ${c.toko} toko${c.kendi ? ' · ' + angkaId(c.kendi) + ' kendi' : ''}</div></div>
       <b style="flex:none">${rp(c.jual)}</b></div>
-      <div class="keping-baris" style="margin:8px 0 0">${h.batal ? '<span class="keping">Dibatalkan</span>' : `${c.hutang ? `<span class="keping merah">Hutang ${rp(c.hutang)}</span>` : '<span class="keping hijau">Semua toko bayar</span>'}${c.selisih ? `<span class="keping merah">Selisih kas ${rp(Math.abs(c.selisih))} ${c.selisih > 0 ? 'kurang' : 'lebih'}</span>` : (c.setor || c.keluar) ? '<span class="keping hijau">Kas cocok</span>' : ''}`}</div></button>`; }).join('')
+      <div class="keping-baris" style="margin:8px 0 0">${h.batal ? '<span class="keping">Dibatalkan</span>' : `${c.hutang ? `<span class="keping merah">Hutang ${rp(c.hutang)}</span>` : '<span class="keping hijau">Semua toko bayar</span>'}${kepingKeu(h.id)}${c.selisih ? `<span class="keping merah">Selisih kas ${rp(Math.abs(c.selisih))} ${c.selisih > 0 ? 'kurang' : 'lebih'}</span>` : (c.setor || c.keluar) ? '<span class="keping hijau">Kas cocok</span>' : ''}`}</div></button>`; }).join('')
     || `<div class="catatan" style="margin:0">${INV.daftar.length ? 'Tidak ada yang cocok.' : 'Belum ada invoice. Tekan "+ Invoice hari ini".'}</div>`;
   $$('[data-buka]', el).forEach(b => b.onclick = () => bukaHarian(INV.daftar.find(h => h.id === b.dataset.buka))); }
 
@@ -1213,6 +1268,7 @@ function bukaHarian(h) {
         <button class="pil halus" data-u="nota">Nota per toko PDF</button><button class="pil halus" data-u="sjt">Surat jalan per toko PDF</button><button class="pil halus" data-u="xl">Excel</button></div>
         <div class="catatan">Invoice dan surat jalan harian: satu lembar berisi semua toko. Nota dan surat jalan per toko: satu halaman per toko, digabung dalam satu PDF, bisa dipilih satu toko saja.</div>
         ${bacaSaja ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="pil emas kecil" id="bUbah">Ubah invoice</button>${h.batal ? '<button class="pil halus kecil" id="bPulih">Pulihkan</button>' : ''}</div>`}</section>
+      ${kepingKeu(h.id) ? `<div class="keping-baris" style="margin-top:12px">${kepingKeu(h.id)}</div>` : ''}
       <section style="margin-top:14px">${lembarHarian(h)}</section></div></main>`;
   $('#bBeranda').textContent = '← Invoice'; $('#bBeranda').onclick = layarInvoice;
   $$('[data-u]').forEach(b => b.onclick = () => unduhHarian(h, b.dataset.u));
