@@ -142,6 +142,11 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .inv-unduh{display:flex;flex-wrap:wrap;gap:8px}
 .inv-empat{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 12px}
 .inv-kepala{display:none}
+.inv-blok-kepala{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;align-items:end;margin-bottom:10px}
+.inv-blok-kepala .medan{margin:0}.inv-blok-no{grid-column:1/-1;font-family:var(--serif);font-size:20px;font-weight:700}
+.inv-blok-jual{display:flex;flex-direction:column;align-items:flex-end}.inv-blok-jual small{color:var(--redup);font-size:11px;font-weight:700}.inv-blok-jual b{font-family:var(--serif);font-size:20px}
+.inv-rekap{margin-top:12px;border-top:1px solid var(--garis);padding-top:10px}.inv-rekap summary{cursor:pointer;font-weight:700;font-size:14px}
+.lembar-blok{margin-top:14px}.lembar-judul{font-weight:800;letter-spacing:.08em;font-size:12px;margin-bottom:6px}.lembar .lembar-blok table.rekap{margin-top:6px}
 .inv-baris{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;padding:14px 0;border-bottom:1px dashed var(--garis)}
 .inv-baris .medan{margin-bottom:0}.inv-baris .medan input,.inv-baris select{width:100%;padding:10px 12px;font-size:15px;border-radius:14px;background:var(--kartu2);border:1.5px solid var(--garis)}
 .inv-baris .b-no{grid-column:1/-1;font-weight:800;color:var(--redup)}
@@ -151,7 +156,8 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .b-lain{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--kartu2);border-radius:14px;padding:10px}.b-lain .b-alamat{grid-column:1/-1}.b-lain[hidden]{display:none}
 .b-lain .medan input{background:var(--kartu)}
 @media (min-width:900px){
-  .inv-kepala,.inv-baris{grid-template-columns:20px minmax(0,1.9fr) minmax(0,1.45fr) minmax(0,.6fr) minmax(0,.8fr) minmax(0,.6fr) minmax(0,1fr) minmax(0,1fr) 196px;gap:6px}
+  .inv-kepala,.inv-baris{grid-template-columns:20px minmax(0,1.9fr) minmax(0,1.35fr) minmax(0,.6fr) minmax(0,.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 196px;gap:6px}
+  .inv-blok-kepala{grid-template-columns:auto minmax(0,1.6fr) minmax(0,1fr) auto auto}.inv-blok-no{grid-column:auto;align-self:center;min-width:92px}
   .inv-kepala{display:grid;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--redup);padding:4px 0 6px;border-bottom:1px solid var(--garis)}
   .inv-kepala .kn{text-align:right}
   .inv-baris{padding:5px 0;align-items:center;border-bottom:1px solid rgba(127,127,127,.12)}
@@ -702,12 +708,13 @@ function gabungInvoiceKeu(k0, inv) {
   k.WK.forEach(w => { const d = awalMinggu(k, w); if (d) senin[w] = isoTgl(d); });
   const wAkhir = Math.max(...k.WK), sAkhir = senin[wAkhir], acuan = modalDariKeu(k0);
   let tambah = 0; const dariInv = new Set();   // hari+pengantar yang barusan ditambah dari invoice (dua invoice sehari tetap dihitung)
-  for (const h of H) {
+  for (const h0 of H) { normHarian(h0); const st = [];
+   for (const B of h0.blok) { const h = { ...h0, pengantar: B.pengantar, baris: B.baris, keluar: B.keluar };
     const d = new Date(h.tgl + 'T00:00:00'), hari = HARI_K[d.getDay()], sn = new Date(d); sn.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const snI = isoTgl(sn);
     let w = +(Object.keys(senin).find(x => senin[x] === snI) || 0);
     if (!w) {   // minggu yang belum ada di Excel: dibuat, nomornya melanjutkan minggu terakhir
       w = sAkhir ? wAkhir + Math.round((sn - new Date(sAkhir + 'T00:00:00')) / 6048e5) : 0;
-      if (w <= 0 || k.D[w]) { status[h.id] = 'luar'; continue; }
+      if (w <= 0 || k.D[w]) { st.push('luar'); continue; }
       const sab = new Date(sn); sab.setDate(sn.getDate() + 5);
       k.PER[w] = sn.getMonth() === sab.getMonth() ? `${sn.getDate()} – ${sab.getDate()} ${BLN_P[sab.getMonth()]}` : `${sn.getDate()} ${BLN_P[sn.getMonth()]} – ${sab.getDate()} ${BLN_P[sab.getMonth()]}`;
       k.D[w] = { tot: { lk: 0, hpp: 0, ops: 0, qty: 0, gaji: 0, omset: 0, bersih: 0, tonase: 0, q_curah: 0, biayaops: 0, modal_curah: 0, omset_curah: 0 }, days: [], gaji: [], biaya: [], jenis: {}, pengantar: {} };
@@ -715,14 +722,14 @@ function gabungInvoiceKeu(k0, inv) {
     const D = k.D[w]; D.days ||= []; D.biaya ||= []; D.jenis ||= {}; D.pengantar ||= {};
     const kru = ((h.pengantar || '').trim().split(/\s+dan\s+|\s*[&,]\s*/i)[0] || 'Invoice').toUpperCase();
     const kunci = w + '|' + kru + '|' + hari;
-    if (!dariInv.has(kunci) && D.pengantar[kru]?.hari?.[hari] !== undefined) { status[h.id] = 'excel'; continue; }
+    if (!dariInv.has(kunci) && D.pengantar[kru]?.hari?.[hari] !== undefined) { st.push('excel'); continue; }
     let omset = 0, hpp = 0, qty = 0, kg = 0, qc = 0, oc = 0, mc = 0; const jen = {};
-    for (const r of h.baris || []) { const j = jenisBarang(r)?.[3] || 'curah', nilai = jmlBaris(r); if (j === 'ken' || !r.qty || !nilai) continue;
+    for (const r of h.baris || []) { const j = jenisK(r), nilai = jmlBaris(r); if (!j || j === 'ken' || !nilai) continue;
       const nama = j === 'dus' ? 'Minyak Kita' : 'Minyak Curah', kgs = j === 'dus' ? 0 : r.qty * (r.berat || 14.4), m = modalBaris(h, r, acuan);
       omset += nilai; hpp += m; qty += r.qty; if (j !== 'dus') { kg += kgs; qc += r.qty; oc += nilai; mc += m; }
       const x = jen[nama] ||= { hpp: 0, qty: 0, omset: 0 }; x.hpp += m; x.qty += r.qty; x.omset += nilai; }
     const ops = sumBy(h.keluar, x => x.jumlah); hpp = Math.round(hpp); mc = Math.round(mc); const lk = omset - hpp;
-    if (!omset && !ops) { status[h.id] = 'kosong'; continue; }
+    if (!omset && !ops) { st.push('kosong'); continue; }
     let day = D.days.find(x => x.hari === hari);
     if (!day) { day = { hari, omset: 0, hpp: 0, lk: 0, qty: 0, tonase: 0, q_curah: 0, modal_curah: 0, omset_curah: 0 }; D.days.push(day); D.days.sort((a, b) => HARI_K.indexOf(a.hari) - HARI_K.indexOf(b.hari)); k.HARI[w] = (k.HARI[w] || 0) + 1; }
     for (const o of [day, D.tot]) { o.omset += omset; o.hpp += hpp; o.lk += lk; o.qty += qty; o.tonase += kg; o.q_curah += qc; o.modal_curah += mc; o.omset_curah += oc; }
@@ -730,8 +737,9 @@ function gabungInvoiceKeu(k0, inv) {
     for (const [n, v] of Object.entries(jen)) { const x = D.jenis[n] ||= { hpp: 0, qty: 0, omset: 0 }; x.hpp += Math.round(v.hpp); x.qty += v.qty; x.omset += v.omset; }
     (h.keluar || []).filter(x => x.jumlah).forEach(x => D.biaya.push({ hari, jenis: judulKecil(x.ket || 'Pengeluaran'), nilai: x.jumlah, orang: judulKecil(kru) }));
     const p = D.pengantar[kru] ||= { lk: 0, ops: 0, qty: 0, hari: {} }; p.lk += lk; p.ops += ops; p.qty += qty; p.hari[hari] = (p.hari[hari] || 0) + lk;
-    status[h.id] = 'masuk'; tambah++; dariInv.add(kunci); }
-  if (tambah) k.kaki = [...(k.kaki || []), `Ditambah <b>${tambah} invoice harian</b> dari aplikasi yang hari dan pengantarnya belum ada di Excel penjualan. Modal memakai isian modal di invoice; kalau kosong, modal minggu Excel terakhir (curah Rp ${ribu(acuan.kg)} per kg${acuan.dus ? `, dus Rp ${ribu(acuan.dus)} per dus` : ''}). Kendi kosong tidak masuk omzet.`];
+    st.push('masuk'); tambah++; dariInv.add(kunci); }
+   status[h0.id] = st.includes('masuk') ? 'masuk' : st.includes('excel') ? 'excel' : st[0] || 'kosong'; }
+  if (tambah) k.kaki = [...(k.kaki || []), `Ditambah <b>${tambah} blok invoice harian</b> dari aplikasi yang hari dan pengantarnya belum ada di Excel penjualan. Modal memakai isian modal di invoice; kalau kosong, modal minggu Excel terakhir (curah Rp ${ribu(acuan.kg)} per kg${acuan.dus ? `, dus Rp ${ribu(acuan.dus)} per dus` : ''}). Kendi kosong tidak masuk omzet.`];
   k._invoice = status; return k; }
 const STATUS_KEU = { masuk: ['hijau', 'Masuk laporan keuangan'], excel: ['', 'Sudah tercatat di laporan, tidak dihitung dua kali'], luar: ['merah', 'Di luar periode laporan keuangan'], kosong: ['', 'Tidak ada penjualan minyak'] };
 const kepingKeu = id => { const s = STATUS_KEU[keu?._invoice?.[id]]; return s ? `<span class="keping ${s[0]}">${s[1]}</span>` : ''; };
@@ -1153,14 +1161,16 @@ function pdfKeuangan(key) { return denganTunggu(async () => { const k = await mu
    MULAI: ada token tersimpan? ambil data. Tidak ada atau sudah habis? tampilkan layar masuk.
    ===================================================================================================== */
 /* ---------- Invoice harian (29 Sep 2026) ----------
-   Satu invoice = satu hari pengantaran (satu pengantar), berisi semua toko yang dikirimi hari itu. Susunannya meniru
-   lembar harian di Excel PENJUALAN MINYAK MINGGU N (NAMA TOKO, RETUR, KEN, QTY, kolom berat, HARGA, JUMLAH, TOKO BAYAR,
-   TOKO HUTANG, lalu REKAPAN AKHIR: pengeluaran, setoran, selisih), dan alurnya meniru invoice MBG tanpa fee.
-   Dari satu invoice harian bisa diunduh: invoice harian (semua toko, dengan harga), surat jalan harian (tanpa harga,
-   satu kolom tanda tangan tiap toko), nota per toko dan surat jalan per toko (format berkas Word surat jalan, satu
-   halaman per toko, digabung satu PDF), dan Excel bersusunan lembar penjualan.
-   Data di minyak_nilai kunci 'invoice' (lihat supabase/skema.sql): { profil, daftar: [invoice harian] }.
-   Identitas usaha untuk kepala surat (profil) hanya ada di database, diisi lewat tombol "Kepala surat". */
+   Satu invoice = satu hari, isinya persis lembar harian Excel PENJUALAN MINYAK MINGGU N: beberapa BLOK (Mobil 1,
+   Mobil 2, Gudang), tiap blok punya pengantar, baris toko (NAMA TOKO, barang, QTY, berat, HARGA, JUMLAH, TOKO BAYAR,
+   TOKO HUTANG, retur), dan REKAPAN AKHIR sendiri (pengeluaran, setoran, selisih kas). Alurnya meniru invoice MBG tanpa fee.
+   - Kolom Bayar = toko membayar hutang lama (uangnya masuk kas mobil). Baris boleh berisi bayar saja tanpa barang.
+   - Kolom Hutang = bagian penjualan hari itu yang belum dibayar.
+   - Sisa hutang per toko = semua hutang - semua bayar (lihat bukuHutang), jadi tidak perlu menandai lunas satu per satu.
+   Unduhan: invoice harian (semua blok), surat jalan per mobil (tanpa harga, kolom tanda tangan tiap toko), nota dan
+   surat jalan per toko (format berkas Word surat jalan), dan Excel bersusunan lembar harian.
+   Data: minyak_nilai kunci 'invoice' = { profil, daftar: [hari], bayar: [bayar langsung di luar mobil] }.
+   Identitas usaha untuk kepala surat (profil) hanya ada di database. */
 let INV = null, invCari = '';
 // [nama barang, satuan bawaan, jenis harga di Harga Toko, kolom Excel]
 const BARANG = [['Minyak Curah', 'kendi', 'curah', 'curah'], ['Minyak Dus', 'dus', 'dus', 'dus'], ['Kendi Kosong', 'kendi', null, 'ken']];
@@ -1175,9 +1185,12 @@ const idBaru = h => h + Date.now().toString(36) + Math.random().toString(36).sli
 const tokoCocok = nama => (harga?.toko || []).find(t => t.nama.trim().toLowerCase() === String(nama || '').trim().toLowerCase());
 const hargaPada = (t, p, tgl) => { const r = riwayat(t, p).filter(x => x.tgl <= tgl); return (r[r.length - 1] || hargaKini(t, p) || {}).harga || 0; };
 const jenisBarang = b => BARANG.find(x => x[0].toLowerCase() === String(b.barang || '').trim().toLowerCase());
+const jenisK = r => r.qty > 0 ? (jenisBarang(r)?.[3] || 'curah') : null;   // null = baris bayar saja
 const jmlBaris = r => (r.qty || 0) * (r.harga || 0);
 const hutangBaris = r => Math.min(jmlBaris(r), r.hutang || 0);
 const sumBy = (a, f) => (a || []).reduce((s, x) => s + (f(x) || 0), 0);
+const kunciToko = t => String(t || '').trim().replace(/\s+/g, ' ').toUpperCase();
+const namaBlok = (B, i) => B.pengantar?.trim() ? (/^gudang$/i.test(B.pengantar.trim()) ? 'Gudang' : B.pengantar.trim()) : 'Mobil ' + (i + 1);
 function terbilang(n) { n = Math.floor(Math.abs(n || 0)); if (!n) return 'Nol rupiah';
   const s = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
   const f = x => x < 12 ? s[x] : x < 20 ? f(x - 10) + ' belas' : x < 100 ? f(Math.floor(x / 10)) + ' puluh ' + f(x % 10)
@@ -1186,14 +1199,18 @@ function terbilang(n) { n = Math.floor(Math.abs(n || 0)); if (!n) return 'Nol ru
     : x < 1e9 ? f(Math.floor(x / 1e6)) + ' juta ' + f(x % 1e6) : x < 1e12 ? f(Math.floor(x / 1e9)) + ' miliar ' + f(x % 1e9) : f(Math.floor(x / 1e12)) + ' triliun ' + f(x % 1e12);
   const t = f(n).replace(/\s+/g, ' ').trim(); return t[0].toUpperCase() + t.slice(1) + ' rupiah'; }
 
-// Hitungan satu hari, sama dengan REKAPAN AKHIR di Excel:
-//   uang yang harus ada = penjualan - hutang toko hari ini + toko bayar hutang lama
-//   selisih = uang yang harus ada - pengeluaran - setoran (0 berarti kas cocok)
-// Modal satu baris: curah = qty x berat (kosong = 14,4 kg) x modal per kg; dus = qty x modal per dus; kendi kosong 0.
-// Urutan modal: isian di baris itu, lalu modal hari itu (atas formulir), lalu modal Excel terakhir.
-// Modal otomatis: rata-rata harga beli per kg dari pembelian minyak curah 7 hari terakhir sampai tanggal invoice
-// (data Pembelian minyak, dibaca laptop dari laporan tonase), ditimbang dengan kg-nya; dus dari pembelian dus terakhir.
-// Kalau belum ada pembelian, modal minggu Excel terakhir. Pemilik cukup mengetik modal kalau harganya beda.
+// Bentuk lama (satu pengantar per invoice, bayarLama terpisah) diubah ke bentuk blok.
+function normHarian(h) { if (!h) return h;
+  if (!Array.isArray(h.blok)) {
+    h.blok = [{ id: 'b1', pengantar: h.pengantar || '', ekspedisi: h.ekspedisi || 'Pick-up', keluar: h.keluar || [], setor: h.setor || [],
+      baris: [...(h.baris || []), ...(h.bayarLama || []).filter(x => x.jumlah).map(x => ({ toko: x.toko || '', barang: '', qty: 0, bayar: x.jumlah }))] }];
+    ['baris', 'keluar', 'setor', 'bayarLama', 'pengantar', 'ekspedisi'].forEach(k => delete h[k]); }
+  h.blok.forEach(B => { B.id ||= idBaru('b'); B.baris ||= []; B.keluar ||= []; B.setor ||= []; B.baris.forEach(r => { r.id ||= idBaru('r'); }); });
+  return h; }
+
+/* ----- Modal ----- */
+// Modal otomatis: rata-rata harga beli per kg pembelian curah 7 hari terakhir sampai tanggal invoice (data Pembelian
+// minyak, dibaca laptop dari laporan tonase), ditimbang kg; dus dari pembelian dus terakhir; cadangan modal Excel.
 let PEMBELIAN = null;
 async function muatPembelian() { const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'pembelian' }); if (!r.ok) throw new Error(r.pesan); PEMBELIAN = r.nilai || { baris: [] }; return PEMBELIAN; }
 function modalOtomatis(tgl) { const B = (PEMBELIAN?.baris || []).filter(b => b.tanggal <= (tgl || hariIni())), d = new Date((tgl || hariIni()) + 'T00:00:00'); d.setDate(d.getDate() - 6); const batas = isoTgl(d);
@@ -1204,67 +1221,99 @@ function modalOtomatis(tgl) { const B = (PEMBELIAN?.baris || []).filter(b => b.t
   return { kg: kg || MODAL_EXCEL.kg || 0, dus: dus?.hargaDus || MODAL_EXCEL.dus || 0,
     ketKg: kg ? `rata-rata ${pakai.length} pembelian ${t[0] === t.at(-1) ? tglPendek(t[0]) : tglPendek(t[0]) + '–' + tglPendek(t.at(-1))}` : MODAL_EXCEL.kg ? 'modal Excel terakhir' : '',
     ketDus: dus ? `pembelian dus ${tglPendek(dus.tanggal)}` : MODAL_EXCEL.dus ? 'modal Excel terakhir' : '' }; }
-const modalSatuan = (h, r, cad) => { const j = jenisBarang(r)?.[3] || 'curah'; if (j === 'ken') return 0; if (r.modal) return r.modal;
+// Modal satu baris: curah = qty x berat (kosong = 14,4 kg) x modal per kg; dus = qty x modal per dus; kendi kosong 0.
+// Urutan: modal di baris itu, modal hari itu, modal otomatis.
+const modalSatuan = (h, r, cad) => { const j = jenisK(r); if (!j || j === 'ken') return 0; if (r.modal) return r.modal;
   if (j === 'dus' ? h.modalDus : h.modalKg) return j === 'dus' ? h.modalDus : h.modalKg; const a = cad || modalOtomatis(h.tgl); return (j === 'dus' ? a.dus : a.kg) || 0; };
-const modalBaris = (h, r, cad) => { const j = jenisBarang(r)?.[3] || 'curah', m = modalSatuan(h, r, cad); return j === 'ken' ? 0 : j === 'dus' ? (r.qty || 0) * m : (r.qty || 0) * (r.berat || 14.4) * m; };
-const minyakBaris = r => (jenisBarang(r)?.[3] || 'curah') !== 'ken';
-function hitungHarian(h) { const b = (h.baris || []).filter(r => r.toko && (r.qty || r.retur));
-  const jual = sumBy(b, jmlBaris), hutang = sumBy(b, hutangBaris), lama = sumBy(h.bayarLama, x => x.jumlah), keluar = sumBy(h.keluar, x => x.jumlah), setor = sumBy(h.setor, x => x.jumlah);
-  const harus = jual - hutang + lama;
-  return { b, jual, hutang, bayar: jual - hutang, lama, keluar, setor, harus, selisih: harus - keluar - setor, toko: [...new Set(b.map(r => r.toko.trim().toUpperCase()))].length,
-    kendi: sumBy(b.filter(r => (jenisBarang(r)?.[3] || 'curah') === 'curah' && r.satuan === 'kendi'), r => r.qty), kg: sumBy(b, r => (r.berat || 0) * (r.qty || 0)), retur: sumBy(b, r => r.retur),
-    omsetMinyak: sumBy(b.filter(minyakBaris), jmlBaris), modal: Math.round(sumBy(b, r => modalBaris(h, r))), get laba() { return this.omsetMinyak - this.modal; } }; }
-// Hutang toko yang belum lunas, dari semua invoice harian
-const semuaHutang = () => INV.daftar.filter(h => !h.batal).flatMap(h => (h.baris || []).filter(r => hutangBaris(r) > 0 && !r.lunas).map(r => ({ h, r })));
+const modalBaris = (h, r, cad) => { const j = jenisK(r), m = modalSatuan(h, r, cad); return !j || j === 'ken' ? 0 : j === 'dus' ? (r.qty || 0) * m : (r.qty || 0) * (r.berat || 14.4) * m; };
+const minyakBaris = r => { const j = jenisK(r); return j === 'curah' || j === 'dus'; };
+
+/* ----- Hitungan (sama dengan REKAPAN AKHIR tiap blok di Excel) -----
+   uang yang harus ada = penjualan - hutang hari ini + bayar hutang lama;  selisih = uang yang harus ada - pengeluaran - setoran */
+function hitungBlok(h, B) { const b = (B.baris || []).filter(r => r.toko && (r.qty || r.retur || r.bayar));
+  const jual = sumBy(b, jmlBaris), hutang = sumBy(b, hutangBaris), lama = sumBy(b, r => r.bayar), keluar = sumBy(B.keluar, x => x.jumlah), setor = sumBy(B.setor, x => x.jumlah), harus = jual - hutang + lama;
+  const om = sumBy(b.filter(minyakBaris), jmlBaris), modal = Math.round(sumBy(b, r => modalBaris(h, r)));
+  return { B, b, jual, hutang, lama, keluar, setor, harus, selisih: harus - keluar - setor, toko: new Set(b.filter(r => r.qty > 0).map(r => kunciToko(r.toko))).size,
+    kendi: sumBy(b.filter(r => jenisK(r) === 'curah'), r => r.qty), dus: sumBy(b.filter(r => jenisK(r) === 'dus'), r => r.qty), kg: sumBy(b.filter(r => jenisK(r) === 'curah'), r => (r.berat || 14.4) * r.qty), retur: sumBy(b, r => r.retur),
+    omsetMinyak: om, modal, laba: om - modal }; }
+function hitungHarian(h) { const bl = (h.blok || []).map(B => hitungBlok(h, B)), S = f => sumBy(bl, x => x[f]);
+  const b = bl.flatMap(x => x.b);
+  return { bl, b, jual: S('jual'), hutang: S('hutang'), lama: S('lama'), keluar: S('keluar'), setor: S('setor'), harus: S('harus'), selisih: S('selisih'), toko: new Set(b.filter(r => r.qty > 0).map(r => kunciToko(r.toko))).size,
+    kendi: S('kendi'), dus: S('dus'), kg: S('kg'), retur: S('retur'), omsetMinyak: S('omsetMinyak'), modal: S('modal'), laba: S('laba') }; }
+// Baris rekapan akhir satu blok: [label, nilai (teks), tebal]
+function rekapBaris(c) { const B = c.B, r = [['Total penjualan', rp(c.jual), true]];
+  if (c.hutang) r.push(['Toko hutang', '- ' + rp(c.hutang)]);
+  c.b.filter(x => x.bayar).forEach(x => r.push(['Bayar hutang ' + x.toko, '+ ' + rp(x.bayar)]));
+  r.push(['Uang yang harus ada', rp(c.harus), true]);
+  (B.keluar || []).filter(x => x.jumlah).forEach(x => r.push(['Pengeluaran ' + (x.ket || ''), '- ' + rp(x.jumlah)]));
+  (B.setor || []).filter(x => x.jumlah).forEach(x => r.push(['Setor ' + (x.ket || ''), '- ' + rp(x.jumlah)]));
+  r.push([c.selisih ? (c.selisih > 0 ? 'Selisih (uang kurang)' : 'Selisih (uang lebih)') : 'Selisih', c.selisih ? rp(Math.abs(c.selisih)) : 'Rp 0 (cocok)', true]);
+  return r.map(([l, n, t]) => [l.trim(), n, t]); }
+
+// Buku hutang per toko: + hutang dari penjualan, - bayar (kolom Bayar di invoice dan bayar langsung). Sisa > 0 = masih hutang.
+function bukuHutang() { const per = {};
+  const catat = (toko, x) => { const k = kunciToko(toko); if (!k) return; (per[k] ||= { toko: toko.trim(), hutang: 0, bayar: 0, riwayat: [] }); per[k].riwayat.push(x); if (x.hutang) per[k].hutang += x.hutang; if (x.bayar) per[k].bayar += x.bayar; };
+  INV.daftar.filter(h => !h.batal).forEach(h => h.blok.forEach((B, i) => B.baris.forEach(r => {
+    if (hutangBaris(r) > 0) catat(r.toko, { tgl: h.tgl, hutang: hutangBaris(r), ket: `${r.barang} ${angkaId(r.qty)} ${r.satuan || ''} · ${namaBlok(B, i)}` });
+    if (r.bayar > 0) catat(r.toko, { tgl: h.tgl, bayar: r.bayar, ket: 'bayar lewat ' + namaBlok(B, i) }); })));
+  (INV.bayar || []).forEach(x => catat(x.toko, { tgl: x.tgl, bayar: x.jumlah, ket: x.ket || 'bayar langsung', id: x.id }));
+  return Object.values(per).map(t => ({ ...t, sisa: t.hutang - t.bayar, riwayat: t.riwayat.sort((a, b) => a.tgl.localeCompare(b.tgl)) })); }
 
 async function muatInvoice() { const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'invoice' }); if (!r.ok) throw new Error(r.pesan);
-  const v = r.nilai || {}; v.profil = v.profil || {}; v.daftar = Array.isArray(v.daftar) ? v.daftar : []; return v; }
+  const v = r.nilai || {}; v.profil = v.profil || {}; v.daftar = Array.isArray(v.daftar) ? v.daftar : []; v.bayar = Array.isArray(v.bayar) ? v.bayar : []; v.daftar.forEach(normHarian); return v; }
 // Simpan: ambil versi terbaru dulu lalu terapkan perubahan, supaya dua HP yang menyimpan bergantian tidak saling menimpa.
 async function simpanInvoice(ubah) { const v = await muatInvoice(); ubah(v);
   const r = await rpc('minyak_invoice_tulis', { p_token: sesi.baca().token, p_nilai: v }); if (!r.ok) throw new Error(r.pesan); INV = v; keu = null; return v; }
 const gagalDialog = e => dialog(`<h3>Gagal menyimpan</h3><p class="catatan">${esc(e.message)}</p><div class="tombol-baris"><button class="pil" data-tutup>Tutup</button></div>`);
 
 async function layarInvoice() {
-  akar.innerHTML = kepalaPemilik('Invoice Harian', 'Satu invoice untuk satu hari pengantaran, berisi semua toko. Bisa diunduh jadi PDF invoice, surat jalan, nota per toko, dan Excel.', true) +
+  akar.innerHTML = kepalaPemilik('Invoice Harian', 'Satu invoice untuk satu hari, berisi semua mobil dan gudang seperti lembar Excel. Bisa diunduh jadi PDF invoice, surat jalan, nota per toko, dan Excel.', true) +
     '<main class="bungkus"><div id="inv" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
   $('#bBeranda').onclick = layarBeranda;
   try { [INV] = await Promise.all([muatInvoice(), muatHarga().catch(() => null), muatKeuangan().catch(() => null), muatPembelian().catch(() => null)]); gambarInvoice(); }
   catch (e) { $('#inv').innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
 
 function gambarInvoice() { const el = $('#inv'); if (!el) return;
-  const bi = hariIni().slice(0, 7), bln = INV.daftar.filter(h => !h.batal && h.tgl.startsWith(bi)), hutang = semuaHutang();
-  el.innerHTML = `<section class="besar angkat"><div class="label">Hutang toko belum lunas</div><div class="nilai">${rp(sumBy(hutang, x => hutangBaris(x.r)))}</div>
-      <div class="keping-baris"><span class="keping"><b>${new Set(hutang.map(x => x.r.toko.trim().toUpperCase())).size}</b> toko</span><span class="keping">Bulan ini <b>${bln.length}</b> hari · penjualan <b>${rp(sumBy(bln, h => hitungHarian(h).jual))}</b></span></div>
+  const bi = hariIni().slice(0, 7), bln = INV.daftar.filter(h => !h.batal && h.tgl.startsWith(bi)), hut = bukuHutang().filter(t => t.sisa > 0);
+  el.innerHTML = `<section class="besar angkat"><div class="label">Hutang toko belum dibayar</div><div class="nilai">${rp(sumBy(hut, t => t.sisa))}</div>
+      <div class="keping-baris"><span class="keping"><b>${hut.length}</b> toko</span><span class="keping">Bulan ini <b>${bln.length}</b> hari · penjualan <b>${rp(sumBy(bln, h => hitungHarian(h).jual))}</b></span></div>
       ${bacaSaja ? '' : '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="pil emas" id="bInvBaru">+ Invoice hari ini</button><button class="pil kaca" id="bProfil">Kepala surat</button></div>'}</section>
     ${!INV.profil.nama && !bacaSaja ? '<section class="kartu angkat" style="margin-top:14px"><div class="pesan-salah" style="margin:0">Kepala surat belum diisi. Tekan "Kepala surat" untuk mengisi nama usaha, alamat, dan nomor telepon.</div></section>' : ''}
     <section class="kartu angkat" style="margin-top:14px"><h2>Invoice per hari<span class="keping">${INV.daftar.filter(h => !h.batal).length}</span></h2>
       <input class="isian" id="invCari" placeholder="Cari tanggal, nomor, pengantar, atau toko…" value="${esc(invCari)}" autocomplete="off" aria-label="Cari invoice">
       <div id="invDaftar" class="inv-kartu-baris" style="margin-top:12px"></div></section>
-    <section class="kartu angkat" style="margin-top:14px"><h2>Hutang toko<span class="keping">${hutang.length}</span></h2><div id="invHutang"></div>
-      <div class="catatan">Hutang diambil dari kolom Hutang di tiap invoice harian. Tekan Lunas kalau toko sudah membayar; catat uangnya di "Toko bayar hutang lama" pada invoice hari pembayaran supaya kas harian cocok.</div></section>`;
+    <section class="kartu angkat" style="margin-top:14px"><h2>Hutang toko<span class="keping">${hut.length}</span></h2><div id="invHutang"></div>
+      <div class="catatan">Sisa hutang = semua hutang toko itu dikurangi semua bayarnya. Bayar yang uangnya dibawa pengantar diisi di kolom Bayar pada invoice hari itu; yang ditransfer langsung ke pemilik dicatat lewat tombol Bayar di sini.</div></section>`;
   gambarDaftarInv(); gambarHutangInv();
   $('#invCari').oninput = ev => { invCari = ev.target.value; gambarDaftarInv(); };
   const bb = $('#bInvBaru'); if (bb) bb.onclick = () => formHarian(null);
   const bp = $('#bProfil'); if (bp) bp.onclick = dialogProfilInv; }
 
 function gambarDaftarInv() { const el = $('#invDaftar'); if (!el) return; const cari = invCari.trim().toLowerCase();
-  const daftar = INV.daftar.filter(h => !cari || `${h.no} ${h.tgl} ${tglPanjang(h.tgl)} ${h.pengantar || ''} ${(h.baris || []).map(r => r.toko).join(' ')}`.toLowerCase().includes(cari))
+  const daftar = INV.daftar.filter(h => !cari || `${h.no} ${h.tgl} ${tglPanjang(h.tgl)} ${h.blok.map(B => B.pengantar + ' ' + B.baris.map(r => r.toko).join(' ')).join(' ')}`.toLowerCase().includes(cari))
     .sort((a, b) => b.tgl.localeCompare(a.tgl) || (parseInt(b.no, 10) || 0) - (parseInt(a.no, 10) || 0));
   el.innerHTML = daftar.map(h => { const c = hitungHarian(h);
-    return `<button class="inv-kartu ${h.batal ? 'mati' : ''}" data-buka="${esc(h.id)}"><div class="inv-atas"><div style="min-width:0"><b>${esc(tglPanjang(h.tgl))}</b><div class="catatan" style="margin:2px 0 0">No. ${esc(h.no)}${h.pengantar ? ' · ' + esc(h.pengantar) : ''} · ${c.toko} toko${c.kendi ? ' · ' + angkaId(c.kendi) + ' kendi' : ''}</div></div>
+    return `<button class="inv-kartu ${h.batal ? 'mati' : ''}" data-buka="${esc(h.id)}"><div class="inv-atas"><div style="min-width:0"><b>${esc(tglPanjang(h.tgl))}</b><div class="catatan" style="margin:2px 0 0">No. ${esc(h.no)} · ${esc(h.blok.map(namaBlok).join(' · '))} · ${c.toko} toko${c.kendi ? ' · ' + angkaId(c.kendi) + ' kendi' : ''}</div></div>
       <b style="flex:none">${rp(c.jual)}</b></div>
-      <div class="keping-baris" style="margin:8px 0 0">${h.batal ? '<span class="keping">Dibatalkan</span>' : `${c.hutang ? `<span class="keping merah">Hutang ${rp(c.hutang)}</span>` : '<span class="keping hijau">Semua toko bayar</span>'}${kepingKeu(h.id)}${c.selisih ? `<span class="keping merah">Selisih kas ${rp(Math.abs(c.selisih))} ${c.selisih > 0 ? 'kurang' : 'lebih'}</span>` : (c.setor || c.keluar) ? '<span class="keping hijau">Kas cocok</span>' : ''}`}</div></button>`; }).join('')
+      <div class="keping-baris" style="margin:8px 0 0">${h.batal ? '<span class="keping">Dibatalkan</span>' : `${c.hutang ? `<span class="keping merah">Hutang ${rp(c.hutang)}</span>` : ''}${c.lama ? `<span class="keping hijau">Bayar hutang ${rp(c.lama)}</span>` : ''}${c.bl.some(x => x.selisih) ? `<span class="keping merah">Ada selisih kas</span>` : (c.setor || c.keluar) ? '<span class="keping hijau">Kas cocok</span>' : ''}${kepingKeu(h.id)}`}</div></button>`; }).join('')
     || `<div class="catatan" style="margin:0">${INV.daftar.length ? 'Tidak ada yang cocok.' : 'Belum ada invoice. Tekan "+ Invoice hari ini".'}</div>`;
   $$('[data-buka]', el).forEach(b => b.onclick = () => bukaHarian(INV.daftar.find(h => h.id === b.dataset.buka))); }
 
-function gambarHutangInv() { const el = $('#invHutang'); if (!el) return; const per = {};
-  semuaHutang().forEach(x => { (per[x.r.toko.trim().toUpperCase()] ||= []).push(x); });
-  el.innerHTML = Object.entries(per).sort((a, b) => sumBy(b[1], x => hutangBaris(x.r)) - sumBy(a[1], x => hutangBaris(x.r))).map(([t, xs]) => `<div class="inv-item"><div class="inv-atas"><b>${esc(xs[0].r.toko)}</b><b>${rp(sumBy(xs, x => hutangBaris(x.r)))}</b></div>
-    ${xs.map(({ h, r }) => `<div class="inv-atas" style="margin-top:6px;align-items:center"><span class="catatan" style="margin:0">${esc(tglPanjang(h.tgl))} · ${esc(r.barang)} ${angkaId(r.qty)} ${esc(r.satuan || '')} · ${rp(hutangBaris(r))}</span>${bacaSaja ? '' : `<button class="pil halus kecil" data-lunas="${esc(h.id)}|${esc(r.id)}">Lunas</button>`}</div>`).join('')}</div>`).join('')
+function gambarHutangInv() { const el = $('#invHutang'); if (!el) return; const buku = bukuHutang(), ada = buku.filter(t => t.sisa > 0).sort((a, b) => b.sisa - a.sisa), lebih = buku.filter(t => t.sisa < 0);
+  el.innerHTML = ada.map(t => `<details class="inv-item"><summary class="inv-atas" style="cursor:pointer;align-items:center"><span style="min-width:0"><b>${esc(t.toko)}</b><span class="catatan" style="margin:0;display:block">hutang ${rp(t.hutang)}${t.bayar ? ' · sudah bayar ' + rp(t.bayar) : ''}</span></span>
+      <span style="display:flex;gap:8px;align-items:center;flex:none"><b>${rp(t.sisa)}</b>${bacaSaja ? '' : `<button class="pil halus kecil" data-bayar="${esc(t.toko)}" data-sisa="${t.sisa}">Bayar</button>`}</span></summary>
+      ${t.riwayat.map(x => `<div class="inv-atas" style="margin-top:6px"><span class="catatan" style="margin:0">${esc(tglPanjang(x.tgl))} · ${esc(x.ket)}</span><span class="catatan" style="margin:0;white-space:nowrap">${x.hutang ? '+ ' + rp(x.hutang) : '- ' + rp(x.bayar)}${x.id && !bacaSaja ? ` <button class="pil halus kecil" data-hapusbayar="${esc(x.id)}" aria-label="Hapus bayar">✕</button>` : ''}</span></div>`).join('')}</details>`).join('')
     || '<div class="catatan" style="margin:0">Tidak ada hutang toko.</div>';
-  $$('[data-lunas]', el).forEach(b => b.onclick = async () => { const [hid, rid] = b.dataset.lunas.split('|'), h = INV.daftar.find(x => x.id === hid), r = h?.baris.find(x => x.id === rid); if (!r) return;
-    if (!confirm(`Hutang ${r.toko} ${rp(hutangBaris(r))} (${tglPanjang(h.tgl)}) sudah lunas?`)) return;
-    try { await simpanInvoice(x => { const y = x.daftar.find(z => z.id === hid)?.baris.find(z => z.id === rid); if (y) { y.lunas = true; y.tglLunas = hariIni(); } }); gambarInvoice(); } catch (e) { gagalDialog(e); } }); }
+  if (lebih.length) el.innerHTML += `<div class="catatan">Bayar hutang lama dari sebelum aplikasi: ${lebih.map(t => esc(t.toko) + ' ' + rp(-t.sisa)).join(', ')}.</div>`;
+  $$('[data-bayar]', el).forEach(b => b.onclick = ev => { ev.preventDefault(); const toko = b.dataset.bayar, sisa = +b.dataset.sisa;
+    dialog(`<h3>Bayar hutang ${esc(toko)}</h3><p class="catatan" style="margin:0 0 12px">Untuk uang yang diterima langsung (transfer atau tunai ke pemilik), bukan lewat mobil. Sisa hutang ${rp(sisa)}.</p>
+      <label class="medan"><span>Jumlah</span><input id="yJml" inputmode="numeric" value="${ribu(sisa)}"></label><label class="medan"><span>Tanggal</span><input id="yTgl" type="date" value="${hariIni()}"></label>
+      <label class="medan"><span>Keterangan</span><input id="yKet" value="transfer"></label><div id="yPesan"></div>
+      <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil" id="yOk">Simpan</button></div>`, (d, tutup) => {
+      $('#yOk', d).onclick = async () => { const j = angkaRp($('#yJml', d).value); if (!j) { $('#yPesan', d).innerHTML = '<div class="pesan-salah">Isi jumlahnya.</div>'; return; }
+        try { await simpanInvoice(x => { x.bayar.push({ id: idBaru('y'), tgl: $('#yTgl', d).value || hariIni(), toko, jumlah: j, ket: $('#yKet', d).value.trim() }); }); tutup(); gambarInvoice(); } catch (e) { $('#yPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); });
+  $$('[data-hapusbayar]', el).forEach(b => b.onclick = async ev => { ev.preventDefault(); if (!confirm('Hapus catatan bayar ini?')) return;
+    try { await simpanInvoice(x => { x.bayar = x.bayar.filter(y => y.id !== b.dataset.hapusbayar); }); gambarInvoice(); } catch (e) { gagalDialog(e); } }); }
 
 function dialogProfilInv() { const P = INV.profil || {};
   dialog(`<h3>Kepala surat</h3><p class="catatan" style="margin:0 0 12px">Tampil di bagian atas invoice, nota, dan surat jalan.</p>
@@ -1277,36 +1326,29 @@ function dialogProfilInv() { const P = INV.profil || {};
       if (!baru.nama) { $('#pPesan', d).innerHTML = '<div class="pesan-salah">Nama usaha wajib diisi.</div>'; return; }
       try { await simpanInvoice(x => { x.profil = baru; }); tutup(); gambarInvoice(); } catch (e) { $('#pPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
 
-/* ----- Lembar di layar (seperti nota MBG): dipakai untuk melihat sebelum mengunduh ----- */
+/* ----- Lembar di layar (seperti nota MBG), satu tabel per blok ----- */
 function lembarHarian(h) { const c = hitungHarian(h), P = INV.profil || {};
   return `<div class="lembar"><div class="kop"><div><b>${esc(P.nama || '')}</b><div class="kecil">${esc(P.alamat || '')}</div>${P.telp ? `<div class="kecil">No Telp : ${esc(P.telp)}</div>` : ''}</div>
-    <div style="text-align:right"><div>Tanggal: <b>${esc(hariTgl(h.tgl))}, ${esc(tglSurat(h.tgl))}</b></div><div>Pengantar: <b>${esc(h.pengantar || '-')}</b></div><div class="kecil">Ekspedisi: ${esc(h.ekspedisi || '-')}</div></div></div>
+    <div style="text-align:right"><div>Tanggal: <b>${esc(hariTgl(h.tgl))}, ${esc(tglSurat(h.tgl))}</b></div><div>${h.blok.length} blok: <b>${esc(h.blok.map(namaBlok).join(', '))}</b></div></div></div>
     <h3>INVOICE HARIAN · NOMOR ${esc(h.no)}</h3>
-    <div class="bungkus-tabel"><table><thead><tr><th>No</th><th>Nama toko</th><th>Barang</th><th class="kanan">Qty</th><th class="kanan">Berat</th><th class="kanan">Harga</th><th class="kanan">Jumlah</th><th class="kanan">Hutang</th></tr></thead>
-    <tbody>${c.b.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.toko)}</td><td>${esc(r.barang)}${r.retur ? `<div class="kecil">retur ${angkaId(r.retur)} kendi</div>` : ''}</td><td class="kanan">${r.qty ? angkaId(r.qty) + ' ' + esc(r.satuan || '') : '-'}</td><td class="kanan">${r.berat ? angkaId(r.berat) + ' kg' : ''}</td><td class="kanan">${r.harga ? rp(r.harga) : ''}</td><td class="kanan">${rp(jmlBaris(r))}</td><td class="kanan">${hutangBaris(r) ? rp(hutangBaris(r)) + (r.lunas ? '<div class="kecil">lunas</div>' : '') : ''}</td></tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:#777">Belum ada toko</td></tr>'}</tbody>
-    <tfoot><tr><td colspan="6" class="kanan"><b>Total penjualan</b></td><td class="kanan"><b>${rp(c.jual)}</b></td><td class="kanan"><b>${c.hutang ? rp(c.hutang) : ''}</b></td></tr></tfoot></table></div>
+    ${c.bl.map((x, i) => `<div class="lembar-blok"><div class="lembar-judul">${esc(namaBlok(x.B, i).toUpperCase())}${x.B.ekspedisi ? ' · ' + esc(x.B.ekspedisi) : ''}</div>
+    <div class="bungkus-tabel"><table><thead><tr><th>No</th><th>Nama toko</th><th>Barang</th><th class="kanan">Qty</th><th class="kanan">Berat</th><th class="kanan">Harga</th><th class="kanan">Jumlah</th><th class="kanan">Bayar</th><th class="kanan">Hutang</th></tr></thead>
+    <tbody>${x.b.map((r, j) => `<tr><td>${j + 1}</td><td>${esc(r.toko)}${r.alamat ? `<div class="kecil">${esc(r.alamat)}</div>` : ''}</td><td>${r.qty ? esc(r.barang) : '<i>bayar hutang</i>'}${r.retur ? `<div class="kecil">retur ${angkaId(r.retur)} kendi</div>` : ''}</td><td class="kanan">${r.qty ? angkaId(r.qty) + ' ' + esc(r.satuan || '') : ''}</td><td class="kanan">${r.berat && r.qty ? angkaId(r.berat) + ' kg' : ''}</td><td class="kanan">${r.harga && r.qty ? rp(r.harga) : ''}</td><td class="kanan">${r.qty ? rp(jmlBaris(r)) : ''}</td><td class="kanan">${r.bayar ? rp(r.bayar) : ''}</td><td class="kanan">${hutangBaris(r) ? rp(hutangBaris(r)) : ''}</td></tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#777">Belum ada toko</td></tr>'}</tbody>
+    <tfoot><tr><td colspan="6" class="kanan"><b>Jumlah</b></td><td class="kanan"><b>${rp(x.jual)}</b></td><td class="kanan"><b>${x.lama ? rp(x.lama) : ''}</b></td><td class="kanan"><b>${x.hutang ? rp(x.hutang) : ''}</b></td></tr></tfoot></table></div>
+    <table class="rekap"><tbody>${rekapBaris(x).map(([l, n, t]) => `<tr${t ? ' class="tebal"' : ''}><td>${esc(l)}</td><td class="kanan">${n}</td></tr>`).join('')}</tbody></table></div>`).join('')}
+    <h3 style="font-size:12px">TOTAL HARI INI</h3>
+    <table class="rekap"><tbody><tr class="tebal"><td>Total penjualan</td><td class="kanan">${rp(c.jual)}</td></tr><tr><td>Toko hutang</td><td class="kanan">${rp(c.hutang)}</td></tr><tr><td>Bayar hutang lama</td><td class="kanan">${rp(c.lama)}</td></tr><tr><td>Pengeluaran</td><td class="kanan">${rp(c.keluar)}</td></tr><tr><td>Setoran</td><td class="kanan">${rp(c.setor)}</td></tr><tr class="tebal"><td>Selisih kas</td><td class="kanan">${c.selisih ? rp(Math.abs(c.selisih)) + (c.selisih > 0 ? ' kurang' : ' lebih') : 'Rp 0 (cocok)'}</td></tr></tbody></table>
     <div class="kecil" style="margin-top:8px">Terbilang: <i>${esc(terbilang(c.jual))}</i></div>
-    ${c.omsetMinyak ? `<div class="kecil" style="margin-top:4px">Modal minyak ${rp(c.modal)} (curah Rp ${ribu(h.modalKg || MODAL_EXCEL.kg)}/kg${h.modalDus || MODAL_EXCEL.dus ? ', dus Rp ' + ribu(h.modalDus || MODAL_EXCEL.dus) + '/dus' : ''}) · <b>laba kotor ${rp(c.laba)}</b> · hanya tampil di aplikasi</div>` : ''}
-    <h3 style="font-size:12px">REKAPAN AKHIR</h3>
-    <table class="rekap"><tbody>${rekapBaris(h, c).map(([l, n, t]) => `<tr${t ? ' class="tebal"' : ''}><td>${esc(l)}</td><td class="kanan">${n}</td></tr>`).join('')}</tbody></table>
+    ${c.omsetMinyak ? `<div class="kecil" style="margin-top:4px">Modal minyak ${rp(c.modal)} (curah Rp ${ribu(h.modalKg || modalOtomatis(h.tgl).kg)}/kg) · <b>laba kotor ${rp(c.laba)}</b> · hanya tampil di aplikasi</div>` : ''}
     ${h.catatan ? `<div class="kecil" style="margin-top:8px">Catatan: ${esc(h.catatan)}</div>` : ''}</div>`; }
-// Baris rekapan akhir: [label, nilai (teks), tebal]
-function rekapBaris(h, c) { const r = [['Total penjualan', rp(c.jual), true]];
-  if (c.hutang) r.push(['Toko hutang', '- ' + rp(c.hutang)]);
-  (h.bayarLama || []).filter(x => x.jumlah).forEach(x => r.push(['Bayar hutang lama ' + (x.toko || ''), '+ ' + rp(x.jumlah)]));
-  r.push(['Uang yang harus ada', rp(c.harus), true]);
-  (h.keluar || []).filter(x => x.jumlah).forEach(x => r.push(['Pengeluaran ' + (x.ket || ''), '- ' + rp(x.jumlah)]));
-  (h.setor || []).filter(x => x.jumlah).forEach(x => r.push(['Setor ' + (x.ket || ''), '- ' + rp(x.jumlah)]));
-  r.push([c.selisih ? (c.selisih > 0 ? 'Selisih (uang kurang)' : 'Selisih (uang lebih)') : 'Selisih', c.selisih ? rp(Math.abs(c.selisih)) : 'Rp 0 (cocok)', true]);
-  return r.map(([l, n, t]) => [l.trim(), n, t]); }
 
 function bukaHarian(h) {
-  akar.innerHTML = kepalaPemilik('Invoice ' + esc(h.no), esc(tglPanjang(h.tgl)) + (h.pengantar ? ' · ' + esc(h.pengantar) : ''), true) +
+  akar.innerHTML = kepalaPemilik('Invoice ' + esc(h.no), esc(tglPanjang(h.tgl)) + ' · ' + esc(h.blok.map(namaBlok).join(', ')), true) +
     `<main class="bungkus"><div style="padding-top:38px">
       <section class="kartu angkat"><h2>Unduh</h2><div class="inv-unduh">
-        <button class="pil" data-u="inv">Invoice harian PDF</button><button class="pil halus" data-u="sj">Surat jalan harian PDF</button>
+        <button class="pil" data-u="inv">Invoice harian PDF</button><button class="pil halus" data-u="sj">Surat jalan per mobil PDF</button>
         <button class="pil halus" data-u="nota">Nota per toko PDF</button><button class="pil halus" data-u="sjt">Surat jalan per toko PDF</button><button class="pil halus" data-u="xl">Excel</button></div>
-        <div class="catatan">Invoice dan surat jalan harian: satu lembar berisi semua toko. Nota dan surat jalan per toko: satu halaman per toko, digabung dalam satu PDF, bisa dipilih satu toko saja.</div>
+        <div class="catatan">Invoice harian: semua mobil dan gudang dalam satu PDF. Surat jalan per mobil: satu halaman tiap mobil, tanpa harga, dengan kolom tanda tangan tiap toko. Nota dan surat jalan per toko: satu halaman per toko dalam satu PDF, bisa dipilih satu toko saja.</div>
         ${bacaSaja ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="pil emas kecil" id="bUbah">Ubah invoice</button>${h.batal ? '<button class="pil halus kecil" id="bPulih">Pulihkan</button>' : ''}</div>`}</section>
       ${kepingKeu(h.id) ? `<div class="keping-baris" style="margin-top:12px">${kepingKeu(h.id)}</div>` : ''}
       <section style="margin-top:14px">${lembarHarian(h)}</section></div></main>`;
@@ -1316,149 +1358,159 @@ function bukaHarian(h) {
   const bp = $('#bPulih'); if (bp) bp.onclick = async () => { try { await simpanInvoice(x => { const y = x.daftar.find(z => z.id === h.id); if (y) y.batal = false; }); bukaHarian(INV.daftar.find(z => z.id === h.id)); } catch (e) { gagalDialog(e); } }; }
 
 function unduhHarian(h, jenis) {
-  if (jenis === 'nota' || jenis === 'sjt') { const toko = [...new Set(hitungHarian(h).b.map(r => r.toko.trim()))];
+  if (jenis === 'nota' || jenis === 'sjt') { const toko = [...new Set(hitungHarian(h).b.filter(r => r.qty > 0).map(r => r.toko.trim()))];
     if (toko.length < 2) return jenis === 'nota' ? pdfNotaToko(h, toko) : pdfSjToko(h, toko);
     return dialog(`<h3>${jenis === 'nota' ? 'Nota' : 'Surat jalan'} per toko</h3><label class="medan"><span>Toko</span><select id="uToko" class="isian"><option value="">Semua toko (${toko.length} halaman)</option>${toko.map(t => `<option>${esc(t)}</option>`).join('')}</select></label>
       <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil" id="uOk">Unduh PDF</button></div>`, (d, tutup) => {
       $('#uOk', d).onclick = () => { const t = $('#uToko', d).value; tutup(); const pilih = t ? [t] : toko; jenis === 'nota' ? pdfNotaToko(h, pilih) : pdfSjToko(h, pilih); }; }); }
   return { inv: pdfHarian, sj: pdfSjHarian, xl: excelHarian }[jenis](h); }
 
-/* ----- Formulir invoice harian ----- */
+/* ----- Formulir: satu hari, beberapa blok (mobil / gudang) seperti lembar Excel ----- */
 function formHarian(asal) {
-  const barisBaru = () => ({ id: idBaru('r'), toko: '', alamat: '', barang: 'Minyak Curah', qty: 0, satuan: 'kendi', berat: 0, harga: 0, retur: 0, hutang: 0, ket: '', _auto: true });
+  const barisBaru = () => ({ id: idBaru('r'), toko: '', alamat: '', barang: 'Minyak Curah', qty: 0, satuan: 'kendi', berat: 0, harga: 0, bayar: 0, hutang: 0, retur: 0, _auto: true });
+  const blokBaru = (pengantar = '') => ({ id: idBaru('b'), pengantar, ekspedisi: /^gudang$/i.test(pengantar) ? 'Diambil di gudang' : 'Pick-up', baris: [barisBaru()], keluar: /^gudang$/i.test(pengantar) ? [] : [{ ket: 'Parkir', jumlah: 0 }, { ket: 'Bensin', jumlah: 0 }], setor: [{ ket: '', jumlah: 0 }] });
   const lalu0 = INV.daftar.filter(x => !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl))[0];
-  const h = asal ? JSON.parse(JSON.stringify(asal)) : { id: idBaru('h'), no: noBerikut(), tgl: hariIni(), pengantar: lalu0?.pengantar || '', ekspedisi: lalu0?.ekspedisi || 'Pick-up', catatan: '',
-    modalKg: 0, modalDus: 0,   // 0 = otomatis dari pembelian
-    baris: [barisBaru()], keluar: [{ ket: 'Parkir', jumlah: 0 }, { ket: 'Bensin', jumlah: 0 }], setor: [{ ket: '', jumlah: 0 }], bayarLama: [] };
-  ['keluar', 'setor', 'bayarLama'].forEach(k => { h[k] = h[k] || []; }); h.baris.forEach(r => { r.id ||= idBaru('r'); });
+  // Hari baru mengikuti susunan blok hari terakhir (mis. Riyan dan Eja, Andika dan Bang Hen, Gudang), seperti menyalin sheet Excel.
+  const h = asal ? normHarian(JSON.parse(JSON.stringify(asal))) : { id: idBaru('h'), no: noBerikut(), tgl: hariIni(), catatan: '', modalKg: 0, modalDus: 0,
+    blok: lalu0 ? lalu0.blok.map(B => blokBaru(B.pengantar)) : [blokBaru('')] };
   if (h.modalOtomatis) h.modalKg = 0; if (h.modalDusOtomatis) h.modalDus = 0;   // modal yang dulu otomatis tetap ikut otomatis
   let kotorF = false;
-  const tokoList = [...new Set([...(harga?.toko || []).filter(t => t.aktif !== false).map(t => t.nama), ...INV.daftar.flatMap(x => (x.baris || []).map(r => r.toko))].filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  const pengantarList = [...new Set([...Object.values(data || {}).filter(e => e.aktif).map(e => e.nama), ...INV.daftar.map(x => x.pengantar)].filter(Boolean))];
-  akar.innerHTML = kepalaPemilik(asal ? 'Ubah Invoice ' + esc(h.no) : 'Invoice Hari Ini', 'Satu baris satu toko, seperti lembar penjualan di Excel. Harga dari Harga Toko dan modal dari pembelian terisi sendiri; Enter pindah ke kotak berikutnya.', true) +
+  const tokoList = [...new Set([...(harga?.toko || []).filter(t => t.aktif !== false).map(t => t.nama), ...INV.daftar.flatMap(x => x.blok.flatMap(B => B.baris.map(r => r.toko)))].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const pengantarList = [...new Set([...Object.values(data || {}).filter(e => e.aktif).map(e => e.nama), ...INV.daftar.flatMap(x => x.blok.map(B => B.pengantar)), 'Gudang'].filter(Boolean))];
+  akar.innerHTML = kepalaPemilik(asal ? 'Ubah Invoice ' + esc(h.no) : 'Invoice Hari Ini', 'Seperti lembar harian Excel: satu blok untuk tiap mobil dan gudang. Harga dan modal terisi sendiri; Enter pindah ke kotak berikutnya.', true) +
     `<main class="bungkus"><div style="padding-top:38px">
-    <section class="kartu angkat"><h2>Hari pengantaran</h2><div class="inv-empat">
+    <section class="kartu angkat"><h2>Hari</h2><div class="inv-empat">
       <label class="medan"><span>Tanggal</span><input id="fTgl" type="date"></label>
       <label class="medan"><span>No. invoice</span><input id="fNo" inputmode="numeric"></label>
-      <label class="medan"><span>Pengantar</span><input id="fPengantar" list="dlPengantar" placeholder="mis. Riyan dan Eja"></label>
-      <label class="medan"><span>Ekspedisi</span><input id="fEksp" list="dlEksp"></label></div>
-      <div class="inv-empat"><label class="medan"><span>Modal curah (Rp per kg)</span><input id="fModalKg" class="angka" inputmode="numeric"></label>
-        <label class="medan"><span>Modal dus (Rp per dus)</span><input id="fModalDus" class="angka" inputmode="numeric"></label>
-        <div class="catatan" id="fModalInfo" style="grid-column:span 2;align-self:center;margin:0"></div></div>
+      <label class="medan"><span>Modal curah (Rp per kg)</span><input id="fModalKg" class="angka" inputmode="numeric"></label>
+      <label class="medan"><span>Modal dus (Rp per dus)</span><input id="fModalDus" class="angka" inputmode="numeric"></label></div>
+      <div class="catatan" id="fModalInfo" style="margin:0"></div>
       <datalist id="dlPengantar">${pengantarList.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>
-      <datalist id="dlEksp"><option value="Pick-up"></option><option value="Truk"></option><option value="Motor"></option></datalist>
+      <datalist id="dlEksp"><option value="Pick-up"></option><option value="Truk"></option><option value="Motor"></option><option value="Diambil di gudang"></option></datalist>
       <datalist id="dlToko">${tokoList.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>
       <datalist id="dlBarang">${BARANG.map(([n]) => `<option value="${n}"></option>`).join('')}</datalist></section>
-    <section class="kartu angkat" style="margin-top:14px"><h2>Penjualan per toko <button class="pil kecil" id="fTambah">+ Toko</button></h2><div id="fBaris"></div>
-      <div style="margin-top:12px"><button class="pil halus kecil" id="fTambah2">+ Toko</button></div>
-      <div class="inv-total"><span>Total penjualan</span><b id="fTotal"></b></div><div class="catatan" id="fRingkas" style="margin:2px 0 0"></div><div class="catatan" id="fLaba" style="margin:2px 0 0;font-weight:700"></div></section>
-    <section class="kartu angkat" style="margin-top:14px"><h2>Rekapan akhir</h2>
-      <div class="sub-judul"><span>Toko bayar hutang lama</span><button class="pil halus kecil" data-tambah="bayarLama">+ Tambah</button></div><div id="fLama"></div>
-      <div class="sub-judul"><span>Pengeluaran (parkir, bensin, uang makan…)</span><button class="pil halus kecil" data-tambah="keluar">+ Tambah</button></div><div id="fKeluar"></div>
-      <div class="sub-judul"><span>Setoran (setor tunai, transfer, kasbon…)</span><button class="pil halus kecil" data-tambah="setor">+ Tambah</button></div><div id="fSetor"></div>
-      <div id="fRekap" style="margin-top:12px"></div></section>
-    <section class="kartu angkat" style="margin-top:14px"><label class="medan" style="margin:0"><span>Catatan (boleh kosong)</span><textarea id="fCatatan" class="isian" rows="2"></textarea></label>
+    <div id="fBlok"></div>
+    <div style="margin-top:12px"><button class="pil kecil" id="fTambahBlok">+ Mobil / gudang</button></div>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Total hari ini</h2><div id="fTotalHari"></div>
+      <label class="medan" style="margin:12px 0 0"><span>Catatan (boleh kosong)</span><textarea id="fCatatan" class="isian" rows="2"></textarea></label>
       ${asal && !asal.batal ? '<div style="margin-top:14px"><button class="pil bahaya kecil" id="fBatal">Batalkan invoice ini</button></div>' : ''}</section>
     <div class="bilah"><span class="st" id="st">—</span><span style="display:flex;gap:6px;flex:none"><button class="pil emas" id="fSimpan">Simpan</button></span></div></div></main>`;
   $('#bBeranda').textContent = asal ? '← Kembali' : '← Invoice';
   $('#bBeranda').onclick = () => { if (kotorF && !confirm('Invoice belum disimpan. Tetap keluar?')) return; asal ? bukaHarian(asal) : layarInvoice(); };
   const ubah = () => { if (!kotorF) { kotorF = true; status('Belum disimpan', 'ubah'); } };
-  [['fTgl', 'tgl'], ['fNo', 'no'], ['fPengantar', 'pengantar'], ['fEksp', 'ekspedisi'], ['fCatatan', 'catatan']].forEach(([i, k]) => {
-    const el = $('#' + i); el.value = h[k] || ''; el.addEventListener('input', () => { h[k] = el.value; ubah(); }); });
-  // Modal kosong = otomatis dari pembelian (contoh isian menunjukkan angkanya); diketik hanya kalau harganya beda.
+  [['fTgl', 'tgl'], ['fNo', 'no'], ['fCatatan', 'catatan']].forEach(([i, k]) => { const el = $('#' + i); el.value = h[k] || ''; el.addEventListener('input', () => { h[k] = el.value; ubah(); }); });
+
+  // Modal kosong = otomatis dari pembelian; diketik hanya kalau harganya beda.
   const infoModal = () => { const a = modalOtomatis(h.tgl);
     $('#fModalKg').placeholder = a.kg ? ribu(a.kg) + ' (otomatis)' : 'mis. 19.400'; $('#fModalDus').placeholder = a.dus ? ribu(a.dus) + ' (otomatis)' : '—';
-    $('#fModalInfo').textContent = `${h.modalKg ? 'Modal curah diketik sendiri.' : a.kg ? `Modal curah otomatis Rp ${ribu(a.kg)}/kg (${a.ketKg}).` : 'Belum ada data pembelian, ketik modal curah.'} ${h.modalDus ? '' : a.dus ? `Dus otomatis Rp ${ribu(a.dus)} (${a.ketDus}).` : ''} Kosongkan supaya ikut otomatis; ketik hanya kalau harganya beda. Tidak tercetak di PDF toko.`; };
+    $('#fModalInfo').textContent = `${h.modalKg ? 'Modal curah diketik sendiri.' : a.kg ? `Modal curah otomatis Rp ${ribu(a.kg)}/kg (${a.ketKg}).` : 'Belum ada data pembelian, ketik modal curah.'} ${h.modalDus ? '' : a.dus ? `Dus otomatis Rp ${ribu(a.dus)} (${a.ketDus}).` : ''} Kosongkan supaya ikut otomatis. Modal tidak tercetak di PDF toko.`; };
   [['fModalKg', 'modalKg'], ['fModalDus', 'modalDus']].forEach(([i, k]) => { const el = $('#' + i); el.value = h[k] ? ribu(h[k]) : '';
-    el.addEventListener('input', () => { h[k] = angkaRp(el.value); infoModal(); segarModal(); segar(); ubah(); }); el.addEventListener('blur', () => { if (el.value.trim()) el.value = ribu(angkaRp(el.value)); }); });
-  infoModal();
+    el.addEventListener('input', () => { h[k] = angkaRp(el.value); infoModal(); segarSemua(); ubah(); }); el.addEventListener('blur', () => { if (el.value.trim()) el.value = ribu(angkaRp(el.value)); }); });
 
   // Harga dari Harga Toko pada tanggal invoice; alamat dan berat dari catatan terakhir toko yang sama.
-  const catatanToko = (toko, barang) => INV.daftar.filter(x => x.id !== h.id && !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl)).flatMap(x => x.baris || [])
-    .find(r => r.toko.trim().toLowerCase() === toko.trim().toLowerCase() && (!barang || r.barang.toLowerCase() === barang.toLowerCase()) && (barang ? r.berat : r.alamat));
+  const catatanToko = (toko, barang) => INV.daftar.filter(x => x.id !== h.id && !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl)).flatMap(x => x.blok.flatMap(B => B.baris))
+    .find(r => kunciToko(r.toko) === kunciToko(toko) && (!barang || (r.barang || '').toLowerCase() === barang.toLowerCase()) && (barang ? r.berat : r.alamat));
   const isiOtomatis = r => { const t = tokoCocok(r.toko), j = jenisBarang(r);
     if (t && j?.[2] && (!r.harga || r._auto)) { const hg = hargaPada(t, j[2], h.tgl); if (hg) { r.harga = hg; r._auto = true; } }
     if (r.toko && !r.berat && j?.[3] === 'curah') { const l = catatanToko(r.toko, r.barang); if (l) r.berat = l.berat; }
     if (r.toko && !r.alamat) { const l = catatanToko(r.toko); if (l) r.alamat = l.alamat; } };
-  $('#fTgl').addEventListener('change', () => { h.baris.forEach(isiOtomatis); infoModal(); gambarBaris(); });
-
-  const segar = () => { const c = hitungHarian(h);
-    $('#fTotal').textContent = rp(c.jual);
-    const tanpaModal = c.b.some(r => minyakBaris(r) && r.qty > 0 && !modalSatuan(h, r));
-    $('#fLaba').textContent = tanpaModal ? 'Modal belum diisi, jadi laba kotor belum bisa dihitung. Isi modal hari ini di bagian atas.' : c.omsetMinyak ? `Modal minyak ${rp(c.modal)} · laba kotor ${rp(c.laba)}${c.omsetMinyak ? ' (' + (c.laba / c.omsetMinyak * 100).toFixed(1).replace('.', ',') + '%)' : ''}` : '';
-    $('#fRingkas').textContent = `${c.toko} toko${c.kendi ? ' · ' + angkaId(c.kendi) + ' kendi curah' : ''}${c.kg ? ' · ' + angkaId(c.kg) + ' kg' : ''}${c.retur ? ' · retur ' + angkaId(c.retur) + ' kendi' : ''}${c.hutang ? ' · hutang ' + rp(c.hutang) : ''}`;
-    $('#fRekap').innerHTML = `<table class="tabel-pb"><tbody>${rekapBaris(h, c).map(([l, n, t]) => `<tr><td>${t ? '<b>' + esc(l) + '</b>' : esc(l)}</td><td class="angka">${t ? '<b>' + n + '</b>' : n}</td></tr>`).join('')}</tbody></table>
-      <div class="catatan">${c.selisih ? (c.selisih > 0 ? 'Uang yang disetor dan dikeluarkan masih kurang dari yang seharusnya.' : 'Uang yang disetor dan dikeluarkan lebih besar dari yang seharusnya.') + ' Periksa lagi setoran, pengeluaran, atau hutang toko.' : 'Selisih 0 berarti kas hari ini cocok.'}</div>`; };
-  const ikatAngka = (inp, set, rupiah) => { inp.addEventListener('input', () => { set(rupiah ? angkaRp(inp.value) : desimal(inp.value)); segar(); ubah(); });
+  $('#fTgl').addEventListener('change', () => { h.blok.forEach(B => B.baris.forEach(isiOtomatis)); infoModal(); gambarSemua(); });
+  const ikatAngka = (inp, set, rupiah, sesudah) => { inp.addEventListener('input', () => { set(rupiah ? angkaRp(inp.value) : desimal(inp.value)); sesudah?.(); ubah(); });
     inp.addEventListener('blur', () => { if (inp.value.trim()) inp.value = rupiah ? ribu(angkaRp(inp.value)) : angkaId(desimal(inp.value)); }); };
 
-  // Isian otomatis cukup mengganti kotak di baris itu (tanpa menggambar ulang semua baris), supaya fokus di HP tidak lompat.
-  const isiUlang = (row, r) => { const set = (f, v) => { const i = $(`[data-f="${f}"]`, row); if (i && document.activeElement !== i) i.value = v; };
-    set('harga', r.harga ? ribu(r.harga) : ''); set('berat', r.berat ? angkaId(r.berat) : ''); set('alamat', r.alamat || ''); set('satuan', r.satuan || 'kendi');
-    $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); segar(); };
-  // Label & contoh isian modal per baris mengikuti jenis barang dan modal hari itu
-  const segarModal = () => $$('.inv-baris', $('#fBaris')).forEach(row => { const r = h.baris[+row.dataset.i], j = jenisBarang(r)?.[3] || 'curah', i = $('[data-f="modal"]', row); if (!i) return;
-    $('[data-lbl]', row).textContent = j === 'ken' ? 'Modal (tidak dihitung)' : j === 'dus' ? 'Modal toko ini (Rp per dus)' : 'Modal toko ini (Rp per kg)'; i.disabled = j === 'ken';
-    i.placeholder = j === 'ken' ? '—' : ribu(modalSatuan(h, { ...r, modal: 0 })) || '0';
-    $('[data-laba]', row).textContent = j === 'ken' || !r.qty ? '' : modalSatuan(h, r) ? 'laba ' + rp(jmlBaris(r) - modalBaris(h, r)) : 'modal belum diisi'; });
-  const gambarBaris = () => {
-    const lainIsi = r => [r.retur, r.alamat, r.modal].filter(Boolean).length;
-    $('#fBaris').innerHTML = `<div class="inv-kepala" aria-hidden="true"><span></span><span>Nama toko</span><span>Barang</span><span>Qty</span><span>Satuan</span><span>Berat kg</span><span>Harga</span><span>Hutang</span><span class="kn">Jumlah</span></div>` + h.baris.map((r, i) => `<div class="inv-baris" data-i="${i}">
+  const segarTotal = () => { const c = hitungHarian(h), tanpaModal = c.b.some(r => minyakBaris(r) && !modalSatuan(h, r));
+    $('#fTotalHari').innerHTML = `<div class="inv-total" style="margin-top:0"><span>Total penjualan</span><b>${rp(c.jual)}</b></div>
+      <div class="catatan" style="margin:2px 0 0">${c.toko} toko${c.kendi ? ' · ' + angkaId(c.kendi) + ' kendi curah' : ''}${c.kg ? ' · ' + angkaId(c.kg) + ' kg' : ''}${c.dus ? ' · ' + angkaId(c.dus) + ' dus' : ''}${c.retur ? ' · retur ' + angkaId(c.retur) + ' kendi' : ''}</div>
+      <div class="catatan" style="margin:2px 0 0;font-weight:700">${tanpaModal ? 'Modal belum diisi, laba kotor belum bisa dihitung.' : c.omsetMinyak ? `Modal minyak ${rp(c.modal)} · laba kotor ${rp(c.laba)} (${(c.laba / c.omsetMinyak * 100).toFixed(1).replace('.', ',')}%)` : ''}</div>
+      <table class="tabel-pb" style="margin-top:10px"><tbody>${[['Toko hutang', c.hutang], ['Bayar hutang lama', c.lama], ['Pengeluaran', c.keluar], ['Setoran', c.setor]].map(([l, n]) => `<tr><td>${l}</td><td class="angka">${rp(n)}</td></tr>`).join('')}
+      <tr><td><b>Selisih kas semua blok</b></td><td class="angka"><b>${c.selisih ? rp(Math.abs(c.selisih)) + (c.selisih > 0 ? ' kurang' : ' lebih') : 'Rp 0 (cocok)'}</b></td></tr></tbody></table>`; };
+  const segarBlok = bi => { const B = h.blok[bi], el = $(`[data-blok="${bi}"]`); if (!el) return; const x = hitungBlok(h, B);
+    $('[data-bjual]', el).textContent = rp(x.jual);
+    $('[data-brekap]', el).innerHTML = `<table class="tabel-pb"><tbody>${rekapBaris(x).map(([l, n, t]) => `<tr><td>${t ? '<b>' + esc(l) + '</b>' : esc(l)}</td><td class="angka">${t ? '<b>' + n + '</b>' : n}</td></tr>`).join('')}</tbody></table>`;
+    $$('.inv-baris', el).forEach(row => { const r = B.baris[+row.dataset.i], j = jenisK(r) || (jenisBarang(r)?.[3] || 'curah'), m = $('[data-f="modal"]', row);
+      $('[data-jml]', row).textContent = r.qty ? rp(jmlBaris(r)) : r.bayar ? 'bayar ' + rp(r.bayar) : rp(0);
+      $('[data-laba]', row).textContent = !minyakBaris(r) ? '' : modalSatuan(h, r) ? 'laba ' + rp(jmlBaris(r) - modalBaris(h, r)) : 'modal belum diisi';
+      $('[data-lbl]', row).textContent = j === 'ken' ? 'Modal (tidak dihitung)' : j === 'dus' ? 'Modal toko ini (Rp per dus)' : 'Modal toko ini (Rp per kg)'; m.disabled = j === 'ken';
+      m.placeholder = j === 'ken' ? '—' : ribu(modalSatuan(h, { ...r, qty: r.qty || 1, modal: 0 })) || '0'; });
+    segarTotal(); };
+  const segarSemua = () => h.blok.forEach((B, i) => segarBlok(i));
+  const lainIsi = r => [r.retur, r.alamat, r.modal, r.satuan && r.satuan !== (jenisBarang(r)?.[1] || 'kendi') ? 1 : 0].filter(Boolean).length;
+  const htmlBaris = (r, i) => `<div class="inv-baris" data-i="${i}">
       <div class="b-no">${i + 1}</div>
       <label class="medan b-toko"><span>Nama toko</span><input data-f="toko" list="dlToko" value="${esc(r.toko)}" autocomplete="off" placeholder="mis. TK Sukma Jaya"></label>
       <label class="medan b-barang"><span>Barang</span><input data-f="barang" list="dlBarang" value="${esc(r.barang || '')}" autocomplete="off"></label>
       <label class="medan"><span>Qty</span><input data-f="qty" inputmode="decimal" value="${r.qty ? angkaId(r.qty) : ''}" placeholder="0"></label>
-      <label class="medan"><span>Satuan</span><select data-f="satuan">${[...new Set([...SATUAN, r.satuan || 'kendi'])].map(x => `<option ${x === r.satuan ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
       <label class="medan"><span>Berat (kg)</span><input data-f="berat" inputmode="decimal" value="${r.berat ? angkaId(r.berat) : ''}" placeholder="—"></label>
       <label class="medan"><span>Harga</span><input data-f="harga" inputmode="numeric" value="${r.harga ? ribu(r.harga) : ''}" placeholder="0"></label>
+      <label class="medan"><span>Bayar hutang (Rp)</span><input data-f="bayar" inputmode="numeric" value="${r.bayar ? ribu(r.bayar) : ''}" placeholder="—"></label>
       <label class="medan"><span>Hutang (Rp)</span><input data-f="hutang" inputmode="numeric" value="${r.hutang ? ribu(r.hutang) : ''}" placeholder="lunas"></label>
-      <div class="b-jumlah"><span class="b-angka"><b data-jml>${rp(jmlBaris(r))}</b><small data-laba class="catatan"></small></span>
-        <span class="b-aksi"><button class="pil halus kecil" data-lain aria-expanded="${lainIsi(r) ? 'true' : 'false'}" title="Retur, alamat, modal toko ini">Lain${lainIsi(r) ? ' ' + lainIsi(r) : ''}</button><button class="pil bahaya kecil" data-hapus aria-label="Hapus baris ${i + 1}">✕</button></span></div>
+      <div class="b-jumlah"><span class="b-angka"><b data-jml></b><small data-laba class="catatan"></small></span>
+        <span class="b-aksi"><button class="pil halus kecil" data-lain aria-expanded="${lainIsi(r) ? 'true' : 'false'}" title="Retur, satuan, alamat, modal toko ini">Lain${lainIsi(r) ? ' ' + lainIsi(r) : ''}</button><button class="pil bahaya kecil" data-hapus aria-label="Hapus baris ${i + 1}">✕</button></span></div>
       <div class="b-lain" ${lainIsi(r) ? '' : 'hidden'}>
         <label class="medan"><span>Retur (kendi)</span><input data-f="retur" inputmode="decimal" value="${r.retur ? angkaId(r.retur) : ''}" placeholder="—"></label>
+        <label class="medan"><span>Satuan</span><select data-f="satuan">${[...new Set([...SATUAN, r.satuan || 'kendi'])].map(x => `<option ${x === r.satuan ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
         <label class="medan b-alamat"><span>Alamat / pasar</span><input data-f="alamat" value="${esc(r.alamat || '')}" placeholder="mis. Psr Tengah"></label>
-        <label class="medan b-modal"><span data-lbl>Modal toko ini</span><input data-f="modal" inputmode="numeric" value="${r.modal ? ribu(r.modal) : ''}"></label></div></div>`).join('');
-    $$('.inv-baris', $('#fBaris')).forEach(row => { const r = h.baris[+row.dataset.i];
-      $$('[data-f]', row).forEach(inp => { const f = inp.dataset.f;
-        if (['qty', 'berat', 'retur'].includes(f)) ikatAngka(inp, n => { r[f] = n; $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); });
-        else if (f === 'harga' || f === 'hutang' || f === 'modal') ikatAngka(inp, n => { r[f] = n; if (f === 'harga') r._auto = false; $('[data-jml]', row).textContent = rp(jmlBaris(r)); segarModal(); }, true);
-        else inp.addEventListener('input', () => { r[f] = inp.value; segar(); ubah(); });
-        if (f === 'toko') inp.addEventListener('change', () => { isiOtomatis(r); isiUlang(row, r); });
-        if (f === 'barang') inp.addEventListener('change', () => { const j = jenisBarang(r); if (j) { r.satuan = j[1]; if (r._auto !== false || !r.harga) { r.harga = 0; r._auto = true; } isiOtomatis(r); isiUlang(row, r); } }); });
-      $('[data-lain]', row).onclick = ev => { const l = $('.b-lain', row), buka = l.hidden; l.hidden = !buka; ev.currentTarget.setAttribute('aria-expanded', String(buka)); if (buka) $('input', l).focus(); };
-      $('[data-hapus]', row).onclick = () => { if ((r.toko || r.qty) && !confirm(`Hapus baris ${r.toko || 'ini'}?`)) return; h.baris.splice(+row.dataset.i, 1); if (!h.baris.length) h.baris.push(barisBaru()); ubah(); gambarBaris(); }; });
-    segarModal(); segar(); };
-  const tambahToko = () => { const r = barisBaru(); h.baris.push(r); gambarBaris(); ubah(); $$('#fBaris [data-f="toko"]').pop().focus(); };
-  $('#fTambah').onclick = tambahToko; $('#fTambah2').onclick = tambahToko;
-  $('#fBaris').addEventListener('keydown', ev => { if (ev.key !== 'Enter' || !ev.target.matches('input')) return; ev.preventDefault();
-    const semua = $$('#fBaris input, #fBaris select').filter(x => x.offsetParent !== null && !x.disabled), i = semua.indexOf(ev.target);
-    if (i === semua.length - 1) { ev.target.dispatchEvent(new Event('change')); tambahToko(); } else { semua[i + 1].focus(); semua[i + 1].select?.(); } });
-
-  // Daftar kecil rekapan (bayar hutang lama, pengeluaran, setoran): [label kiri, jumlah]
-  const DAFTAR = { bayarLama: ['#fLama', 'toko', 'Nama toko', 'dlToko'], keluar: ['#fKeluar', 'ket', 'mis. Parkir', ''], setor: ['#fSetor', 'ket', 'mis. Setor tunai / TF', ''] };
-  const gambarDaftar = k => { const [sel, f, ph, dl] = DAFTAR[k];
-    $(sel).innerHTML = h[k].map((x, i) => `<div class="inv-kecil" data-i="${i}"><input class="isian" data-f="${f}" value="${esc(x[f] || '')}" placeholder="${ph}" ${dl ? `list="${dl}"` : ''} aria-label="${ph}">
+        <label class="medan b-modal"><span data-lbl>Modal toko ini</span><input data-f="modal" inputmode="numeric" value="${r.modal ? ribu(r.modal) : ''}"></label></div></div>`;
+  // Daftar kecil di rekapan blok (pengeluaran, setoran)
+  const htmlKecil = (bi, k, ph) => h.blok[bi][k].map((x, i) => `<div class="inv-kecil" data-k="${k}" data-i="${i}"><input class="isian" data-f="ket" value="${esc(x.ket || '')}" placeholder="${ph}" aria-label="${ph}">
       <input class="isian angka" data-f="jumlah" inputmode="numeric" value="${x.jumlah ? ribu(x.jumlah) : ''}" placeholder="Rp 0" aria-label="Jumlah"><button class="pil halus kecil" data-hapus aria-label="Hapus">✕</button></div>`).join('') || '<div class="catatan" style="margin:0 0 6px">Tidak ada.</div>';
-    $$('.inv-kecil', $(sel)).forEach(row => { const x = h[k][+row.dataset.i];
-      $(`[data-f="${f}"]`, row).addEventListener('input', ev => { x[f] = ev.target.value; segar(); ubah(); });
-      ikatAngka($('[data-f="jumlah"]', row), n => { x.jumlah = n; }, true);
-      $('[data-hapus]', row).onclick = () => { h[k].splice(+row.dataset.i, 1); ubah(); gambarDaftar(k); segar(); }; }); };
-  $$('[data-tambah]').forEach(b => b.onclick = () => { const k = b.dataset.tambah; h[k].push({ [DAFTAR[k][1]]: '', jumlah: 0 }); ubah(); gambarDaftar(k); $$(DAFTAR[k][0] + ' input').at(-2)?.focus(); });
-  h.baris.forEach(isiOtomatis); gambarBaris(); Object.keys(DAFTAR).forEach(gambarDaftar); segar();
+  const gambarBlok = bi => { const B = h.blok[bi], el = $(`[data-blok="${bi}"]`);
+    el.innerHTML = `<div class="inv-blok-kepala"><span class="inv-blok-no">${/^gudang$/i.test(B.pengantar || '') ? 'Gudang' : 'Mobil ' + (bi + 1)}</span>
+        <label class="medan"><span>Pengantar</span><input data-bf="pengantar" list="dlPengantar" value="${esc(B.pengantar || '')}" placeholder="mis. Riyan dan Eja, atau Gudang"></label>
+        <label class="medan"><span>Ekspedisi</span><input data-bf="ekspedisi" list="dlEksp" value="${esc(B.ekspedisi || '')}"></label>
+        <span class="inv-blok-jual"><small>Penjualan</small><b data-bjual></b></span>${h.blok.length > 1 ? '<button class="pil bahaya kecil" data-hapusblok aria-label="Hapus blok">Hapus blok</button>' : ''}</div>
+      <div class="inv-kepala" aria-hidden="true"><span></span><span>Nama toko</span><span>Barang</span><span>Qty</span><span>Berat kg</span><span>Harga</span><span>Bayar hutang</span><span>Hutang</span><span class="kn">Jumlah</span></div>
+      <div data-baris>${B.baris.map(htmlBaris).join('')}</div>
+      <div style="margin-top:10px"><button class="pil halus kecil" data-tambahtoko>+ Toko</button></div>
+      <details class="inv-rekap" ${B.keluar.some(x => x.jumlah) || B.setor.some(x => x.jumlah) ? 'open' : ''}><summary>Rekapan akhir ${esc(namaBlok(B, bi))}: pengeluaran, setoran, selisih kas</summary>
+        <div class="sub-judul"><span>Pengeluaran (parkir, bensin, uang makan…)</span><button class="pil halus kecil" data-tambahk="keluar">+ Tambah</button></div><div data-daftar="keluar">${htmlKecil(bi, 'keluar', 'mis. Parkir')}</div>
+        <div class="sub-judul"><span>Setoran (setor tunai, transfer, kasbon…)</span><button class="pil halus kecil" data-tambahk="setor">+ Tambah</button></div><div data-daftar="setor">${htmlKecil(bi, 'setor', 'mis. Setor tunai / TF')}</div>
+        <div data-brekap style="margin-top:10px"></div></details>`;
+    $$('[data-bf]', el).forEach(inp => inp.addEventListener('input', () => { B[inp.dataset.bf] = inp.value;
+      if (inp.dataset.bf === 'pengantar') { const g = /^gudang$/i.test(inp.value.trim()); $('.inv-blok-no', el).textContent = g ? 'Gudang' : 'Mobil ' + (bi + 1);
+        const e = $('[data-bf="ekspedisi"]', el); if (g && (!B.ekspedisi || B.ekspedisi === 'Pick-up')) { B.ekspedisi = e.value = 'Diambil di gudang'; } else if (!g && B.ekspedisi === 'Diambil di gudang') { B.ekspedisi = e.value = 'Pick-up'; } }
+      ubah(); }));
+    $$('.inv-baris', el).forEach(row => { const r = B.baris[+row.dataset.i];
+      $$('[data-f]', row).forEach(inp => { const f = inp.dataset.f;
+        if (['qty', 'berat', 'retur'].includes(f)) ikatAngka(inp, n => { r[f] = n; }, false, () => segarBlok(bi));
+        else if (['harga', 'hutang', 'bayar', 'modal'].includes(f)) ikatAngka(inp, n => { r[f] = n; if (f === 'harga') r._auto = false; }, true, () => segarBlok(bi));
+        else inp.addEventListener('input', () => { r[f] = inp.value; segarBlok(bi); ubah(); });
+        if (f === 'toko' || f === 'barang') inp.addEventListener('change', () => { const j = jenisBarang(r); if (f === 'barang' && j) { r.satuan = j[1]; if (r._auto !== false || !r.harga) { r.harga = 0; r._auto = true; } }
+          isiOtomatis(r); const set = (g, v) => { const i = $(`[data-f="${g}"]`, row); if (i && document.activeElement !== i) i.value = v; };
+          set('harga', r.harga ? ribu(r.harga) : ''); set('berat', r.berat ? angkaId(r.berat) : ''); set('alamat', r.alamat || ''); set('satuan', r.satuan || 'kendi'); segarBlok(bi); }); });
+      $('[data-lain]', row).onclick = ev => { const l = $('.b-lain', row), buka = l.hidden; l.hidden = !buka; ev.currentTarget.setAttribute('aria-expanded', String(buka)); if (buka) $('input', l).focus(); };
+      $('[data-hapus]', row).onclick = () => { if ((r.toko || r.qty) && !confirm(`Hapus baris ${r.toko || 'ini'}?`)) return; B.baris.splice(+row.dataset.i, 1); if (!B.baris.length) B.baris.push(barisBaru()); ubah(); gambarBlok(bi); }; });
+    const tambahToko = () => { B.baris.push(barisBaru()); gambarBlok(bi); ubah(); $$(`[data-blok="${bi}"] [data-f="toko"]`).pop().focus(); };
+    $('[data-tambahtoko]', el).onclick = tambahToko;
+    // Enter pindah ke kotak berikutnya seperti Excel; di kotak terakhir baris terakhir menambah toko baru
+    $('[data-baris]', el).onkeydown = ev => { if (ev.key !== 'Enter' || !ev.target.matches('input')) return; ev.preventDefault();
+      const semua = $$('input, select', $('[data-baris]', el)).filter(x => x.offsetParent !== null && !x.disabled), i = semua.indexOf(ev.target);
+      if (i === semua.length - 1) { ev.target.dispatchEvent(new Event('change')); tambahToko(); } else { semua[i + 1].focus(); semua[i + 1].select?.(); } };
+    $$('.inv-kecil', el).forEach(row => { const x = B[row.dataset.k][+row.dataset.i];
+      $('[data-f="ket"]', row).addEventListener('input', ev => { x.ket = ev.target.value; segarBlok(bi); ubah(); });
+      ikatAngka($('[data-f="jumlah"]', row), n => { x.jumlah = n; }, true, () => segarBlok(bi));
+      $('[data-hapus]', row).onclick = () => { B[row.dataset.k].splice(+row.dataset.i, 1); ubah(); gambarBlok(bi); }; });
+    $$('[data-tambahk]', el).forEach(b => b.onclick = () => { B[b.dataset.tambahk].push({ ket: '', jumlah: 0 }); ubah(); gambarBlok(bi); $$(`[data-blok="${bi}"] [data-daftar="${b.dataset.tambahk}"] input`).at(-2)?.focus(); });
+    const hb = $('[data-hapusblok]', el); if (hb) hb.onclick = () => { if (B.baris.some(r => r.toko) && !confirm(`Hapus blok ${namaBlok(B, bi)} beserta isinya?`)) return; h.blok.splice(bi, 1); ubah(); gambarSemua(); };
+    segarBlok(bi); };
+  const gambarSemua = () => { $('#fBlok').innerHTML = h.blok.map((B, i) => `<section class="kartu angkat inv-blok" data-blok="${i}" style="margin-top:14px"></section>`).join(''); h.blok.forEach((B, i) => gambarBlok(i)); segarTotal(); };
+  $('#fTambahBlok').onclick = () => { const ada = h.blok.map(B => (B.pengantar || '').toLowerCase()); h.blok.push(blokBaru(ada.includes('gudang') ? '' : '')); ubah(); gambarSemua(); $$('[data-bf="pengantar"]').pop().focus(); };
+  h.blok.forEach(B => B.baris.forEach(isiOtomatis)); infoModal(); gambarSemua();
 
   $('#fSimpan').onclick = async () => {
-    const baris = h.baris.filter(r => r.toko.trim() && (r.qty > 0 || r.retur > 0));
-    const salah = !h.tgl ? 'Tanggal wajib diisi.' : !String(h.no).trim() ? 'Nomor invoice wajib diisi.' : !baris.length ? 'Isi minimal satu toko dengan qty.'
-      : h.baris.some(r => r.toko.trim() && !(r.qty > 0 || r.retur > 0)) ? 'Ada toko tanpa qty. Isi qty-nya atau hapus barisnya.'
-      : h.baris.some(r => !r.toko.trim() && r.qty > 0) ? 'Ada baris dengan qty tapi nama tokonya kosong.'
-      : baris.some(r => minyakBaris(r) && r.qty > 0 && !modalSatuan(h, r)) ? `Isi modal ${baris.some(r => (jenisBarang(r)?.[3] || 'curah') === 'dus' && r.qty > 0 && !modalSatuan(h, r)) ? 'dus' : 'curah'} hari ini dulu, supaya laba kotor di laporan benar.`
+    const isi = r => r.toko.trim() && (r.qty > 0 || r.retur > 0 || r.bayar > 0), semua = h.blok.flatMap(B => B.baris), oto = modalOtomatis(h.tgl);
+    const salah = !h.tgl ? 'Tanggal wajib diisi.' : !String(h.no).trim() ? 'Nomor invoice wajib diisi.' : !semua.some(isi) ? 'Isi minimal satu toko.'
+      : semua.some(r => r.toko.trim() && !isi(r)) ? 'Ada toko tanpa qty atau bayar. Isi atau hapus barisnya.'
+      : semua.some(r => !r.toko.trim() && (r.qty > 0 || r.bayar > 0)) ? 'Ada baris berisi angka tapi nama tokonya kosong.'
+      : semua.filter(isi).some(r => minyakBaris(r) && !modalSatuan(h, r)) ? 'Isi modal hari ini dulu, supaya laba kotor di laporan benar.'
       : INV.daftar.some(x => x.id !== h.id && !x.batal && String(x.no).trim() === String(h.no).trim()) ? `Nomor ${h.no} sudah dipakai invoice lain.` : '';
     if (salah) { status(salah, 'salah'); return; }
-    const bersih = a => a.filter(x => (x.ket || x.toko || '').trim() || x.jumlah).map(x => ({ ...x, ...(x.ket !== undefined ? { ket: x.ket.trim() } : {}), ...(x.toko !== undefined ? { toko: x.toko.trim() } : {}) }));
-    const oto = modalOtomatis(h.tgl);
-    const rec = { ...h, modalKg: h.modalKg || oto.kg, modalDus: h.modalDus || oto.dus, modalOtomatis: !h.modalKg, modalDusOtomatis: !h.modalDus, no: String(h.no).trim(), pengantar: (h.pengantar || '').trim(), catatan: (h.catatan || '').trim(), dibuat: h.dibuat || new Date().toISOString(), diubah: new Date().toISOString(),
-      baris: baris.map(({ _auto, ...r }) => ({ ...r, toko: r.toko.trim().replace(/\s+/g, ' '), barang: (r.barang || '').trim() || 'Minyak Curah', alamat: (r.alamat || '').trim(), hutang: Math.min(r.hutang || 0, jmlBaris(r)), lunas: (r.hutang || 0) > 0 ? !!r.lunas : false })),
-      keluar: bersih(h.keluar), setor: bersih(h.setor), bayarLama: bersih(h.bayarLama) };
+    const bersih = a => a.filter(x => (x.ket || '').trim() || x.jumlah).map(x => ({ ket: (x.ket || '').trim(), jumlah: x.jumlah || 0 }));
+    const rec = { ...h, modalKg: h.modalKg || oto.kg, modalDus: h.modalDus || oto.dus, modalOtomatis: !h.modalKg, modalDusOtomatis: !h.modalDus, no: String(h.no).trim(), catatan: (h.catatan || '').trim(),
+      dibuat: h.dibuat || new Date().toISOString(), diubah: new Date().toISOString(),
+      blok: h.blok.map(B => ({ id: B.id, pengantar: (B.pengantar || '').trim(), ekspedisi: (B.ekspedisi || '').trim(), keluar: bersih(B.keluar), setor: bersih(B.setor),
+        baris: B.baris.filter(isi).map(({ _auto, ...r }) => ({ ...r, toko: r.toko.trim().replace(/\s+/g, ' '), barang: r.qty > 0 ? ((r.barang || '').trim() || 'Minyak Curah') : '', alamat: (r.alamat || '').trim(), hutang: Math.min(r.hutang || 0, jmlBaris(r)), bayar: r.bayar || 0 })) }))
+        .filter(B => B.baris.length || B.keluar.length || B.setor.some(x => x.jumlah)) };
     status('Menyimpan…'); $('#fSimpan').disabled = true;
     try { await simpanInvoice(x => { const i = x.daftar.findIndex(y => y.id === rec.id); if (i >= 0) x.daftar[i] = rec; else x.daftar.push(rec); });
       kotorF = false; bukaHarian(INV.daftar.find(y => y.id === rec.id)); }
@@ -1470,7 +1522,7 @@ function formHarian(asal) {
 /* ----- PDF: hitam-putih seperti berkas Word surat jalan, siap dicetak ----- */
 function teksJarang(doc, s, x, y, jarak, kanan) { const w = doc.getTextWidth(s) + jarak * Math.max(0, s.length - 1); doc.text(s, kanan ? x - w : x, y, { charSpace: jarak }); }
 async function kertasBaru() { const JsPDF = await muatPdf(); return new JsPDF({ unit: 'mm', format: 'a4' }); }
-// Kepala surat di halaman yang sedang aktif. kiri/kanan = [[label, isi]], judul kiri 'Kepada Yth.' kalau ada tujuan toko.
+// Kepala surat di halaman yang sedang aktif. kiri/kanan = [[label, isi]]
 function kepalaSurat(doc, judul, kiri, kanan, kepada) { const P = INV.profil || {};
   doc.setTextColor(0); doc.setDrawColor(0);
   doc.setFont('times', 'bold'); doc.setFontSize(13); teksJarang(doc, (P.nama || '').toUpperCase(), 14, 16, 1.1);
@@ -1497,59 +1549,65 @@ function ttd(doc, y, kolom) { if (y > 248) { doc.addPage(); y = 20; } doc.setFon
     else if (bawah === '...') { doc.setFont('helvetica', 'normal'); doc.text('( ' + '.'.repeat(40) + ' )', x, y + 30, { align: 'center' }); }
     else { doc.setLineDashPattern([1, 1], 0); doc.setLineWidth(.25); doc.line(x - 24, y + 30, x + 24, y + 30); doc.setLineDashPattern([], 0); } }); }
 const namaBerkas = (jenis, h, akhir = '') => `${jenis} ${h.no} ${h.tgl}${akhir ? ' ' + akhir : ''}`.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() + '.pdf';
-const infoHari = h => [['No. Invoice', h.no], ['Tanggal', `${hariTgl(h.tgl)}, ${tglSurat(h.tgl)}`], ['Ekspedisi', h.ekspedisi]];
+const qtyTeks = r => r.qty ? angkaId(r.qty) + ' ' + (r.satuan || '') : '';
 
-// Invoice harian: semua toko satu lembar, dengan harga, hutang, dan rekapan akhir.
+// Invoice harian: semua blok dalam satu PDF, tiap blok tabel + rekapan akhirnya, lalu total hari itu.
 function pdfHarian(h) { return denganTunggu(async () => { const doc = await kertasBaru(), c = hitungHarian(h), P = INV.profil || {};
-  const y = kepalaSurat(doc, 'INVOICE HARIAN', [['Pengantar', h.pengantar], ['Jumlah toko', c.toko + ' toko'], ['Total qty', `${c.kendi ? angkaId(c.kendi) + ' kendi curah' : '-'}${c.kg ? ' · ' + angkaId(c.kg) + ' kg' : ''}`]], infoHari(h));
-  doc.autoTable({ ...garisTabel, startY: y, styles: { ...garisTabel.styles, fontSize: 8.5, cellPadding: 2.2 },
-    head: [['No', 'Nama Toko', 'Barang', 'Qty', 'Berat', 'Harga', 'Jumlah', 'Hutang']],
-    body: c.b.map((r, i) => [i + 1, r.toko + (r.alamat ? '\n' + r.alamat : ''), r.barang + (r.retur ? '\nretur ' + angkaId(r.retur) + ' kendi' : ''), r.qty ? angkaId(r.qty) + ' ' + (r.satuan || '') : '-', r.berat ? angkaId(r.berat) + ' kg' : '', r.harga ? rp(r.harga) : '', rp(jmlBaris(r)), hutangBaris(r) ? rp(hutangBaris(r)) : '']),
-    foot: [[{ content: 'TOTAL PENJUALAN', colSpan: 6, styles: { halign: 'right' } }, { content: rp(c.jual), styles: { halign: 'right' } }, { content: c.hutang ? rp(c.hutang) : '', styles: { halign: 'right' } }]],
-    columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 2: { cellWidth: 25 }, 3: { halign: 'center', cellWidth: 20 }, 4: { halign: 'center', cellWidth: 15 }, 5: { halign: 'right', cellWidth: 23 }, 6: { halign: 'right', cellWidth: 27 }, 7: { halign: 'right', cellWidth: 24 } },
-    didParseCell: d => { if (d.section === 'head') d.cell.styles.halign = d.column.index > 4 ? 'right' : [0, 3, 4].includes(d.column.index) ? 'center' : 'left'; } });
-  let yy = doc.lastAutoTable.finalY + 5; doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); const tb = doc.splitTextToSize('Terbilang: ' + terbilang(c.jual), 182); doc.text(tb, 14, yy); yy += 4 * tb.length + 2;
-  doc.autoTable({ ...garisTabel, startY: yy, tableWidth: 110, styles: { ...garisTabel.styles, fontSize: 8.5, cellPadding: 2 }, head: [[{ content: 'REKAPAN AKHIR', colSpan: 2 }]],
-    body: rekapBaris(h, c).map(([l, n, t]) => [{ content: l, styles: { fontStyle: t ? 'bold' : 'normal' } }, { content: n, styles: { halign: 'right', fontStyle: t ? 'bold' : 'normal' } }]), columnStyles: { 1: { cellWidth: 38 } } });
-  yy = doc.lastAutoTable.finalY + 4;
-  if (h.catatan) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); const t = doc.splitTextToSize('Catatan: ' + h.catatan, 182); doc.text(t, 14, yy + 3); yy += 4 * t.length + 3; }
-  ttd(doc, yy + 10, [['Pengantar,', h.pengantar || '...', 50], ['Hormat kami,', P.penandatangan || '...', 158, P.nama || '']]);
+  let y = kepalaSurat(doc, 'INVOICE HARIAN', [['Blok', h.blok.map(namaBlok).join(', ')], ['Jumlah toko', c.toko + ' toko'], ['Total qty', `${c.kendi ? angkaId(c.kendi) + ' kendi curah' : '-'}${c.kg ? ' · ' + angkaId(c.kg) + ' kg' : ''}${c.dus ? ' · ' + angkaId(c.dus) + ' dus' : ''}`]], [['No. Invoice', h.no], ['Tanggal', `${hariTgl(h.tgl)}, ${tglSurat(h.tgl)}`]]);
+  c.bl.forEach((x, bi) => { if (y > 230) { doc.addPage(); y = 20; }
+    doc.autoTable({ ...garisTabel, startY: y + 2, styles: { ...garisTabel.styles, fontSize: 8.2, cellPadding: 1.9 },
+      head: [[{ content: `${namaBlok(x.B, bi).toUpperCase()}${x.B.ekspedisi ? '  ·  ' + x.B.ekspedisi : ''}`, colSpan: 9, styles: { halign: 'left', fillColor: [235, 235, 235] } }], ['No', 'Nama Toko', 'Barang', 'Qty', 'Berat', 'Harga', 'Jumlah', 'Bayar', 'Hutang']],
+      body: x.b.map((r, i) => [i + 1, r.toko + (r.alamat ? '\n' + r.alamat : ''), r.qty ? r.barang + (r.retur ? '\nretur ' + angkaId(r.retur) : '') : 'bayar hutang', qtyTeks(r), r.berat && r.qty ? angkaId(r.berat) + ' kg' : '', r.harga && r.qty ? rp(r.harga) : '', r.qty ? rp(jmlBaris(r)) : '', r.bayar ? rp(r.bayar) : '', hutangBaris(r) ? rp(hutangBaris(r)) : '']),
+      foot: [[{ content: 'JUMLAH', colSpan: 6, styles: { halign: 'right' } }, { content: rp(x.jual), styles: { halign: 'right' } }, { content: x.lama ? rp(x.lama) : '', styles: { halign: 'right' } }, { content: x.hutang ? rp(x.hutang) : '', styles: { halign: 'right' } }]],
+      columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 2: { cellWidth: 22 }, 3: { halign: 'center', cellWidth: 17 }, 4: { halign: 'center', cellWidth: 13 }, 5: { halign: 'right', cellWidth: 20 }, 6: { halign: 'right', cellWidth: 24 }, 7: { halign: 'right', cellWidth: 21 }, 8: { halign: 'right', cellWidth: 21 } },
+      didParseCell: d => { if (d.section === 'head' && d.row.index === 1) d.cell.styles.halign = d.column.index > 4 ? 'right' : [0, 3, 4].includes(d.column.index) ? 'center' : 'left'; } });
+    doc.autoTable({ ...garisTabel, startY: doc.lastAutoTable.finalY + 2, tableWidth: 100, styles: { ...garisTabel.styles, fontSize: 8, cellPadding: 1.6 },
+      body: rekapBaris(x).map(([l, n, t]) => [{ content: l, styles: { fontStyle: t ? 'bold' : 'normal' } }, { content: n, styles: { halign: 'right', fontStyle: t ? 'bold' : 'normal' } }]), columnStyles: { 1: { cellWidth: 34 } } });
+    y = doc.lastAutoTable.finalY + 5; });
+  if (h.blok.length > 1) { if (y > 225) { doc.addPage(); y = 20; } doc.autoTable({ ...garisTabel, startY: y, tableWidth: 100, styles: { ...garisTabel.styles, fontSize: 8.5, cellPadding: 2 }, head: [[{ content: 'TOTAL HARI INI', colSpan: 2 }]],
+    body: [['Total penjualan', rp(c.jual)], ['Toko hutang', rp(c.hutang)], ['Bayar hutang lama', rp(c.lama)], ['Pengeluaran', rp(c.keluar)], ['Setoran', rp(c.setor)], ['Selisih kas', c.selisih ? rp(Math.abs(c.selisih)) + (c.selisih > 0 ? ' kurang' : ' lebih') : 'Rp 0 (cocok)']].map(([l, n], i) => [{ content: l, styles: { fontStyle: [0, 5].includes(i) ? 'bold' : 'normal' } }, { content: n, styles: { halign: 'right', fontStyle: [0, 5].includes(i) ? 'bold' : 'normal' } }]), columnStyles: { 1: { cellWidth: 38 } } });
+    y = doc.lastAutoTable.finalY + 5; }
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); const tb = doc.splitTextToSize('Terbilang total penjualan: ' + terbilang(c.jual), 182); if (y > 270) { doc.addPage(); y = 20; } doc.text(tb, 14, y); y += 4 * tb.length + 2;
+  if (h.catatan) { doc.setFont('helvetica', 'normal'); const t = doc.splitTextToSize('Catatan: ' + h.catatan, 182); doc.text(t, 14, y); y += 4 * t.length + 2; }
+  ttd(doc, y + 8, [['Diperiksa,', '...', 50], ['Hormat kami,', P.penandatangan || '...', 158, P.nama || '']]);
   doc.save(namaBerkas('Invoice Harian', h)); }); }
 
-// Surat jalan harian: semua toko, tanpa harga, tiap toko tanda tangan di barisnya.
-function pdfSjHarian(h) { return denganTunggu(async () => { const doc = await kertasBaru(), c = hitungHarian(h);
-  const y = kepalaSurat(doc, 'SURAT JALAN', [['Pengantar', h.pengantar], ['Jumlah toko', c.toko + ' toko'], ['Total qty', `${c.kendi ? angkaId(c.kendi) + ' kendi curah' : '-'}${c.kg ? ' · ' + angkaId(c.kg) + ' kg' : ''}`]], infoHari(h));
-  doc.autoTable({ ...garisTabel, startY: y, styles: { ...garisTabel.styles, fontSize: 8.5, cellPadding: 2.2, minCellHeight: 11 },
-    head: [['No', 'Nama Toko', 'Barang', 'Qty', 'Berat', 'Retur', 'Keterangan', 'Tanda tangan penerima']],
-    body: c.b.map((r, i) => [i + 1, r.toko + (r.alamat ? '\n' + r.alamat : ''), r.barang, r.qty ? angkaId(r.qty) + ' ' + (r.satuan || '') : '-', r.berat ? angkaId(r.berat) + ' kg' : '', r.retur ? angkaId(r.retur) : '', r.ket || '', '']),
-    columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 2: { cellWidth: 25 }, 3: { halign: 'center', cellWidth: 20 }, 4: { halign: 'center', cellWidth: 15 }, 5: { halign: 'center', cellWidth: 13 }, 6: { cellWidth: 24 }, 7: { cellWidth: 32 } },
-    didParseCell: d => { if (d.section === 'head' && [0, 3, 4, 5].includes(d.column.index)) d.cell.styles.halign = 'center'; } });
-  const yy = kotakCatatan(doc, doc.lastAutoTable.finalY + 4, 'Catatan:\n' + (h.catatan || ''),
-    'PERHATIAN:\n1. Surat Jalan ini merupakan bukti resmi penerimaan barang\n2. Surat Jalan ini bukan bukti penjualan\n3. Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan') + 10;
-  ttd(doc, yy, [['Pengantar', '', 45], ['Bagian Pengiriman', '', 105], ['Petugas Gudang', '', 165]]);
-  doc.save(namaBerkas('Surat Jalan Harian', h)); }); }
+// Surat jalan per mobil: satu halaman tiap blok, tanpa harga, tiap toko tanda tangan di barisnya.
+function pdfSjHarian(h) { return denganTunggu(async () => { const doc = await kertasBaru(), c = hitungHarian(h); let ada = 0;
+  c.bl.forEach((x, bi) => { const rows = x.b.filter(r => r.qty > 0 || r.retur > 0); if (!rows.length) return; if (ada++) doc.addPage();
+    const y = kepalaSurat(doc, 'SURAT JALAN', [['Pengantar', namaBlok(x.B, bi)], ['Jumlah toko', x.toko + ' toko'], ['Total qty', `${x.kendi ? angkaId(x.kendi) + ' kendi curah' : '-'}${x.kg ? ' · ' + angkaId(x.kg) + ' kg' : ''}${x.dus ? ' · ' + angkaId(x.dus) + ' dus' : ''}`]], [['No. Invoice', `${h.no}/${bi + 1}`], ['Tanggal', `${hariTgl(h.tgl)}, ${tglSurat(h.tgl)}`], ['Ekspedisi', x.B.ekspedisi]]);
+    doc.autoTable({ ...garisTabel, startY: y, styles: { ...garisTabel.styles, fontSize: 8.5, cellPadding: 2.2, minCellHeight: 11 },
+      head: [['No', 'Nama Toko', 'Barang', 'Qty', 'Berat', 'Retur', 'Keterangan', 'Tanda tangan penerima']],
+      body: rows.map((r, i) => [i + 1, r.toko + (r.alamat ? '\n' + r.alamat : ''), r.barang, qtyTeks(r) || '-', r.berat && r.qty ? angkaId(r.berat) + ' kg' : '', r.retur ? angkaId(r.retur) : '', '', '']),
+      columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 2: { cellWidth: 25 }, 3: { halign: 'center', cellWidth: 20 }, 4: { halign: 'center', cellWidth: 15 }, 5: { halign: 'center', cellWidth: 13 }, 6: { cellWidth: 24 }, 7: { cellWidth: 32 } },
+      didParseCell: d => { if (d.section === 'head' && [0, 3, 4, 5].includes(d.column.index)) d.cell.styles.halign = 'center'; } });
+    const yy = kotakCatatan(doc, doc.lastAutoTable.finalY + 4, 'Catatan:\n' + (h.catatan || ''),
+      'PERHATIAN:\n1. Surat Jalan ini merupakan bukti resmi penerimaan barang\n2. Surat Jalan ini bukan bukti penjualan\n3. Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan') + 10;
+    ttd(doc, yy, [['Pengantar', '', 45], ['Bagian Pengiriman', '', 105], ['Petugas Gudang', '', 165]]); });
+  if (!ada) throw new Error('Belum ada barang yang diantar.');
+  doc.save(namaBerkas('Surat Jalan', h, 'per mobil')); }); }
 
 // Per toko: satu halaman per toko (format berkas Word), nomor = nomor harian + urutan toko.
-const perToko = (h, pilih) => { const c = hitungHarian(h), semua = [...new Set(c.b.map(r => r.toko.trim()))];
-  return pilih.map(t => ({ t, k: semua.indexOf(t) + 1, rows: c.b.filter(r => r.toko.trim() === t) })).filter(x => x.rows.length); };
+const perToko = (h, pilih) => { const c = hitungHarian(h), jual = c.b.filter(r => r.qty > 0), semua = [...new Set(jual.map(r => r.toko.trim()))];
+  return pilih.map(t => ({ t, k: semua.indexOf(t) + 1, rows: jual.filter(r => r.toko.trim() === t), bayar: sumBy(c.b.filter(r => r.toko.trim() === t), r => r.bayar) })).filter(x => x.rows.length); };
 function pdfNotaToko(h, pilih) { return denganTunggu(async () => { const doc = await kertasBaru(), P = INV.profil || {};
-  perToko(h, pilih).forEach(({ t, k, rows }, i) => { if (i) doc.addPage(); const total = sumBy(rows, jmlBaris), hut = sumBy(rows, hutangBaris);
-    const y = kepalaSurat(doc, 'INVOICE', [['Toko', t], ['Alamat', rows.find(r => r.alamat)?.alamat || '-']], [['No. Invoice', `${h.no}-${k}`], ['Tanggal', tglSurat(h.tgl)], ['Ekspedisi', h.ekspedisi]], true);
+  perToko(h, pilih).forEach(({ t, k, rows, bayar }, i) => { if (i) doc.addPage(); const total = sumBy(rows, jmlBaris), hut = sumBy(rows, hutangBaris);
+    const y = kepalaSurat(doc, 'INVOICE', [['Toko', t], ['Alamat', rows.find(r => r.alamat)?.alamat || '-']], [['No. Invoice', `${h.no}-${k}`], ['Tanggal', tglSurat(h.tgl)]], true);
     doc.autoTable({ ...garisTabel, startY: y, head: [['No', 'Nama Barang', 'Qty', 'Berat', 'Harga', 'Jumlah']],
-      body: rows.map((r, j) => [j + 1, r.barang, r.qty ? angkaId(r.qty) + ' ' + (r.satuan || '') : '-', r.berat ? angkaId(r.berat) + ' kg' : '', r.harga ? rp(r.harga) : '', rp(jmlBaris(r))]),
+      body: rows.map((r, j) => [j + 1, r.barang, qtyTeks(r), r.berat ? angkaId(r.berat) + ' kg' : '', r.harga ? rp(r.harga) : '', rp(jmlBaris(r))]),
       foot: [[{ content: 'TOTAL', colSpan: 5, styles: { halign: 'right' } }, { content: rp(total), styles: { halign: 'right' } }]],
       columnStyles: { 0: { cellWidth: 11, halign: 'center' }, 2: { halign: 'center', cellWidth: 26 }, 3: { halign: 'center', cellWidth: 22 }, 4: { halign: 'right', cellWidth: 30 }, 5: { halign: 'right', cellWidth: 34 } },
       didParseCell: d => { if (d.section === 'head') d.cell.styles.halign = d.column.index > 3 ? 'right' : [0, 2, 3].includes(d.column.index) ? 'center' : 'left'; } });
     let yy = doc.lastAutoTable.finalY + 6; doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); const tb = doc.splitTextToSize('Terbilang: ' + terbilang(total), 182); doc.text(tb, 14, yy); yy += 4 * tb.length + 2;
-    const kanan = (hut ? `Dibayar: ${rp(total - hut)}\nBelum dibayar (hutang): ${rp(hut)}\n` : 'STATUS: LUNAS\n') + (P.bayar ? 'Pembayaran:\n' + P.bayar : '');
-    yy = kotakCatatan(doc, yy, 'Catatan:\n' + rows.map(r => r.ket).filter(Boolean).join('; '), kanan) + 12;
+    const kanan = (hut ? `Dibayar: ${rp(total - hut)}\nBelum dibayar (hutang): ${rp(hut)}\n` : 'STATUS: LUNAS\n') + (bayar ? `Bayar hutang sebelumnya: ${rp(bayar)}\n` : '') + (P.bayar ? 'Pembayaran:\n' + P.bayar : '');
+    yy = kotakCatatan(doc, yy, 'Catatan:\n', kanan) + 12;
     ttd(doc, yy, [['Tanda terima,', '...', 50], ['Hormat kami,', P.penandatangan || '...', 158, P.nama || '']]); });
   doc.save(namaBerkas('Nota', h, pilih.length === 1 ? pilih[0] : 'semua toko')); }); }
 function pdfSjToko(h, pilih) { return denganTunggu(async () => { const doc = await kertasBaru();
   perToko(h, pilih).forEach(({ t, k, rows }, i) => { if (i) doc.addPage();
-    const y = kepalaSurat(doc, 'SURAT JALAN', [['Toko', t], ['Alamat', rows.find(r => r.alamat)?.alamat || '-']], [['No. Invoice', `${h.no}-${k}`], ['Tanggal', tglSurat(h.tgl)], ['Ekspedisi', h.ekspedisi]], true);
+    const y = kepalaSurat(doc, 'SURAT JALAN', [['Toko', t], ['Alamat', rows.find(r => r.alamat)?.alamat || '-']], [['No. Invoice', `${h.no}-${k}`], ['Tanggal', tglSurat(h.tgl)], ['Ekspedisi', h.blok.find(B => B.baris.includes(rows[0]))?.ekspedisi || '-']], true);
     doc.autoTable({ ...garisTabel, startY: y, head: [['Nama Barang', 'Qty', 'Berat', 'Keterangan']],
-      body: rows.map(r => [r.barang, r.qty ? angkaId(r.qty) + ' ' + (r.satuan || '') : '-', r.berat ? angkaId(r.berat) + ' kg' : '', [r.retur ? 'retur ' + angkaId(r.retur) + ' kendi' : '', r.ket].filter(Boolean).join('; ')]),
+      body: rows.map(r => [r.barang, qtyTeks(r), r.berat ? angkaId(r.berat) + ' kg' : '', r.retur ? 'retur ' + angkaId(r.retur) + ' kendi' : '']),
       columnStyles: { 1: { halign: 'center', cellWidth: 26 }, 2: { halign: 'center', cellWidth: 26 }, 3: { cellWidth: 48 } },
       didParseCell: d => { if (d.section === 'head' && d.column.index > 0) d.cell.styles.halign = 'center'; } });
     const yy = kotakCatatan(doc, doc.lastAutoTable.finalY, 'Catatan:\n' + (h.catatan || ''),
@@ -1557,34 +1615,33 @@ function pdfSjToko(h, pilih) { return denganTunggu(async () => { const doc = awa
     ttd(doc, yy, [['Penerima / Pembeli', '', 45], ['Bagian Pengiriman', '', 105], ['Petugas Gudang', '', 165]]); });
   doc.save(namaBerkas('Surat Jalan', h, pilih.length === 1 ? pilih[0] : 'semua toko')); }); }
 
-/* ----- Excel bersusunan lembar harian PENJUALAN MINYAK MINGGU N (ExcelJS dari cdnjs) ----- */
+/* ----- Excel bersusunan lembar harian PENJUALAN MINYAK MINGGU N: blok demi blok ke bawah (ExcelJS dari cdnjs) ----- */
 let pustakaXl = null;
 const muatExcel = () => pustakaXl ||= new Promise((ok, gagal) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
   s.onload = () => ok(window.ExcelJS); s.onerror = () => { pustakaXl = null; gagal(new Error('Gagal memuat pembuat Excel. Cek internet.')); }; document.head.append(s); });
 function excelHarian(h) { return denganTunggu(async () => { const ExcelJS = await muatExcel(), c = hitungHarian(h);
   const d = new Date(h.tgl + 'T00:00:00'), HARI = hariTgl(h.tgl).toUpperCase(), BLN = BLN_L[d.getMonth()].toUpperCase();
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet(`${HARI} ${d.getDate()} ${BLN}`.slice(0, 31), { pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
-  // Kolom seperti Excel penjualan: NAMA TOKO, RETUR, KEN, QTY, DUS, kolom berat (kg per kendi), HARGA, JUMLAH, TOKO BAYAR, TOKO HUTANG
-  const berat = [...new Set(c.b.filter(r => (jenisBarang(r)?.[3] || 'curah') === 'curah' && r.berat).map(r => r.berat))].sort((a, b) => a - b);
+  // Kolom seperti Excel penjualan: NAMA TOKO, RETUR, KEN, QTY, DUS, kolom berat, HARGA, JUMLAH, TOKO BAYAR, TOKO HUTANG
+  const berat = [...new Set(c.b.filter(r => jenisK(r) === 'curah' && r.berat).map(r => r.berat))].sort((a, b) => a - b);
   const kepala = ['NAMA TOKO', 'RETUR', 'KEN', 'QTY', 'DUS', ...berat, 'HARGA', 'JUMLAH', 'TOKO BAYAR', 'TOKO HUTANG'], N = kepala.length, kH = 6 + berat.length;
-  ws.columns = kepala.map((_, i) => ({ width: i === 0 ? 34 : i >= kH - 1 ? 15 : 8 }));
+  ws.columns = kepala.map((_, i) => ({ width: i === 0 ? 36 : i >= kH - 1 ? 15 : 8 }));
   const garis = { style: 'thin', color: { argb: 'FF000000' } }, kotak = { top: garis, left: garis, bottom: garis, right: garis };
   const baris = (v, { tebal, isi } = {}) => { const r = ws.addRow(v); for (let i = 1; i <= N; i++) { const s = r.getCell(i); s.border = kotak; if (tebal) s.font = { bold: true }; if (isi) s.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isi } }; if (i >= kH) s.numFmt = '#,##0'; } return r; };
-  const judul = ws.addRow([`PENJUALAN ${(h.pengantar || '').toUpperCase()} HARI ${HARI} TGL ${d.getDate()} ${BLN} ${d.getFullYear()}`.replace(/\s+/g, ' ')]); ws.mergeCells(judul.number, 1, judul.number, N); judul.getCell(1).font = { bold: true, size: 12 };
-  baris(kepala, { tebal: true, isi: 'FFE3EFE7' });
-  c.b.forEach(r => { const k = jenisBarang(r)?.[3] || 'curah', v = Array(N).fill(null); v[0] = r.toko.toUpperCase() + (r.alamat && !r.toko.toUpperCase().includes(r.alamat.toUpperCase()) ? ' ' + r.alamat.toUpperCase() : '');
-    if (r.retur) v[1] = r.retur; if (k === 'ken') v[2] = r.qty; else if (k === 'dus') v[4] = r.qty; else { v[3] = r.qty; const bi = berat.indexOf(r.berat); if (bi >= 0) v[5 + bi] = r.qty; }
-    v[kH - 1] = r.harga || null; v[kH] = jmlBaris(r); v[kH + 1] = jmlBaris(r) - hutangBaris(r); v[kH + 2] = hutangBaris(r) || null; baris(v); });
-  const tot = Array(N).fill(null); tot[0] = 'JUMLAH TOTAL SEMENTARA'; for (let i = 1; i < N; i++) if (i !== kH - 1) tot[i] = sumBy(c.b, r => { const k = jenisBarang(r)?.[3] || 'curah';
-    return i === 1 ? r.retur : i === 2 ? (k === 'ken' ? r.qty : 0) : i === 3 ? (k === 'curah' ? r.qty : 0) : i === 4 ? (k === 'dus' ? r.qty : 0) : i < kH - 1 ? (k === 'curah' && r.berat === berat[i - 5] ? r.qty : 0)
-      : i === kH ? jmlBaris(r) : i === kH + 1 ? jmlBaris(r) - hutangBaris(r) : hutangBaris(r); });
-  baris(tot, { tebal: true, isi: 'FFFBF3E0' }); ws.addRow([]);
-  const rekap = (l, n, tebal) => { const r = ws.addRow([l]); r.getCell(N).value = n; r.getCell(N).numFmt = '#,##0'; if (tebal) { r.getCell(1).font = { bold: true }; r.getCell(N).font = { bold: true }; } };
-  rekap('REKAPAN AKHIR', null, true); rekap('TOTAL PENJUMLAHAN TOTAL PENJUALAN', c.jual, true); if (c.hutang) rekap('TOKO HUTANG', c.hutang);
-  (h.bayarLama || []).forEach(x => rekap(('BAYAR HUTANG ' + (x.toko || '')).toUpperCase(), x.jumlah));
-  (h.keluar || []).forEach(x => rekap(('PENGELUARAN ' + (x.ket || '')).toUpperCase().trim(), x.jumlah));
-  (h.setor || []).forEach(x => rekap(('SETOR ' + (x.ket || '')).toUpperCase().trim(), x.jumlah));
-  rekap('TOTAL KESELURUHAN SELISIH', c.selisih, true);
+  const nilaiKolom = (r, i) => { const k = jenisK(r); return i === 1 ? r.retur : i === 2 ? (k === 'ken' ? r.qty : 0) : i === 3 ? (k === 'curah' ? r.qty : 0) : i === 4 ? (k === 'dus' ? r.qty : 0)
+    : i < kH - 1 ? (k === 'curah' && r.berat === berat[i - 5] ? r.qty : 0) : i === kH - 1 ? 0 : i === kH ? jmlBaris(r) : i === kH + 1 ? (r.bayar || 0) : hutangBaris(r); };
+  c.bl.forEach((x, bi) => {
+    const judul = ws.addRow([`PENJUALAN ${namaBlok(x.B, bi).toUpperCase()} HARI ${HARI} TGL ${d.getDate()} ${BLN} ${d.getFullYear()}`]); ws.mergeCells(judul.number, 1, judul.number, N); judul.getCell(1).font = { bold: true, size: 12 };
+    baris(kepala, { tebal: true, isi: 'FFE3EFE7' });
+    x.b.forEach(r => { const v = Array(N).fill(null); v[0] = kunciToko(r.toko) + (r.alamat && !kunciToko(r.toko).includes(r.alamat.toUpperCase()) ? ' ' + r.alamat.toUpperCase() : '');
+      for (let i = 1; i < N; i++) { const n = nilaiKolom(r, i); if (n) v[i] = n; } if (r.qty && r.harga) v[kH - 1] = r.harga; baris(v); });
+    const tot = Array(N).fill(null); tot[0] = 'JUMLAH TOTAL SEMENTARA'; for (let i = 1; i < N; i++) if (i !== kH - 1) tot[i] = sumBy(x.b, r => nilaiKolom(r, i));
+    baris(tot, { tebal: true, isi: 'FFFBF3E0' }); ws.addRow([]);
+    const rekap = (l, n, tebal) => { const r = ws.addRow([l]); r.getCell(N).value = n; r.getCell(N).numFmt = '#,##0'; if (tebal) { r.getCell(1).font = { bold: true }; r.getCell(N).font = { bold: true }; } };
+    rekap('REKAPAN AKHIR', null, true); rekap('TOTAL PENJUMLAHAN TOTAL PENJUALAN', x.jual, true); if (x.hutang) rekap('TOKO HUTANG', x.hutang); if (x.lama) rekap('TOKO BAYAR HUTANG LAMA', x.lama);
+    (x.B.keluar || []).forEach(k => rekap(('PENGELUARAN ' + (k.ket || '')).toUpperCase().trim(), k.jumlah));
+    (x.B.setor || []).forEach(k => rekap(('SETOR ' + (k.ket || '')).toUpperCase().trim(), k.jumlah));
+    rekap('TOTAL KESELURUHAN SELISIH', x.selisih, true); ws.addRow([]); ws.addRow([]); });
   const buf = await wb.xlsx.writeBuffer(), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   a.download = namaBerkas('Penjualan', h).replace(/\.pdf$/, '.xlsx'); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }); }
 

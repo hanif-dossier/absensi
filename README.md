@@ -15,13 +15,14 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   "Harga Toko" (hanya kotak yang berubah yang disimpan; harga sama tidak dicatat ulang); karyawan melihatnya di tab
   "Harga toko". Data satu JSON di `minyak_nilai` kunci `harga`: fungsi `minyak_harga_baca` (semua sesi) dan
   `minyak_harga_tulis` (pemilik saja).
-- **Invoice Harian** (ubin di beranda pemilik): satu invoice untuk satu hari pengantaran (satu pengantar), berisi
-  semua toko, disusun seperti lembar harian Excel penjualan (toko, barang, qty, berat, harga, jumlah, retur, hutang) dan
-  rekapan akhirnya (toko hutang, bayar hutang lama, pengeluaran, setoran, selisih kas). Unduhan: invoice harian PDF,
-  surat jalan harian PDF (tanpa harga, kolom tanda tangan tiap toko), nota dan surat jalan per toko (format berkas Word
-  surat jalan, satu halaman per toko dalam satu PDF), dan Excel bersusunan lembar penjualan. Daftar hutang toko bisa
-  ditandai lunas. Data di `minyak_nilai` kunci `invoice`, ditulis lewat `minyak_invoice_tulis` (pemilik saja); kepala
-  surat hanya ada di database, tidak di kode.
+- **Invoice Harian** (ubin di beranda pemilik): satu invoice = satu hari, persis lembar harian Excel penjualan: beberapa
+  blok (Mobil 1, Mobil 2, Gudang), tiap blok berisi baris toko (nama, barang, qty, berat, harga, jumlah, Bayar hutang,
+  Hutang; retur/satuan/alamat/modal di "Lain") dan rekapan akhirnya (pengeluaran, setoran, selisih kas). Hari baru
+  menyalin susunan blok hari sebelumnya. Hutang toko dihitung sendiri: semua hutang - semua bayar (kolom Bayar atau bayar
+  langsung/transfer dari halaman daftar). Unduhan: invoice harian PDF (semua blok), surat jalan per mobil PDF, nota dan
+  surat jalan per toko (format berkas Word), Excel bersusunan lembar harian (blok demi blok). Data di `minyak_nilai`
+  kunci `invoice` ({ profil, daftar, bayar }), ditulis lewat `minyak_invoice_tulis` (pemilik saja); kepala surat hanya
+  ada di database. Bentuk lama (satu pengantar per invoice) diubah otomatis oleh `normHarian`.
 - **Invoice masuk Keuangan** (`gabungInvoiceKeu`): saat data keuangan dimuat, invoice harian yang hari dan pengantarnya
   belum ada di Excel penjualan ditambahkan ke minggu, hari, pengantar, jenis, dan biaya (hanya di aplikasi; database
   keuangan tetap hasil Excel). Yang sudah ada di Excel dilewati supaya tidak terhitung dua kali. Kendi kosong tidak masuk
