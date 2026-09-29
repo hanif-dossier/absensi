@@ -452,7 +452,7 @@ function gambarTab() {
 
 function gambarRingkasan() {
   const wl = semuaMinggu(), isi = $('#isi');
-  if (!wl.length) { isi.innerHTML = '<section class="kartu">Belum ada data minggu. Pilih karyawan di atas lalu tekan "+ Minggu baru".</section>'; return; }
+  if (!wl.length) { isi.innerHTML = `<section class="kartu">Belum ada data minggu. ${bacaSaja ? '' : '<button class="pil kecil" id="bSerentak">+ Minggu baru semua karyawan</button>'}</section>`; const bs = $('#bSerentak'); if (bs) bs.onclick = dialogMingguSerentak; return; }
   if (!wl.includes(mingguRingkas)) mingguRingkas = wl[wl.length - 1];
   const daftar = Object.entries(data).filter(([, e]) => e.aktif).sort((a, b) => a[1].nama.localeCompare(b[1].nama));
   const baris = daftar.map(([k, e]) => { const c = hitung(e), w = c.wks.find(x => num(x.w) === mingguRingkas);
@@ -460,6 +460,7 @@ function gambarRingkasan() {
   const T = f => baris.reduce((a, r) => a + r[f], 0), mx = Math.max(1, ...baris.map(r => r.terima)), per = (baris.find(r => r.per) || {}).per || '';
   const nonaktif = Object.values(data).filter(e => !e.aktif);
   isi.innerHTML = `<section class="kartu"><h2>Minggu ${mingguRingkas}<select id="pilihMinggu" class="isian" style="width:auto" aria-label="Pilih minggu">${[...wl].reverse().map(w => `<option ${w === mingguRingkas ? 'selected' : ''}>${w}</option>`).join('')}</select></h2>
+      ${bacaSaja ? '' : '<button class="pil kecil" id="bSerentak" style="margin:-4px 0 12px">+ Minggu baru semua karyawan</button>'}
       <div class="catatan" style="margin:-6px 0 12px">${per ? 'Periode ' + esc(per) + ' · ' : ''}${daftar.length} karyawan aktif</div>
       <div class="kisi"><div class="kotak emas"><div class="l">Yang harus dibayar</div><div class="v">${rp(T('terima'))}</div></div>
         <div class="kotak"><div class="l">Total gaji</div><div class="v">${rp(T('total'))}</div></div>
@@ -474,7 +475,60 @@ function gambarRingkasan() {
       <div class="catatan">${bacaSaja ? 'Ketuk nama untuk melihat rincian gaji, absensi, dan hutangnya.' : 'Ketuk nama untuk mengisi gaji.'} Karyawan nonaktif tidak dihitung di sini.</div></section>
     ${nonaktif.length ? `<section class="kartu"><h2>Nonaktif</h2><div class="catatan" style="margin:0">${nonaktif.map(e => esc(e.nama)).join(', ')} — tidak bisa masuk ke aplikasi.</div></section>` : ''}`;
   $('#pilihMinggu').onchange = ev => { mingguRingkas = num(ev.target.value); gambarRingkasan(); };
+  const bs = $('#bSerentak'); if (bs) bs.onclick = dialogMingguSerentak;
   $$('[data-ke]', isi).forEach(b => b.onclick = () => { kini = b.dataset.ke; gambar(); scrollTo({ top: 0 }); });
+}
+
+/* Periode minggu berikutnya ditebak dari periode minggu sebelumnya ("14 - 19 September 2026"): tanggal terakhir di teks
+   dianggap akhir minggu, lalu dicari Sabtu sesudahnya; Senin = Sabtu - 5 hari. Kalau tidak terbaca, dipakai Senin–Sabtu minggu ini. */
+function akhirPeriode(per) {
+  const m = [...String(per || '').matchAll(/(\d{1,2})\s+([A-Za-z]+)(?:\s+(\d{4}))?/g)].pop(); if (!m) return null;
+  const bi = BLN_L.findIndex(x => x.slice(0, 3).toLowerCase() === m[2].slice(0, 3).toLowerCase());
+  return bi < 0 ? null : new Date(+(m[3] || new Date().getFullYear()), bi, +m[1]); }
+function periodeBerikut(per) {
+  let sab = akhirPeriode(per);
+  if (sab) sab.setDate(sab.getDate() + ((6 - sab.getDay() + 7) % 7 || 7));
+  else { sab = new Date(); sab.setHours(0, 0, 0, 0); sab.setDate(sab.getDate() + (6 - sab.getDay() + 7) % 7); }
+  const sen = new Date(sab); sen.setDate(sab.getDate() - 5);
+  const t = d => d.getDate() + ' ' + BLN_L[d.getMonth()];
+  if (sen.getMonth() === sab.getMonth()) return `${sen.getDate()} - ${t(sab)} ${sab.getFullYear()}`;
+  return sen.getFullYear() === sab.getFullYear() ? `${t(sen)} - ${t(sab)} ${sab.getFullYear()}` : `${t(sen)} ${sen.getFullYear()} - ${t(sab)} ${sab.getFullYear()}`;
+}
+
+/* Satu tombol untuk membuka minggu baru di semua karyawan aktif sekaligus, dengan nomor dan periode yang sama.
+   Yang ditawarkan: minggu terakhir kalau periodenya belum lewat dan masih ada karyawan aktif yang belum punya
+   (misalnya sebagian sudah dibuat satu per satu); selain itu minggu berikutnya. Nomornya tetap bisa diganti di jendela. */
+function dialogMingguSerentak() {
+  const aktif = Object.entries(data).filter(([, e]) => e.aktif).sort((a, b) => a[1].nama.localeCompare(b[1].nama));
+  if (!aktif.length) return status('Belum ada karyawan aktif', 'salah');
+  const wl = semuaMinggu(), mx = wl.length ? wl[wl.length - 1] : 0;
+  const cari = (e, w) => (e.minggu || []).find(x => num(x.w) === w);
+  const perW = w => (Object.values(data).flatMap(x => x.minggu || []).find(x => num(x.w) === w && x.periode) || {}).periode || '';
+  const tebak = w => perW(w) || periodeBerikut(perW(Math.max(0, ...wl.filter(x => x < w))));
+  const akhir = akhirPeriode(perW(mx)), kemarin = new Date(); kemarin.setHours(0, 0, 0, 0); kemarin.setDate(kemarin.getDate() - 1);
+  const w0 = mx && akhir && akhir >= kemarin && aktif.some(([, e]) => !cari(e, mx)) ? mx : mx + 1;
+  dialog(`<h3>Minggu baru untuk semua karyawan</h3>
+    <label class="medan"><span>Nomor minggu</span><input id="sW" inputmode="numeric" value="${w0}"></label>
+    <label class="medan"><span>Periode</span><input id="sPer" value="${esc(tebak(w0))}" placeholder="mis. 28 September - 3 Oktober 2026"></label>
+    <div class="catatan" style="margin:0 0 6px">Karyawan yang dibuatkan minggu ini:</div><div id="sDaftar"></div><div id="sPesan"></div>
+    <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil emas" id="sOk">Buat dan simpan</button></div>`, (t, tutup) => {
+    let perDiketik = false;
+    const isiDaftar = () => { const w = num($('#sW', t).value);
+      $('#sDaftar', t).innerHTML = aktif.map(([k, e]) => { const ada = w > 0 && cari(e, w);
+        return `<label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:14px"><input type="checkbox" data-k="${esc(k)}" ${ada ? 'disabled' : 'checked'}> ${esc(e.nama)}${ada ? ' <span class="keping">sudah ada</span>' : ''}</label>`; }).join(''); };
+    isiDaftar();
+    $('#sPer', t).oninput = () => { perDiketik = true; };
+    $('#sW', t).oninput = () => { const w = num($('#sW', t).value); if (!perDiketik && w > 0) $('#sPer', t).value = tebak(w); isiDaftar(); };
+    $('#sOk', t).onclick = async () => { const w = num($('#sW', t).value), per = $('#sPer', t).value.trim();
+      if (!(w > 0)) { $('#sPesan', t).innerHTML = '<div class="pesan-salah">Isi nomor minggu dulu.</div>'; return; }
+      const pilih = $$('#sDaftar input:checked', t).map(c => c.dataset.k);
+      if (!pilih.length) { $('#sPesan', t).innerHTML = `<div class="pesan-salah">Semua karyawan aktif sudah punya minggu ${w}.</div>`; return; }
+      for (const k of pilih) { const e = data[k];
+        e.minggu.push({ w, periode: per, hari: [0, 0, 0, 0, 0, 0, 0], hmd: [0, 0, 0, 0, 0, 0, 0], hmx: 0, hm: 0, hb: 0, hbx: 0 });
+        e.minggu.sort((a, b) => num(a.w) - num(b.w)); tandai(k); }
+      // minggu yang sudah ada tapi periodenya masih kosong ikut diisi
+      if (per) for (const [k, e] of aktif) { const x = cari(e, w); if (x && !x.periode) { x.periode = per; tandai(k); } }
+      mingguRingkas = w; buka = {}; tutup(); gambar(); await simpan(); }; });
 }
 
 function gambarKaryawan(k) {
