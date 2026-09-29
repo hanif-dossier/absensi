@@ -134,6 +134,16 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;text-wrap:balance}
 .tabel-pb .angka{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.bungkus-tabel{overflow-x:auto}
 .ubin-pb{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}.ubin-pb>div{background:var(--kartu);border-radius:14px;padding:12px 14px;box-shadow:var(--bayang)}
 .ubin-pb .label{margin:0}.ubin-pb .nilai{font-family:var(--serif);font-size:24px;line-height:1.1;margin-top:4px}.ubin-pb small{color:var(--redup);display:block;margin-top:4px}
+.inv-item{padding:12px 0;border-bottom:1px solid rgba(127,127,127,.18)}.inv-item:last-child{border-bottom:0}.inv-item.mati{opacity:.6}
+.inv-atas{display:flex;justify-content:space-between;gap:10px}.inv-aksi{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.inv-dua{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.inv-tiga{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px}
+.inv-baris{display:grid;grid-template-columns:2.2fr .9fr 1fr .9fr 1.3fr 1.2fr;gap:10px;align-items:end;padding:12px 0;border-bottom:1px dashed var(--garis)}
+.inv-baris .medan{margin-bottom:0}.inv-baris .medan input,.inv-baris select{width:100%;padding:10px 12px;font-size:15px;border-radius:14px;background:var(--kartu2);border:1.5px solid var(--garis)}
+.inv-baris .b-ket{grid-column:1/6}.b-jumlah{display:flex;flex-direction:column;align-items:flex-end;gap:4px;padding-bottom:4px}.b-jumlah span{font-size:12px;font-weight:700;color:var(--redup)}
+.inv-baris .b-jumlah{grid-row:1;grid-column:6}
+.inv-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;font-size:15px}.inv-total b{font-family:var(--serif);font-size:26px}
+textarea.isian{font:inherit;resize:vertical}
+@media (max-width:640px){.inv-dua,.inv-tiga{grid-template-columns:1fr}.inv-baris{grid-template-columns:1fr 1fr}.inv-baris .b-barang,.inv-baris .b-ket{grid-column:1/-1}.inv-baris .b-jumlah{grid-row:auto;grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}}
 .ubin{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;background:var(--kartu);border:0;border-radius:var(--r);padding:16px;box-shadow:var(--bayang);cursor:pointer;color:var(--tinta);text-decoration:none;transition:transform .12s}
 .ubin:hover{transform:translateY(-2px)}.ubin:active{transform:scale(.98)}
 .ubin b{font-family:var(--serif);font-weight:600;font-size:18px;margin-top:8px}
@@ -628,6 +638,7 @@ const IKON = {
   pdf: '<path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5"/>',
   bagi: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.9l7.6-3.8M8.2 13.1l7.6 3.8"/>',
   grafik: '<circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7 5"/>',
+  nota: '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   toko: '<path d="M3.5 9.5l1.8-5h13.4l1.8 5"/><path d="M3.5 9.5h17M5.5 9.5V20h13V9.5M10 20v-5h4v5"/>',
 };
 const ikon = k => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IKON[k]}</svg>`;
@@ -653,6 +664,7 @@ async function layarBeranda() {
       <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Laporan laba rugi per bulan: omzet, modal, biaya, gaji, laba bersih</small></button>
       <button class="ubin" data-ke="pembelian"><span class="ik emas">${ikon('beli')}</span><b>Pembelian minyak</b><small>Minyak yang dibeli dari pemasok di jalan, dihitung sejak 24 Sep 2026</small></button>
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
+      <button class="ubin" data-ke="invoice"><span class="ik emas">${ikon('nota')}</span><b>Invoice & Surat Jalan</b><small>${bacaSaja ? 'Invoice penjualan ke toko dan surat jalannya' : 'Buat nota penjualan ke toko, unduh PDF invoice dan surat jalan'}</small></button>
       <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
       <button class="ubin" id="ubinHarian" data-laporan="laporan-harian"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''}</small></button>
       <button class="ubin" data-laporan="dashboard"><span class="ik">${ikon('grafik')}</span><b>Dashboard bulanan</b><small>Laporan per bulan dengan grafik tren</small></button>
@@ -663,7 +675,7 @@ async function layarBeranda() {
   $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); const ub = $('#ubinBagi'); if (ub) ub.onclick = bagikan; siapkanPasang();
   $$('.ubin[data-laporan]').forEach(b => b.onclick = () => bukaLaporan(b.dataset.laporan));
   tampilkanPembaruan();
-  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga, pembelian: layarPembelian })[b.dataset.ke]());
+  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga, pembelian: layarPembelian, invoice: layarInvoice })[b.dataset.ke]());
   try { const k = await muatKeuangan(), bl = bulanKeu(k)[0]; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih ${esc(bl.nama.split(' ')[0])} <b>${rp(bl.tot.bersih)}</b>`;
     const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) $('small', u).textContent = `Rincian penjualan per hari minggu ${mh}`;
   } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
@@ -1050,6 +1062,234 @@ function pdfKeuangan(key) { return denganTunggu(async () => { const k = await mu
 /* =====================================================================================================
    MULAI: ada token tersimpan? ambil data. Tidak ada atau sudah habis? tampilkan layar masuk.
    ===================================================================================================== */
+/* ---------- Invoice & surat jalan (29 Sep 2026) ----------
+   Patokannya berkas Word di folder MINYAK ANDRE: SURAT JALAN TERBARU.docx (kepala surat, Kepada Yth., No. Invoice,
+   Tanggal, Ekspedisi, tabel Nama Barang/Qty/Berat/Keterangan, kotak Catatan + PERHATIAN, tiga tanda tangan) dan nota lama
+   (No/Qty/Nama Barang/Harga/Total, Tanda terima, Hormat kami). Satu nomor invoice menghasilkan dua PDF: invoice (dengan
+   harga) dan surat jalan (tanpa harga). Data di minyak_nilai kunci 'invoice' (lihat supabase/skema.sql); identitas usaha
+   untuk kepala surat (profil) hanya ada di database, diisi lewat tombol "Kepala surat". */
+let INV = null, invSaring = 'belum', invCari = '';
+// [nama barang, satuan bawaan, jenis harga di Harga Toko]
+const BARANG = [['Minyak Curah', 'kendi', 'curah'], ['Minyak Dus', 'dus', 'dus'], ['Kendi Kosong', 'kendi', null]];
+const SATUAN = ['kendi', 'dus', 'pcs', 'kg', 'liter'];
+// Angka desimal gaya Indonesia: "14,4" -> 14.4, "1.000" -> 1000, "14.4" -> 14.4
+const desimal = v => { const n = parseFloat(String(v ?? '').replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+const angkaId = n => (Math.round((n || 0) * 100) / 100).toLocaleString('id-ID', { maximumFractionDigits: 2 });
+const totalInv = v => (v.baris || []).reduce((a, b) => a + (b.qty || 0) * (b.harga || 0), 0);
+const ringkasQty = v => (v.baris || []).filter(b => b.qty).map(b => `${b.barang} ${angkaId(b.qty)} ${b.satuan || ''}`.trim()).join(', ');
+const tglSurat = t => { const d = new Date(t + 'T00:00:00'); return String(d.getDate()).padStart(2, '0') + ' ' + BLN_L[d.getMonth()] + ' ' + d.getFullYear(); };
+const noBerikut = () => String(Math.max(0, ...INV.daftar.map(v => parseInt(v.no, 10) || 0)) + 1).padStart(3, '0');
+const tokoCocok = nama => (harga?.toko || []).find(t => t.nama.trim().toLowerCase() === String(nama || '').trim().toLowerCase());
+const hargaPada = (t, p, tgl) => { const r = riwayat(t, p).filter(x => x.tgl <= tgl); return (r[r.length - 1] || hargaKini(t, p) || {}).harga || 0; };
+function terbilang(n) { n = Math.floor(Math.abs(n || 0)); if (!n) return 'Nol rupiah';
+  const s = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+  const f = x => x < 12 ? s[x] : x < 20 ? f(x - 10) + ' belas' : x < 100 ? f(Math.floor(x / 10)) + ' puluh ' + f(x % 10)
+    : x < 200 ? 'seratus ' + f(x - 100) : x < 1000 ? f(Math.floor(x / 100)) + ' ratus ' + f(x % 100)
+    : x < 2000 ? 'seribu ' + f(x - 1000) : x < 1e6 ? f(Math.floor(x / 1000)) + ' ribu ' + f(x % 1000)
+    : x < 1e9 ? f(Math.floor(x / 1e6)) + ' juta ' + f(x % 1e6) : x < 1e12 ? f(Math.floor(x / 1e9)) + ' miliar ' + f(x % 1e9) : f(Math.floor(x / 1e12)) + ' triliun ' + f(x % 1e12);
+  const t = f(n).replace(/\s+/g, ' ').trim(); return t[0].toUpperCase() + t.slice(1) + ' rupiah'; }
+
+async function muatInvoice() { const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'invoice' }); if (!r.ok) throw new Error(r.pesan);
+  const v = r.nilai || {}; v.profil = v.profil || {}; v.daftar = Array.isArray(v.daftar) ? v.daftar : []; return v; }
+// Simpan: ambil versi terbaru dulu lalu terapkan perubahan, supaya dua HP yang menyimpan bergantian tidak saling menimpa.
+async function simpanInvoice(ubah) { const v = await muatInvoice(); ubah(v);
+  const r = await rpc('minyak_invoice_tulis', { p_token: sesi.baca().token, p_nilai: v }); if (!r.ok) throw new Error(r.pesan); INV = v; return v; }
+
+async function layarInvoice() {
+  akar.innerHTML = kepalaPemilik('Invoice & Surat Jalan', 'Nota penjualan ke toko. Satu invoice bisa diunduh jadi invoice (dengan harga) dan surat jalan (tanpa harga).', true) +
+    '<main class="bungkus"><div id="inv" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
+  $('#bBeranda').onclick = layarBeranda;
+  try { [INV] = await Promise.all([muatInvoice(), muatHarga().catch(() => null)]); gambarInvoice(); }
+  catch (e) { $('#inv').innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
+
+const SARING = { belum: v => !v.batal && !v.lunas, lunas: v => !v.batal && v.lunas, semua: v => !v.batal, batal: v => v.batal };
+function gambarInvoice() { const el = $('#inv'); if (!el) return;
+  const belum = INV.daftar.filter(SARING.belum), bi = hariIni().slice(0, 7), bln = INV.daftar.filter(v => !v.batal && v.tgl.startsWith(bi));
+  const n = k => INV.daftar.filter(SARING[k]).length, jum = a => a.reduce((s, v) => s + totalInv(v), 0);
+  const kosongProfil = !INV.profil.nama;
+  el.innerHTML = `<section class="besar angkat"><div class="label">Belum lunas</div><div class="nilai">${rp(jum(belum))}</div>
+      <div class="keping-baris"><span class="keping"><b>${belum.length}</b> invoice belum dibayar</span><span class="keping">Bulan ini <b>${bln.length}</b> invoice · <b>${rp(jum(bln))}</b></span></div>
+      ${bacaSaja ? '' : '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="pil emas" id="bInvBaru">+ Invoice baru</button><button class="pil kaca" id="bProfil">Kepala surat</button></div>'}</section>
+    ${kosongProfil && !bacaSaja ? '<section class="kartu angkat" style="margin-top:14px"><div class="pesan-salah" style="margin:0">Kepala surat belum diisi. Tekan "Kepala surat" untuk mengisi nama usaha, alamat, dan nomor telepon.</div></section>' : ''}
+    <section class="kartu angkat" style="margin-top:14px"><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${[['belum', 'Belum lunas'], ['lunas', 'Lunas'], ['semua', 'Semua'], ['batal', 'Dibatalkan']].filter(([k]) => k !== 'batal' || n('batal')).map(([k, t]) => `<button class="tab ${invSaring === k ? 'aktif' : ''}" data-saring="${k}">${t} · ${n(k)}</button>`).join('')}</div>
+      <input class="isian" id="invCari" placeholder="Cari toko atau nomor…" value="${esc(invCari)}" autocomplete="off" aria-label="Cari invoice">
+      <div id="invDaftar" style="margin-top:6px"></div>
+      <div class="catatan">Invoice PDF berisi harga untuk ditagihkan ke toko; surat jalan PDF tanpa harga, dibawa pengantar dan ditandatangani penerima. Invoice yang salah bisa diubah; yang tidak jadi bisa dibatalkan dari halaman ubah.</div></section>`;
+  gambarDaftarInv();
+  $('#invCari').oninput = ev => { invCari = ev.target.value; gambarDaftarInv(); };
+  $$('[data-saring]', el).forEach(b => b.onclick = () => { invSaring = b.dataset.saring; gambarInvoice(); });
+  const bb = $('#bInvBaru'); if (bb) bb.onclick = () => formInvoice(null);
+  const bp = $('#bProfil'); if (bp) bp.onclick = dialogProfilInv; }
+
+function gambarDaftarInv() { const el = $('#invDaftar'); if (!el) return; const cari = invCari.trim().toLowerCase();
+  const daftar = INV.daftar.filter(SARING[invSaring]).filter(v => !cari || `${v.toko} ${v.no} ${v.alamat || ''}`.toLowerCase().includes(cari))
+    .sort((a, b) => b.tgl.localeCompare(a.tgl) || (parseInt(b.no, 10) || 0) - (parseInt(a.no, 10) || 0));
+  el.innerHTML = daftar.map(v => { const q = ringkasQty(v);
+    return `<div class="inv-item ${v.batal ? 'mati' : ''}"><div class="inv-atas"><div style="min-width:0"><b>${esc(v.toko || '-')}</b><div class="catatan" style="margin:2px 0 0">No. ${esc(v.no)} · ${esc(tglPanjang(v.tgl))}${q ? ' · ' + esc(q) : ''}</div></div>
+      <div style="text-align:right;flex:none"><b>${rp(totalInv(v))}</b><div style="margin-top:4px">${v.batal ? '<span class="keping">Dibatalkan</span>' : v.lunas ? `<span class="keping hijau">Lunas${v.tglLunas ? ' ' + esc(tglPendek(v.tglLunas)) : ''}</span>` : '<span class="keping merah">Belum lunas</span>'}</div></div></div>
+      <div class="inv-aksi"><button class="pil kecil" data-pdf="inv" data-id="${esc(v.id)}">Invoice PDF</button><button class="pil halus kecil" data-pdf="sj" data-id="${esc(v.id)}">Surat jalan PDF</button>
+      ${bacaSaja ? '' : v.batal ? `<button class="pil halus kecil" data-pulih="${esc(v.id)}">Pulihkan</button>` : `<button class="pil halus kecil" data-lunas="${esc(v.id)}">${v.lunas ? 'Batal lunas' : 'Tandai lunas'}</button><button class="pil halus kecil" data-ubah="${esc(v.id)}">Ubah</button>`}</div></div>`; }).join('')
+    || `<div class="catatan" style="margin:10px 0 0">${INV.daftar.length ? 'Tidak ada invoice di sini.' : 'Belum ada invoice. Tekan "+ Invoice baru".'}</div>`;
+  const cariV = id => INV.daftar.find(v => v.id === id);
+  $$('[data-pdf]', el).forEach(b => b.onclick = () => { const v = cariV(b.dataset.id); b.dataset.pdf === 'inv' ? pdfInvoice(v) : pdfSuratJalan(v); });
+  $$('[data-ubah]', el).forEach(b => b.onclick = () => formInvoice(cariV(b.dataset.ubah)));
+  const ganti = async (id, fn, pesan) => { try { await simpanInvoice(x => { const v = x.daftar.find(y => y.id === id); if (v) fn(v); }); gambarInvoice(); }
+    catch (e) { dialog(`<h3>Gagal menyimpan</h3><p class="catatan">${esc(e.message)}</p><div class="tombol-baris"><button class="pil" data-tutup>Tutup</button></div>`); } };
+  $$('[data-lunas]', el).forEach(b => b.onclick = () => { const v = cariV(b.dataset.lunas);
+    if (!confirm(v.lunas ? `Kembalikan invoice ${v.no} (${v.toko}) jadi belum lunas?` : `Tandai invoice ${v.no} (${v.toko}) ${rp(totalInv(v))} sudah lunas?`)) return;
+    ganti(v.id, x => { x.lunas = !x.lunas; x.tglLunas = x.lunas ? hariIni() : null; }); });
+  $$('[data-pulih]', el).forEach(b => b.onclick = () => ganti(b.dataset.pulih, x => { x.batal = false; })); }
+
+function dialogProfilInv() { const P = INV.profil || {};
+  dialog(`<h3>Kepala surat</h3><p class="catatan" style="margin:0 0 12px">Tampil di bagian atas invoice dan surat jalan.</p>
+    <label class="medan"><span>Nama usaha</span><input id="pNama"></label><label class="medan"><span>Alamat</span><input id="pAlamat"></label>
+    <label class="medan"><span>No. telp</span><input id="pTelp" inputmode="tel"></label><label class="medan"><span>Nama penanda tangan (Hormat kami)</span><input id="pTtd"></label>
+    <label class="medan"><span>Info pembayaran di invoice (boleh kosong), mis. rekening</span><input id="pBayar" placeholder="mis. BRI 1234 5678 a.n. ..."></label><div id="pPesan"></div>
+    <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil" id="pOk">Simpan</button></div>`, (d, tutup) => {
+    [['pNama', 'nama'], ['pAlamat', 'alamat'], ['pTelp', 'telp'], ['pTtd', 'penandatangan'], ['pBayar', 'bayar']].forEach(([i, k]) => { $('#' + i, d).value = P[k] || ''; });
+    $('#pOk', d).onclick = async () => { const baru = { nama: $('#pNama', d).value.trim(), alamat: $('#pAlamat', d).value.trim(), telp: $('#pTelp', d).value.trim(), penandatangan: $('#pTtd', d).value.trim(), bayar: $('#pBayar', d).value.trim() };
+      if (!baru.nama) { $('#pPesan', d).innerHTML = '<div class="pesan-salah">Nama usaha wajib diisi.</div>'; return; }
+      try { await simpanInvoice(x => { x.profil = baru; }); tutup(); gambarInvoice(); } catch (e) { $('#pPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
+
+function formInvoice(asal) {
+  const v = asal ? JSON.parse(JSON.stringify(asal)) : { id: 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), no: noBerikut(), tgl: hariIni(), toko: '', nama: '', telp: '', alamat: '', ekspedisi: 'Pick-up', catatan: '', lunas: false,
+    baris: [{ barang: 'Minyak Curah', qty: 0, satuan: 'kendi', berat: 0, harga: 0, _auto: true }] };
+  let kotorF = false;
+  const tokoList = [...new Set([...(harga?.toko || []).filter(t => t.aktif !== false).map(t => t.nama), ...INV.daftar.map(x => x.toko)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  akar.innerHTML = kepalaPemilik(asal ? 'Ubah Invoice ' + esc(v.no) : 'Invoice Baru', 'Isi toko dan barangnya. Harga terisi sendiri dari Harga Toko kalau tokonya ada di daftar, dan tetap bisa diubah.', true) +
+    `<main class="bungkus"><div style="padding-top:38px">
+    <section class="kartu angkat"><h2>Kepada</h2><div class="inv-dua">
+      <label class="medan"><span>Toko</span><input id="fToko" list="dlToko" placeholder="mis. TK Cahaya Mentari" autocomplete="off"></label>
+      <label class="medan"><span>Alamat</span><input id="fAlamat" placeholder="mis. Kabupaten Sintang"></label>
+      <label class="medan"><span>Nama penerima (boleh kosong)</span><input id="fNama"></label>
+      <label class="medan"><span>No. telp (boleh kosong)</span><input id="fTelp" inputmode="tel"></label></div>
+      <datalist id="dlToko">${tokoList.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>
+      <div class="catatan" id="fInfoToko" style="margin:0"></div></section>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Invoice</h2><div class="inv-tiga">
+      <label class="medan"><span>No. invoice</span><input id="fNo" inputmode="numeric"></label>
+      <label class="medan"><span>Tanggal</span><input id="fTgl" type="date"></label>
+      <label class="medan"><span>Ekspedisi</span><input id="fEksp" list="dlEksp"></label></div>
+      <datalist id="dlEksp"><option value="Pick-up"></option><option value="Truk"></option><option value="Motor"></option><option value="Diambil sendiri"></option></datalist></section>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Barang <button class="pil kecil" id="fTambah">+ Barang</button></h2><div id="fBaris"></div>
+      <datalist id="dlBarang">${BARANG.map(([n]) => `<option value="${n}"></option>`).join('')}</datalist>
+      <div class="inv-total"><span>Total</span><b id="fTotal"></b></div><div class="catatan" id="fTerbilang" style="margin:2px 0 0"></div></section>
+    <section class="kartu angkat" style="margin-top:14px"><label class="medan"><span>Catatan (tampil di invoice dan surat jalan, boleh kosong)</span><textarea id="fCatatan" class="isian" rows="2"></textarea></label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="fLunas"> Sudah lunas</label>
+      ${asal ? '<div style="margin-top:14px"><button class="pil bahaya kecil" id="fBatal">Batalkan invoice ini</button></div>' : ''}</section>
+    <div class="bilah"><span class="st" id="st">—</span><span style="display:flex;gap:6px;flex:none"><button class="pil halus" id="fSimpan">Simpan</button><button class="pil emas" id="fSimpanPdf">Simpan + PDF</button></span></div></div></main>`;
+  $('#bBeranda').textContent = '← Invoice';
+  $('#bBeranda').onclick = () => { if (kotorF && !confirm('Invoice belum disimpan. Tetap keluar?')) return; layarInvoice(); };
+  const ubah = () => { if (!kotorF) { kotorF = true; status('Belum disimpan', 'ubah'); } };
+  [['fToko', 'toko'], ['fAlamat', 'alamat'], ['fNama', 'nama'], ['fTelp', 'telp'], ['fNo', 'no'], ['fTgl', 'tgl'], ['fEksp', 'ekspedisi'], ['fCatatan', 'catatan']].forEach(([i, k]) => {
+    const el = $('#' + i); el.value = v[k] || ''; el.addEventListener('input', () => { v[k] = el.value; ubah(); }); });
+  $('#fLunas').checked = !!v.lunas; $('#fLunas').onchange = ev => { v.lunas = ev.target.checked; ubah(); };
+
+  // Harga dan berat otomatis: harga dari Harga Toko pada tanggal invoice; berat dari invoice terakhir toko itu.
+  const jenis = b => BARANG.find(x => x[0].toLowerCase() === String(b.barang || '').trim().toLowerCase());
+  const lalu = () => INV.daftar.filter(x => x.id !== v.id && !x.batal && x.toko.trim().toLowerCase() === v.toko.trim().toLowerCase()).sort((a, b) => b.tgl.localeCompare(a.tgl))[0];
+  const isiOtomatis = b => { const t = tokoCocok(v.toko), j = jenis(b);
+    if (t && j?.[2] && (!b.harga || b._auto)) { const h = hargaPada(t, j[2], v.tgl); if (h) { b.harga = h; b._auto = true; } }
+    if (!b.berat && j?.[1] === 'kendi') { const l = lalu()?.baris.find(x => x.barang.toLowerCase() === b.barang.toLowerCase() && x.berat); if (l) b.berat = l.berat; } };
+  const infoToko = () => { const t = tokoCocok(v.toko);
+    $('#fInfoToko').textContent = !v.toko.trim() ? '' : t ? `Harga dari Harga Toko: curah ${hargaPada(t, 'curah', v.tgl) ? rp(hargaPada(t, 'curah', v.tgl)) + ' per kendi' : 'belum ada'}, dus ${hargaPada(t, 'dus', v.tgl) ? rp(hargaPada(t, 'dus', v.tgl)) : 'belum ada'}.` : 'Toko ini belum ada di Harga Toko, jadi harga diketik sendiri.'; };
+  const gantiToko = () => { const l = lalu(); if (l) ['alamat', 'nama', 'telp'].forEach(k => { if (!v[k] && l[k]) { v[k] = l[k]; $('#f' + k[0].toUpperCase() + k.slice(1)).value = l[k]; } });
+    v.baris.forEach(isiOtomatis); infoToko(); gambarBaris(); };
+  $('#fToko').addEventListener('change', gantiToko); $('#fTgl').addEventListener('change', () => { v.baris.forEach(isiOtomatis); infoToko(); gambarBaris(); });
+
+  const segarTotal = () => { const t = totalInv(v); $('#fTotal').textContent = rp(t); $('#fTerbilang').textContent = t ? 'Terbilang: ' + terbilang(t) : ''; };
+  const gambarBaris = () => {
+    $('#fBaris').innerHTML = v.baris.map((b, i) => `<div class="inv-baris" data-i="${i}">
+      <label class="medan b-barang"><span>Nama barang</span><input data-f="barang" list="dlBarang" value="${esc(b.barang || '')}" autocomplete="off"></label>
+      <label class="medan"><span>Qty</span><input data-f="qty" inputmode="decimal" value="${b.qty ? angkaId(b.qty) : ''}" placeholder="0"></label>
+      <label class="medan"><span>Satuan</span><select data-f="satuan">${[...new Set([...SATUAN, b.satuan || 'kendi'])].map(s => `<option ${s === b.satuan ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+      <label class="medan"><span>Berat (kg)</span><input data-f="berat" inputmode="decimal" value="${b.berat ? angkaId(b.berat) : ''}" placeholder="—"></label>
+      <label class="medan"><span>Harga satuan</span><input data-f="harga" inputmode="numeric" value="${b.harga ? ribu(b.harga) : ''}" placeholder="0"></label>
+      <label class="medan b-ket"><span>Keterangan di surat jalan (boleh kosong)</span><input data-f="ket" value="${esc(b.ket || '')}" placeholder="mis. 3 kendi kosong kembali"></label>
+      <div class="b-jumlah"><span>Jumlah</span><b data-jml>${rp((b.qty || 0) * (b.harga || 0))}</b>${v.baris.length > 1 ? '<button class="pil bahaya kecil" data-hapus>Hapus</button>' : ''}</div></div>`).join('');
+    $$('.inv-baris', $('#fBaris')).forEach(row => { const b = v.baris[+row.dataset.i];
+      $$('[data-f]', row).forEach(inp => { const f = inp.dataset.f;
+        inp.addEventListener('input', () => { if (f === 'barang') b.barang = inp.value; else if (f === 'ket') b.ket = inp.value; else if (f === 'satuan') b.satuan = inp.value; else if (f === 'harga') { b.harga = angkaRp(inp.value); b._auto = false; } else b[f] = desimal(inp.value);
+          $('[data-jml]', row).textContent = rp((b.qty || 0) * (b.harga || 0)); segarTotal(); ubah(); });
+        if (f === 'barang') inp.addEventListener('change', () => { const j = jenis(b); if (j) { b.satuan = j[1]; if (b._auto !== false || !b.harga) { b.harga = 0; b._auto = true; } isiOtomatis(b); gambarBaris(); } });
+        if (f === 'harga') inp.addEventListener('blur', () => { if (inp.value.trim()) inp.value = ribu(b.harga); });
+        if (f === 'qty' || f === 'berat') inp.addEventListener('blur', () => { if (inp.value.trim()) inp.value = angkaId(b[f]); }); });
+      const h = $('[data-hapus]', row); if (h) h.onclick = () => { v.baris.splice(+row.dataset.i, 1); ubah(); gambarBaris(); }; });
+    segarTotal(); };
+  $('#fTambah').onclick = () => { const b = { barang: '', qty: 0, satuan: 'kendi', berat: 0, harga: 0, _auto: true }; v.baris.push(b); gambarBaris(); ubah(); $$('#fBaris [data-f="barang"]').pop().focus(); };
+  v.baris.forEach(isiOtomatis); infoToko(); gambarBaris();
+
+  const simpanF = async pdf => {
+    const salah = !v.toko.trim() ? 'Nama toko wajib diisi.' : !String(v.no).trim() ? 'Nomor invoice wajib diisi.' : !v.tgl ? 'Tanggal wajib diisi.'
+      : !v.baris.some(b => b.barang.trim() && b.qty > 0) ? 'Isi minimal satu barang dengan qty.'
+      : INV.daftar.some(x => x.id !== v.id && !x.batal && String(x.no).trim() === String(v.no).trim()) ? `Nomor ${v.no} sudah dipakai invoice lain.` : '';
+    if (salah) { status(salah, 'salah'); return; }
+    const rec = { ...v, toko: v.toko.trim().replace(/\s+/g, ' '), no: String(v.no).trim(), catatan: v.catatan.trim(), dibuat: v.dibuat || new Date().toISOString(), diubah: new Date().toISOString(),
+      tglLunas: v.lunas ? (v.tglLunas || hariIni()) : null, baris: v.baris.filter(b => b.barang.trim() && b.qty > 0).map(({ _auto, ...b }) => ({ ...b, barang: b.barang.trim() })) };
+    status('Menyimpan…'); $('#fSimpan').disabled = $('#fSimpanPdf').disabled = true;
+    try { await simpanInvoice(x => { const i = x.daftar.findIndex(y => y.id === rec.id); if (i >= 0) x.daftar[i] = rec; else x.daftar.push(rec); });
+      kotorF = false; invSaring = rec.lunas ? 'lunas' : 'belum'; invCari = ''; await layarInvoice(); if (pdf) pdfInvoice(rec); }
+    catch (e) { status('Gagal menyimpan: ' + e.message, 'salah'); $('#fSimpan').disabled = $('#fSimpanPdf').disabled = false; } };
+  $('#fSimpan').onclick = () => simpanF(false); $('#fSimpanPdf').onclick = () => simpanF(true);
+  const bt = $('#fBatal'); if (bt) bt.onclick = async () => { if (!confirm(`Batalkan invoice ${v.no} (${v.toko})? Invoice tidak dihapus, hanya pindah ke daftar Dibatalkan dan bisa dipulihkan.`)) return;
+    try { await simpanInvoice(x => { const y = x.daftar.find(z => z.id === v.id); if (y) y.batal = true; }); kotorF = false; await layarInvoice(); } catch (e) { status('Gagal: ' + e.message, 'salah'); } };
+  if (!asal) setTimeout(() => $('#fToko').focus(), 50);
+}
+
+/* ----- PDF invoice & surat jalan: hitam-putih seperti berkas Word aslinya, siap dicetak ----- */
+function teksJarang(doc, s, x, y, jarak, kanan) { const w = doc.getTextWidth(s) + jarak * Math.max(0, s.length - 1); doc.text(s, kanan ? x - w : x, y, { charSpace: jarak }); }
+async function kertasInv(judul, v) { const JsPDF = await muatPdf(); const doc = new JsPDF({ unit: 'mm', format: 'a4' }); const P = INV.profil || {};
+  doc.setTextColor(0); doc.setDrawColor(0);
+  doc.setFont('times', 'bold'); doc.setFontSize(13); teksJarang(doc, (P.nama || '').toUpperCase(), 14, 16, 1.1);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); if (P.alamat) teksJarang(doc, P.alamat, 14, 22, .25); if (P.telp) teksJarang(doc, 'No Telp : ' + P.telp, 14, 27, .25);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(17); teksJarang(doc, judul, 196, 19, 1.6, true);
+  doc.setLineWidth(.5); doc.line(6, 33, 204, 33);
+  // Kepada Yth. (kiri) dan data invoice (kanan)
+  doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.text('Kepada Yth.', 14, 41);
+  const baris = (x, y, l, isi, lebar, xi) => { doc.setFont('helvetica', 'bold'); doc.text(l, x, y); doc.setFont('helvetica', 'normal'); const t = doc.splitTextToSize(String(isi || '-'), lebar); doc.text(':', xi - 3, y); doc.text(t, xi, y); return y + 5 * t.length; };
+  let yk = 47; yk = baris(14, yk, 'Toko', v.toko, 62, 38); yk = baris(14, yk, 'Nama', v.nama, 62, 38); yk = baris(14, yk, 'No. Telp', v.telp, 62, 38); yk = baris(14, yk, 'Alamat', v.alamat, 62, 38);
+  let yn = 41; yn = baris(112, yn, 'No. Invoice', v.no, 60, 138); yn = baris(112, yn, 'Tanggal', tglSurat(v.tgl), 60, 138); yn = baris(112, yn, 'Ekspedisi', v.ekspedisi, 60, 138);
+  return { doc, P, y: Math.max(yk, yn) + 1 }; }
+const garisTabel = { theme: 'grid', styles: { font: 'helvetica', fontSize: 9, cellPadding: 3, textColor: 0, lineColor: 0, lineWidth: .3, valign: 'middle' },
+  headStyles: { fillColor: 255, textColor: 0, fontStyle: 'bold' }, footStyles: { fillColor: 255, textColor: 0, fontStyle: 'bold' }, margin: { left: 14, right: 14 } };
+// Kotak dua kolom (Catatan | PERHATIAN/Pembayaran) dengan garis luar dan garis tengah saja, seperti di berkas Word.
+function kotakCatatan(doc, y, kiri, kanan) {
+  doc.autoTable({ startY: y, body: [[kiri, kanan]], theme: 'plain', styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, textColor: 0, minCellHeight: 24 }, margin: { left: 14, right: 14 },
+    columnStyles: { 0: { cellWidth: 91 } }, tableLineColor: 0, tableLineWidth: .3,
+    didDrawCell: d => { if (d.column.index === 0) { doc.setDrawColor(0); doc.setLineWidth(.3); doc.line(d.cell.x + d.cell.width, d.cell.y, d.cell.x + d.cell.width, d.cell.y + d.cell.height); } } });
+  return doc.lastAutoTable.finalY; }
+const namaBerkasInv = (jenis, v) => `${jenis} ${v.no} ${v.toko}`.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() + '.pdf';
+
+function pdfInvoice(v) { return denganTunggu(async () => { const { doc, P, y } = await kertasInv('INVOICE', v), total = totalInv(v);
+  doc.autoTable({ ...garisTabel, startY: y,
+    head: [['No', 'Nama Barang', 'Qty', 'Berat', 'Harga', 'Jumlah']],
+    body: v.baris.map((b, i) => [i + 1, b.barang, angkaId(b.qty) + ' ' + (b.satuan || ''), b.berat ? angkaId(b.berat) + ' kg' : '', rp(b.harga), rp(b.qty * b.harga)]),
+    foot: [[{ content: 'TOTAL', colSpan: 5, styles: { halign: 'right' } }, { content: rp(total), styles: { halign: 'right' } }]],
+    columnStyles: { 0: { cellWidth: 11, halign: 'center' }, 2: { halign: 'center', cellWidth: 26 }, 3: { halign: 'center', cellWidth: 22 }, 4: { halign: 'right', cellWidth: 30 }, 5: { halign: 'right', cellWidth: 34 } },
+    didParseCell: d => { if (d.section === 'head' && [0, 2, 3].includes(d.column.index)) d.cell.styles.halign = 'center'; if (d.section === 'head' && d.column.index > 3) d.cell.styles.halign = 'right'; } });
+  let yy = doc.lastAutoTable.finalY + 6; doc.setFont('helvetica', 'italic'); doc.setFontSize(8.5); const tb = doc.splitTextToSize('Terbilang: ' + terbilang(total), 182); doc.text(tb, 14, yy); yy += 4 * tb.length + 2;
+  const kanan = (v.lunas ? 'STATUS: LUNAS' + (v.tglLunas ? ' (' + tglSurat(v.tglLunas) + ')' : '') + '\n' : '') + (P.bayar ? 'Pembayaran:\n' + P.bayar : '');
+  yy = kotakCatatan(doc, yy, 'Catatan:\n' + (v.catatan || ''), kanan) + 12;
+  if (yy > 245) { doc.addPage(); yy = 20; }
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text('Tanda terima,', 50, yy, { align: 'center' }); doc.text('Hormat kami,', 158, yy, { align: 'center' });
+  doc.setFont('helvetica', 'bold'); doc.text(P.nama || '', 158, yy + 5, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.text('( ' + '.'.repeat(44) + ' )', 50, yy + 30, { align: 'center' });
+  if (P.penandatangan) { doc.setFont('helvetica', 'bold'); const n = P.penandatangan.toUpperCase(), w = doc.getTextWidth(n); doc.text(n, 158, yy + 30, { align: 'center' }); doc.setLineWidth(.3); doc.line(158 - w / 2, yy + 31, 158 + w / 2, yy + 31); }
+  doc.save(namaBerkasInv('Invoice', v)); }); }
+
+function pdfSuratJalan(v) { return denganTunggu(async () => { const { doc, y } = await kertasInv('SURAT JALAN', v);
+  doc.autoTable({ ...garisTabel, startY: y,
+    head: [['Nama Barang', 'Qty', 'Berat', 'Keterangan']],
+    body: v.baris.map(b => [b.barang, angkaId(b.qty) + ' ' + (b.satuan || ''), b.berat ? angkaId(b.berat) + ' kg' : '', b.ket || '']),
+    columnStyles: { 1: { halign: 'center', cellWidth: 26 }, 2: { halign: 'center', cellWidth: 26 }, 3: { cellWidth: 48 } },
+    didParseCell: d => { if (d.section === 'head' && d.column.index > 0) d.cell.styles.halign = 'center'; } });
+  let yy = kotakCatatan(doc, doc.lastAutoTable.finalY, 'Catatan:\n' + (v.catatan || ''),
+    'PERHATIAN:\n1. Surat Jalan ini merupakan bukti resmi penerimaan barang\n2. Surat Jalan ini bukan bukti penjualan\n3. Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan') + 10;
+  if (yy > 245) { doc.addPage(); yy = 20; }
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  [['Penerima / Pembeli', 45], ['Bagian Pengiriman', 105], ['Petugas Gudang', 165]].forEach(([t, x]) => { doc.text(t, x, yy, { align: 'center' }); doc.setLineDashPattern([1, 1], 0); doc.setLineWidth(.25); doc.line(x - 24, yy + 30, x + 24, yy + 30); doc.setLineDashPattern([], 0); });
+  doc.save(namaBerkasInv('Surat Jalan', v)); }); }
+
 async function mulai() { const s = sesi.baca(); if (!s?.token) return layarMasuk();
   akar.innerHTML = '<main class="masuk"><div style="color:#cfe3de">Memuat…</div></main>'; harga = null;   // harga toko diambil ulang tiap muat
   try { const r = await rpc('minyak_data', { p_token: s.token });

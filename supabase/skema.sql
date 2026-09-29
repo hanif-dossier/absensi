@@ -229,3 +229,26 @@ begin
 end $f$;
 grant execute on function public.minyak_harga_baca(text), public.minyak_harga_tulis(text,jsonb) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- =====================================================================================================
+-- INVOICE & SURAT JALAN (29 Sep 2026): nota penjualan ke toko dibuat di aplikasi, dicetak jadi PDF invoice (dengan
+-- harga) dan surat jalan (tanpa harga). Disimpan di minyak_nilai kunci 'invoice' berbentuk
+--   { profil: { nama, alamat, telp, penandatangan, bayar },
+--     daftar: [ { id, no, tgl, toko, nama, telp, alamat, ekspedisi, catatan, lunas, batal,
+--                 baris: [ { barang, qty, satuan, berat, harga } ], dibuat, diubah } ] }
+-- Identitas usaha (profil) hanya ada di database, tidak di kode. Pemilik dan bos membaca lewat minyak_ambil_nilai;
+-- hanya pemilik yang menulis.
+-- =====================================================================================================
+create or replace function public.minyak_invoice_tulis(p_token text, p_nilai jsonb) returns jsonb language plpgsql security definer
+set search_path = public, extensions as $f$
+declare s minyak_sesi := minyak__sesi(p_token);
+begin
+  if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
+  if s.peran <> 'pemilik' then return jsonb_build_object('ok', false, 'pesan', 'Hanya pemilik.'); end if;
+  if jsonb_typeof(p_nilai->'daftar') is distinct from 'array' then return jsonb_build_object('ok', false, 'pesan', 'Bentuk data salah.'); end if;
+  if length(p_nilai::text) > 2000000 then return jsonb_build_object('ok', false, 'pesan', 'Data terlalu besar.'); end if;
+  insert into minyak_nilai(kunci, nilai) values ('invoice', p_nilai) on conflict (kunci) do update set nilai = excluded.nilai, diubah = now();
+  return jsonb_build_object('ok', true, 'diubah', now());
+end $f$;
+grant execute on function public.minyak_invoice_tulis(text,jsonb) to anon, authenticated;
+notify pgrst, 'reload schema';
