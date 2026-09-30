@@ -252,3 +252,23 @@ begin
 end $f$;
 grant execute on function public.minyak_invoice_tulis(text,jsonb) to anon, authenticated;
 notify pgrst, 'reload schema';
+
+-- =====================================================================================================
+-- BEBAS HUTANG (30 Sep 2026): daftar hutang bos, cicilan yang sudah dibayar, pengambilan pribadi, biaya tetap di luar
+-- Excel. Disimpan di minyak_nilai kunci 'hutang-bos'. Pemilik DAN bos boleh menulis (bos mengisi hutangnya sendiri);
+-- karyawan tidak. Kunci lain ditolak.
+-- =====================================================================================================
+create or replace function public.minyak_nilai_tulis(p_token text, p_kunci text, p_nilai jsonb) returns jsonb language plpgsql security definer
+set search_path = public, extensions as $f$
+declare s minyak_sesi := minyak__sesi(p_token);
+begin
+  if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
+  if s.peran not in ('pemilik', 'bos') then return jsonb_build_object('ok', false, 'pesan', 'Hanya pemilik atau bos.'); end if;
+  if p_kunci not in ('hutang-bos') then return jsonb_build_object('ok', false, 'pesan', 'kunci tidak diizinkan'); end if;
+  if jsonb_typeof(p_nilai) is distinct from 'object' then return jsonb_build_object('ok', false, 'pesan', 'Bentuk data salah.'); end if;
+  if length(p_nilai::text) > 1000000 then return jsonb_build_object('ok', false, 'pesan', 'Data terlalu besar.'); end if;
+  insert into minyak_nilai(kunci, nilai) values (p_kunci, p_nilai) on conflict (kunci) do update set nilai = excluded.nilai, diubah = now();
+  return jsonb_build_object('ok', true, 'diubah', now());
+end $f$;
+grant execute on function public.minyak_nilai_tulis(text,text,jsonb) to anon, authenticated;
+notify pgrst, 'reload schema';

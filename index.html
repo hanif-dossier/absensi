@@ -675,6 +675,7 @@ const IKON = {
   pdf: '<path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5"/>',
   bagi: '<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.9l7.6-3.8M8.2 13.1l7.6 3.8"/>',
   grafik: '<circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7 5"/>',
+  bebas: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
   nota: '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   toko: '<path d="M3.5 9.5l1.8-5h13.4l1.8 5"/><path d="M3.5 9.5h17M5.5 9.5V20h13V9.5M10 20v-5h4v5"/>',
 };
@@ -762,6 +763,7 @@ async function layarBeranda() {
       <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Laporan laba rugi per bulan: omzet, modal, biaya, gaji, laba bersih</small></button>
       <button class="ubin" data-ke="pembelian"><span class="ik emas">${ikon('beli')}</span><b>Pembelian minyak</b><small>Minyak yang dibeli dari pemasok di jalan, dihitung sejak 24 Sep 2026</small></button>
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
+      <button class="ubin" data-ke="bebas"><span class="ik emas">${ikon('bebas')}</span><b>Bebas Hutang</b><small>Daftar hutang bos, cicilan yang dibayar, dan kemampuan bayar dari laba usaha</small></button>
       <button class="ubin" data-ke="invoice"><span class="ik emas">${ikon('nota')}</span><b>Invoice Harian</b><small>${bacaSaja ? 'Invoice per hari untuk semua toko, surat jalan, dan hutang toko' : 'Satu invoice per hari untuk semua toko: PDF invoice, surat jalan, nota per toko, Excel'}</small></button>
       <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
       <button class="ubin" id="ubinHarian" data-laporan="laporan-harian"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''}</small></button>
@@ -773,7 +775,7 @@ async function layarBeranda() {
   $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); const ub = $('#ubinBagi'); if (ub) ub.onclick = bagikan; siapkanPasang();
   $$('.ubin[data-laporan]').forEach(b => b.onclick = () => bukaLaporan(b.dataset.laporan));
   tampilkanPembaruan();
-  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga, pembelian: layarPembelian, invoice: layarInvoice })[b.dataset.ke]());
+  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga, pembelian: layarPembelian, invoice: layarInvoice, bebas: layarHutangBos })[b.dataset.ke]());
   try { const k = await muatKeuangan(), bl = bulanKeu(k)[0]; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih ${esc(bl.nama.split(' ')[0])} <b>${rp(bl.tot.bersih)}</b>`;
     const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) $('small', u).textContent = `Rincian penjualan per hari minggu ${mh}`;
   } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
@@ -1695,6 +1697,122 @@ function excelHarian(h) { return denganTunggu(async () => { const ExcelJS = awai
     rekap('TOTAL KESELURUHAN SELISIH', x.selisih, true); ws.addRow([]); ws.addRow([]); });
   const buf = await wb.xlsx.writeBuffer(), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   a.download = namaBerkas('Penjualan', h).replace(/\.pdf$/, '.xlsx'); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }); }
+
+/* ---------- Bebas Hutang (30 Sep 2026) ----------
+   Tahap 1 rencana bebas hutang (catatan/2026-09-30-minyak-rencana-bebas-hutang.md): daftar hutang bos, cicilan yang
+   sudah dibayar, pengambilan pribadi, dan biaya tetap di luar Excel. Diisi pemilik atau bos sendiri (fungsi
+   minyak_nilai_tulis menerima keduanya). Data di minyak_nilai kunci 'hutang-bos':
+     { daftar: [{ id, kreditur, jenis, pokokAwal, bungaPersen, cicilan, tglCicil, jatuhTempo, jaminan, tunggakan, catatan,
+                  mulai, bayar: [{ id, tgl, jumlah, bunga, ket }] }], prive, tetap: [{ ket, jumlah }] }
+   Sisa pokok = pokok awal - (jumlah bayar - bagian bunga). Kemampuan bayar dibandingkan dengan laba bersih rata-rata
+   per bulan dari data Keuangan (8 minggu lengkap terakhir x 4,33). Angkanya perkiraan kasar, bukan nasihat keuangan. */
+let HB = null;
+const JENIS_HUTANG = ['Bank', 'Koperasi', 'Pinjaman online', 'Perorangan / keluarga', 'Pemasok minyak', 'Leasing kendaraan', 'Lainnya'];
+async function muatHutangBos() { const r = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'hutang-bos' }); if (!r.ok) throw new Error(r.pesan);
+  const v = r.nilai || {}; v.daftar = Array.isArray(v.daftar) ? v.daftar : []; v.tetap = Array.isArray(v.tetap) ? v.tetap : []; v.prive = +v.prive || 0; v.daftar.forEach(h => { h.bayar = Array.isArray(h.bayar) ? h.bayar : []; }); return v; }
+async function simpanHutangBos(ubah) { const v = await muatHutangBos(); ubah(v);
+  const r = await rpc('minyak_nilai_tulis', { p_token: sesi.baca().token, p_kunci: 'hutang-bos', p_nilai: v }); if (!r.ok) throw new Error(r.pesan); HB = v; return v; }
+const pokokDibayar = h => sumBy(h.bayar, b => Math.max(0, (b.jumlah || 0) - (b.bunga || 0)));
+const sisaHutang = h => Math.max(0, (h.pokokAwal || 0) - pokokDibayar(h));
+const bungaBulan = h => Math.round(sisaHutang(h) * (h.bungaPersen || 0) / 100);
+// Laba bersih rata-rata per bulan dari Keuangan: 8 minggu lengkap terakhir (>= 5 hari kerja) x 4,33
+function labaBulanRata(k) { if (!k?.WK) return null; const w = [...k.WK].filter(x => (k.HARI[x] || 0) >= 5).slice(-8); if (!w.length) return null;
+  return { bulan: Math.round(sumBy(w, x => k.D[x].tot.bersih) / w.length * 4.33), minggu: w.length, dari: k.PER[w[0]], sampai: k.PER[w.at(-1)] }; }
+function ringkasHutang() { const d = HB.daftar, sisa = sumBy(d, sisaHutang), cicilan = sumBy(d, h => h.cicilan), bunga = sumBy(d, bungaBulan), tunggak = sumBy(d, h => h.tunggakan), tetap = sumBy(HB.tetap, x => x.jumlah);
+  const laba = labaBulanRata(keu), bebas = laba ? laba.bulan - HB.prive - tetap - bunga : null;
+  return { sisa, cicilan, bunga, tunggak, tetap, laba, bebas, lunasBulan: bebas > 0 ? Math.ceil(sisa / bebas) : null, cukup: bebas != null ? bebas >= cicilan : null }; }
+
+async function layarHutangBos() {
+  akar.innerHTML = kepalaPemilik('Bebas Hutang', 'Tahap 1: catat semua hutang, cicilannya, dan pengeluaran di luar Excel. Dari sini dihitung kemampuan bayar dan jadwal lunasnya.', true) +
+    '<main class="bungkus"><div id="hb" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
+  $('#bBeranda').onclick = layarBeranda;
+  try { [HB] = await Promise.all([muatHutangBos(), muatKeuangan().catch(() => null)]); gambarHutangBos(); }
+  catch (e) { $('#hb').innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
+
+function gambarHutangBos() { const el = $('#hb'); if (!el) return; const R = ringkasHutang(), d = [...HB.daftar].sort((a, b) => (b.bungaPersen || 0) - (a.bungaPersen || 0) || sisaHutang(b) - sisaHutang(a));
+  const bulanTeks = n => n == null ? '' : n < 1 ? 'kurang dari sebulan' : n < 12 ? `${n} bulan` : `${Math.floor(n / 12)} tahun ${n % 12 ? n % 12 + ' bulan' : ''}`.trim();
+  el.innerHTML = `<section class="besar angkat"><div class="label">Sisa hutang bos</div><div class="nilai">${rp(R.sisa)}</div>
+      <div class="keping-baris"><span class="keping"><b>${d.length}</b> hutang</span><span class="keping">Cicilan wajib <b>${rp(R.cicilan)}</b> per bulan</span><span class="keping">Bunga <b>${rp(R.bunga)}</b> per bulan</span>${R.tunggak ? `<span class="keping merah">Menunggak <b>${rp(R.tunggak)}</b></span>` : ''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="pil emas" id="hbBaru">+ Hutang</button><button class="pil kaca" id="hbLuar">Pengeluaran di luar Excel</button></div></section>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Kemampuan bayar <span class="keping">perkiraan</span></h2>
+      ${R.laba ? `<div class="baris-data"><div class="kiri">Laba bersih usaha per bulan<small>rata-rata ${R.laba.minggu} minggu lengkap terakhir (${esc(R.laba.dari)} sampai ${esc(R.laba.sampai)}) dikali 4,33</small></div><div class="kanan">${rp(R.laba.bulan)}</div></div>
+        <div class="baris-data"><div class="kiri">Pengambilan pribadi<small>uang bos untuk rumah tangga</small></div><div class="kanan">- ${rp(HB.prive)}</div></div>
+        <div class="baris-data"><div class="kiri">Biaya tetap di luar Excel<small>${HB.tetap.length ? esc(HB.tetap.map(x => x.ket).join(', ')) : 'belum diisi'}</small></div><div class="kanan">- ${rp(R.tetap)}</div></div>
+        <div class="baris-data"><div class="kiri">Bunga semua hutang<small>dari persen bunga tiap hutang</small></div><div class="kanan">- ${rp(R.bunga)}</div></div>
+        <div class="baris-data total"><div class="kiri">Uang bebas untuk bayar pokok hutang</div><div class="kanan" style="color:${R.bebas > 0 ? 'var(--naik)' : 'var(--turun)'}">${rp(R.bebas)}</div></div>
+        <div class="kisi" style="margin-top:12px"><div class="kotak ${R.cukup === false ? 'merah' : ''}"><div class="l">Cicilan wajib per bulan</div><div class="v">${rp(R.cicilan)}</div><small>${R.cukup == null ? '' : R.cukup ? 'tertutup oleh uang bebas' : 'lebih besar dari uang bebas, ini sebab hutang bertambah'}</small></div>
+          <div class="kotak emas"><div class="l">Perkiraan lunas total</div><div class="v">${R.lunasBulan ? bulanTeks(R.lunasBulan) : '—'}</div><small>${R.lunasBulan ? 'kalau semua uang bebas dipakai bayar pokok, tanpa kebocoran' : R.sisa ? 'uang bebas belum cukup untuk mengurangi pokok' : 'belum ada hutang tercatat'}</small></div></div>
+        <div class="catatan">Piutang toko yang belum tertagih tidak dihitung di sini. Angka ini perkiraan kasar dari laporan; rencana pelunasan yang sesungguhnya disusun di tahap berikutnya setelah semua hutang terisi.</div>`
+      : '<div class="catatan" style="margin:0">Data keuangan belum termuat, jadi kemampuan bayar belum bisa dihitung.</div>'}</section>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Daftar hutang<span class="keping">${d.length}</span></h2>
+      ${d.map(h => { const sisa = sisaHutang(h), pct = h.pokokAwal ? Math.round(pokokDibayar(h) / h.pokokAwal * 100) : 0;
+        return `<div class="orang" data-hb="${esc(h.id)}" style="cursor:pointer"><span class="nama" style="font-size:16px">${esc(h.kreditur)}${h.tunggakan ? ' <span class="keping merah" style="font-size:11px;padding:2px 8px">menunggak</span>' : ''}</span><span class="bayar" style="font-size:17px">${rp(sisa)}</span>
+          <span class="garis-batang"><i style="width:${pct}%"></i></span>
+          <span class="rinci"><span class="keping">${esc(h.jenis || 'Hutang')}</span><span class="keping">Cicilan ${rp(h.cicilan)}${h.tglCicil ? ' tiap tgl ' + h.tglCicil : ''}</span>${h.bungaPersen ? `<span class="keping">Bunga ${String(h.bungaPersen).replace('.', ',')}% = ${rp(bungaBulan(h))}/bln</span>` : '<span class="keping">Tanpa bunga</span>'}<span class="keping">Terbayar ${pct}% dari ${rp(h.pokokAwal)}</span>${h.jatuhTempo ? `<span class="keping">Jatuh tempo ${esc(h.jatuhTempo)}</span>` : ''}${h.jaminan ? `<span class="keping">Jaminan ${esc(h.jaminan)}</span>` : ''}</span></div>`; }).join('')
+      || '<div class="catatan" style="margin:0">Belum ada hutang tercatat. Tekan "+ Hutang" dan isi satu per satu: bank, koperasi, pinjaman perorangan, hutang ke pemasok, cicilan mobil.</div>'}
+      <div class="catatan">Diurutkan dari bunga tertinggi. Ketuk hutang untuk mencatat cicilan yang sudah dibayar atau mengubah datanya.</div></section>`;
+  $('#hbBaru').onclick = () => formHutangBos(null); $('#hbLuar').onclick = dialogLuarExcel;
+  $$('[data-hb]', el).forEach(x => x.onclick = () => bukaHutangBos(HB.daftar.find(h => h.id === x.dataset.hb))); }
+
+function formHutangBos(asal) { const h = asal ? JSON.parse(JSON.stringify(asal)) : { id: idBaru('d'), kreditur: '', jenis: 'Bank', pokokAwal: 0, bungaPersen: 0, cicilan: 0, tglCicil: '', jatuhTempo: '', jaminan: '', tunggakan: 0, catatan: '', mulai: hariIni(), bayar: [] };
+  dialog(`<h3>${asal ? 'Ubah hutang' : 'Hutang baru'}</h3>
+    <label class="medan"><span>Kepada siapa (kreditur)</span><input id="dKred" placeholder="mis. Bank BRI, Koperasi X, Pak Ahong"></label>
+    <label class="medan"><span>Jenis</span><select id="dJenis" class="isian">${JENIS_HUTANG.map(j => `<option ${j === h.jenis ? 'selected' : ''}>${j}</option>`).join('')}</select></label>
+    <label class="medan"><span>Sisa pokok sekarang (Rp)</span><input id="dPokok" inputmode="numeric" placeholder="mis. 50.000.000"></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px"><label class="medan"><span>Bunga per bulan (%)</span><input id="dBunga" inputmode="decimal" placeholder="mis. 2,5"></label>
+      <label class="medan"><span>Cicilan wajib per bulan (Rp)</span><input id="dCicil" inputmode="numeric" placeholder="mis. 3.500.000"></label>
+      <label class="medan"><span>Cicilan tiap tanggal</span><input id="dTgl" inputmode="numeric" placeholder="mis. 10"></label>
+      <label class="medan"><span>Lunas seharusnya (bulan)</span><input id="dTempo" type="month"></label></div>
+    <label class="medan"><span>Jaminan (boleh kosong)</span><input id="dJamin" placeholder="mis. BPKB mobil, sertifikat"></label>
+    <label class="medan"><span>Tunggakan saat ini (Rp, kosong kalau lancar)</span><input id="dTunggak" inputmode="numeric"></label>
+    <label class="medan"><span>Catatan</span><input id="dCat" placeholder="mis. bisa nego tempo"></label><div id="dPesan"></div>
+    <div class="tombol-baris">${asal ? '<button class="pil bahaya" id="dHapus">Hapus</button>' : ''}<button class="pil halus" data-tutup>Batal</button><button class="pil" id="dOk">Simpan</button></div>`, (d, tutup) => {
+    $('#dKred', d).value = h.kreditur; $('#dPokok', d).value = h.pokokAwal ? ribu(asal ? sisaHutang(h) : h.pokokAwal) : ''; $('#dBunga', d).value = h.bungaPersen ? String(h.bungaPersen).replace('.', ',') : ''; $('#dCicil', d).value = h.cicilan ? ribu(h.cicilan) : '';
+    $('#dTgl', d).value = h.tglCicil || ''; $('#dTempo', d).value = h.jatuhTempo || ''; $('#dJamin', d).value = h.jaminan || ''; $('#dTunggak', d).value = h.tunggakan ? ribu(h.tunggakan) : ''; $('#dCat', d).value = h.catatan || '';
+    $$('input[inputmode="numeric"]', d).forEach(i => i.addEventListener('blur', () => { if (i.value.trim()) i.value = ribu(angkaRp(i.value)); }));
+    $('#dKred', d).focus();
+    $('#dOk', d).onclick = async () => { const kred = $('#dKred', d).value.trim(), pokokBaru = angkaRp($('#dPokok', d).value);
+      if (!kred) { $('#dPesan', d).innerHTML = '<div class="pesan-salah">Isi nama krediturnya.</div>'; return; } if (!pokokBaru) { $('#dPesan', d).innerHTML = '<div class="pesan-salah">Isi sisa pokoknya.</div>'; return; }
+      // saat mengubah, kotak pokok berisi SISA; pokok awal disesuaikan supaya sisa = yang diketik
+      const rec = { ...h, kreditur: kred, jenis: $('#dJenis', d).value, pokokAwal: asal ? pokokBaru + pokokDibayar(h) : pokokBaru, bungaPersen: desimal($('#dBunga', d).value), cicilan: angkaRp($('#dCicil', d).value), tglCicil: $('#dTgl', d).value.replace(/\D/g, '').slice(0, 2), jatuhTempo: $('#dTempo', d).value, jaminan: $('#dJamin', d).value.trim(), tunggakan: angkaRp($('#dTunggak', d).value), catatan: $('#dCat', d).value.trim() };
+      try { await simpanHutangBos(x => { const i = x.daftar.findIndex(y => y.id === rec.id); if (i >= 0) x.daftar[i] = rec; else x.daftar.push(rec); }); tutup(); asal ? bukaHutangBos(HB.daftar.find(y => y.id === rec.id)) : gambarHutangBos(); }
+      catch (e) { $('#dPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } };
+    const hp = $('#dHapus', d); if (hp) hp.onclick = async () => { if (!confirm(`Hapus hutang ${h.kreditur} beserta catatan cicilannya?`)) return;
+      try { await simpanHutangBos(x => { x.daftar = x.daftar.filter(y => y.id !== h.id); }); tutup(); gambarHutangBos(); } catch (e) { $('#dPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
+
+function bukaHutangBos(h) { if (!h) return gambarHutangBos(); const el = $('#hb'), sisa = sisaHutang(h), bayar = [...h.bayar].sort((a, b) => b.tgl.localeCompare(a.tgl));
+  el.innerHTML = `<button class="pil halus kecil" id="hbKembali">← Semua hutang</button>
+    <section class="besar angkat" style="margin-top:12px"><div class="label">${esc(h.jenis || 'Hutang')} · ${esc(h.kreditur)}</div><div class="nilai">${rp(sisa)}</div>
+      <div class="keping-baris"><span class="keping">Pokok awal <b>${rp(h.pokokAwal)}</b></span><span class="keping">Terbayar <b>${rp(pokokDibayar(h))}</b></span><span class="keping">Cicilan <b>${rp(h.cicilan)}</b>${h.tglCicil ? ' tiap tgl ' + h.tglCicil : ''}</span>${h.bungaPersen ? `<span class="keping">Bunga ${String(h.bungaPersen).replace('.', ',')}% = <b>${rp(bungaBulan(h))}</b>/bln</span>` : ''}${h.tunggakan ? `<span class="keping merah">Menunggak <b>${rp(h.tunggakan)}</b></span>` : ''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="pil emas" id="hbBayar">+ Catat cicilan dibayar</button><button class="pil kaca" id="hbUbah">Ubah data</button></div></section>
+    ${h.jaminan || h.jatuhTempo || h.catatan ? `<section class="kartu angkat" style="margin-top:14px">${h.jatuhTempo ? `<div class="baris-data"><div class="kiri">Lunas seharusnya</div><div class="kanan">${esc(h.jatuhTempo)}</div></div>` : ''}${h.jaminan ? `<div class="baris-data"><div class="kiri">Jaminan</div><div class="kanan">${esc(h.jaminan)}</div></div>` : ''}${h.catatan ? `<div class="catatan" style="margin:8px 0 0">${esc(h.catatan)}</div>` : ''}</section>` : ''}
+    <section class="kartu angkat" style="margin-top:14px"><h2>Cicilan yang sudah dibayar<span class="keping">${bayar.length}</span></h2>
+      ${bayar.map(b => `<div class="baris-data"><div class="kiri">${esc(tglPanjang(b.tgl))}<small>${b.bunga ? 'bunga ' + rp(b.bunga) + ' · pokok ' + rp(b.jumlah - b.bunga) : 'semua ke pokok'}${b.ket ? ' · ' + esc(b.ket) : ''}</small></div><div class="kanan" style="display:flex;gap:8px;align-items:center">${rp(b.jumlah)}<button class="pil halus kecil" data-hapusbayar="${esc(b.id)}" aria-label="Hapus">✕</button></div></div>`).join('') || '<div class="catatan" style="margin:0">Belum ada cicilan tercatat. Catat setiap kali bayar, supaya sisanya terukur.</div>'}
+      <div class="catatan">Sisa pokok berkurang sebesar jumlah bayar dikurangi bagian bunganya.</div></section>`;
+  $('#hbKembali').onclick = gambarHutangBos; $('#hbUbah').onclick = () => formHutangBos(h);
+  $('#hbBayar').onclick = () => dialog(`<h3>Cicilan dibayar · ${esc(h.kreditur)}</h3>
+    <label class="medan"><span>Tanggal</span><input id="yTgl" type="date" value="${hariIni()}"></label>
+    <label class="medan"><span>Jumlah dibayar (Rp)</span><input id="yJml" inputmode="numeric" value="${h.cicilan ? ribu(h.cicilan) : ''}"></label>
+    <label class="medan"><span>Bagian bunga di dalamnya (Rp, kosong kalau semua ke pokok)</span><input id="yBunga" inputmode="numeric" value="${bungaBulan(h) ? ribu(bungaBulan(h)) : ''}"></label>
+    <label class="medan"><span>Keterangan</span><input id="yKet" placeholder="mis. transfer, dari laba minggu 22"></label><div id="yPesan"></div>
+    <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil" id="yOk">Simpan</button></div>`, (d, tutup) => {
+    $('#yOk', d).onclick = async () => { const j = angkaRp($('#yJml', d).value), bg = Math.min(j, angkaRp($('#yBunga', d).value)); if (!j) { $('#yPesan', d).innerHTML = '<div class="pesan-salah">Isi jumlahnya.</div>'; return; }
+      try { await simpanHutangBos(x => { const y = x.daftar.find(z => z.id === h.id); if (y) { y.bayar.push({ id: idBaru('c'), tgl: $('#yTgl', d).value || hariIni(), jumlah: j, bunga: bg, ket: $('#yKet', d).value.trim() }); if (y.tunggakan) y.tunggakan = Math.max(0, y.tunggakan - j); } });
+        tutup(); bukaHutangBos(HB.daftar.find(z => z.id === h.id)); } catch (e) { $('#yPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; });
+  $$('[data-hapusbayar]', el).forEach(b => b.onclick = async () => { if (!confirm('Hapus catatan cicilan ini?')) return;
+    try { await simpanHutangBos(x => { const y = x.daftar.find(z => z.id === h.id); if (y) y.bayar = y.bayar.filter(z => z.id !== b.dataset.hapusbayar); }); bukaHutangBos(HB.daftar.find(z => z.id === h.id)); } catch (e) { gagalDialog(e); } }); }
+
+// Pengambilan pribadi dan biaya tetap yang tidak pernah ada di Excel (sewa gudang, listrik, cicilan mobil kalau bukan hutang)
+function dialogLuarExcel() { const tetap = HB.tetap.map(x => ({ ...x })); if (!tetap.length) tetap.push({ ket: '', jumlah: 0 });
+  const t = dialog(`<h3>Pengeluaran di luar Excel</h3><p class="catatan" style="margin:0 0 12px">Per bulan. Ini yang membuat laba di laporan tidak sama dengan uang yang benar-benar tersisa.</p>
+    <label class="medan"><span>Pengambilan pribadi bos per bulan (Rp)</span><input id="lPrive" inputmode="numeric" value="${HB.prive ? ribu(HB.prive) : ''}" placeholder="mis. 8.000.000"></label>
+    <div class="sub-judul"><span>Biaya tetap usaha (sewa, listrik, air, pulsa…)</span><button class="pil halus kecil" id="lTambah">+ Tambah</button></div><div id="lDaftar"></div><div id="lPesan"></div>
+    <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil" id="lOk">Simpan</button></div>`, (d, tutup) => {
+    const gambar = () => { $('#lDaftar', d).innerHTML = tetap.map((x, i) => `<div class="inv-kecil" data-i="${i}"><input class="isian" data-f="ket" value="${esc(x.ket)}" placeholder="mis. Sewa gudang"><input class="isian angka" data-f="jumlah" inputmode="numeric" value="${x.jumlah ? ribu(x.jumlah) : ''}" placeholder="Rp 0"><button class="pil halus kecil" data-hapus>✕</button></div>`).join('');
+      $$('.inv-kecil', d).forEach(row => { const x = tetap[+row.dataset.i]; $('[data-f="ket"]', row).oninput = e => { x.ket = e.target.value; }; $('[data-f="jumlah"]', row).oninput = e => { x.jumlah = angkaRp(e.target.value); }; $('[data-hapus]', row).onclick = () => { tetap.splice(+row.dataset.i, 1); gambar(); }; }); };
+    gambar(); $('#lTambah', d).onclick = () => { tetap.push({ ket: '', jumlah: 0 }); gambar(); $$('#lDaftar input', d).at(-2)?.focus(); };
+    $('#lOk', d).onclick = async () => { try { await simpanHutangBos(x => { x.prive = angkaRp($('#lPrive', d).value); x.tetap = tetap.filter(y => y.ket.trim() || y.jumlah).map(y => ({ ket: y.ket.trim(), jumlah: y.jumlah })); }); tutup(); gambarHutangBos(); }
+      catch (e) { $('#lPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
 
 async function mulai() { const s = sesi.baca(); if (!s?.token) return layarMasuk();
   akar.innerHTML = '<main class="masuk"><div style="color:#cfe3de">Memuat…</div></main>'; harga = null;   // harga toko diambil ulang tiap muat

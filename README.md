@@ -40,5 +40,11 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
 - **Laporan harian & dashboard** (laptop, `alat/gabung-invoice.mjs` dipanggil `perbarui-otomatis.mjs`): invoice harian
   minggu itu dijadikan blok pengantar seperti sheet Excel sebelum laporan disusun (anti dobel per hari + pengantar).
   `--terbaru` memilih minggu terbaru dari Excel atau invoice, jadi minggu tanpa berkas Excel tetap dilaporkan.
+- **Bebas Hutang** (ubin di beranda; pemilik dan bos boleh mengisi): daftar hutang bos (kreditur, jenis, sisa pokok,
+  bunga % per bulan, cicilan wajib, tanggal cicil, jatuh tempo, jaminan, tunggakan), catatan cicilan yang dibayar
+  (bagian bunga dipisah, sisa pokok berkurang otomatis), pengambilan pribadi dan biaya tetap di luar Excel. Kemampuan
+  bayar = laba bersih rata-rata per bulan dari Keuangan - prive - biaya tetap - bunga; perkiraan lunas kasar. Data di
+  `minyak_nilai` kunci `hutang-bos` lewat `minyak_nilai_tulis` (pemilik/bos, kunci dibatasi). Tahap 1 dari rencana
+  bebas hutang; tahap berikutnya (neraca, kebocoran, jadwal pelunasan) menyusul.
 
 Tidak ada data gaji maupun rahasia di repo ini.
