@@ -23,6 +23,10 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   surat jalan per toko (format berkas Word), Excel bersusunan lembar harian (blok demi blok). Data di `minyak_nilai`
   kunci `invoice` ({ profil, daftar, bayar }), ditulis lewat `minyak_invoice_tulis` (pemilik saja); kepala surat hanya
   ada di database. Bentuk lama (satu pengantar per invoice) diubah otomatis oleh `normHarian`.
+- **Hutang toko** (halaman Invoice Harian): saldo bon lama dari LAPORAN HUTANG PENJUALAN.xlsx dipindah sekali lewat
+  `alat/hutang-impor.mjs` (baca `alat/hutang_excel.py`) ke `invoice.awal` (tgl, toko, jalur, jumlah, kendi) + `invoice.jalur`.
+  Sisa = bon lama + hutang di invoice - bayar (bon tertua lunas dulu); kendi kosong dikurangi retur. Daftar per jalur,
+  tombol Atur (samakan nama toko / pindah jalur), cetak PDF "Bon Hutang" per jalur seperti lembar Excel.
 - **Invoice masuk Keuangan** (`gabungInvoiceKeu`): saat data keuangan dimuat, invoice harian yang hari dan pengantarnya
   belum ada di Excel penjualan ditambahkan ke minggu, hari, pengantar, jenis, dan biaya (hanya di aplikasi; database
   keuangan tetap hasil Excel). Yang sudah ada di Excel dilewati supaya tidak terhitung dua kali. Kendi kosong tidak masuk
