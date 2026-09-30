@@ -1894,7 +1894,7 @@ function gambarHutangBos() { const el = $('#hb'); if (!el) return; const R = rin
 function formHutangBos(asal) { const h = asal ? JSON.parse(JSON.stringify(asal)) : { id: idBaru('d'), kreditur: '', jenis: 'Bank', pokokAwal: 0, bungaPersen: 0, cicilan: 0, tglCicil: '', jatuhTempo: '', jaminan: '', tunggakan: 0, catatan: '', mulai: hariIni(), bayar: [] };
   dialog(`<h3>${asal ? 'Ubah hutang' : 'Hutang baru'}</h3>
     <label class="medan"><span>Kepada siapa (kreditur)</span><input id="dKred" placeholder="mis. Bank BRI, Koperasi X, Pak Ahong"></label>
-    <label class="medan"><span>Jenis</span><select id="dJenis" class="isian">${JENIS_HUTANG.map(j => `<option ${j === h.jenis ? 'selected' : ''}>${j}</option>`).join('')}</select></label>
+    <label class="medan"><span>Jenis (ketik bebas atau pilih)</span><input id="dJenis" list="dlJenis" placeholder="mis. Bank, koperasi, pinjam ke teman"></label><datalist id="dlJenis">${[...new Set([...JENIS_HUTANG, ...HB.daftar.map(x => x.jenis)])].filter(Boolean).map(j => `<option value="${esc(j)}"></option>`).join('')}</datalist>
     <label class="medan"><span>Sisa pokok sekarang (Rp)</span><input id="dPokok" inputmode="numeric" placeholder="mis. 50.000.000"></label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px"><label class="medan"><span>Bunga per bulan (%)</span><input id="dBunga" inputmode="decimal" placeholder="mis. 2,5"></label>
       <label class="medan"><span>Cicilan wajib per bulan (Rp)</span><input id="dCicil" inputmode="numeric" placeholder="mis. 3.500.000"></label>
@@ -1904,14 +1904,14 @@ function formHutangBos(asal) { const h = asal ? JSON.parse(JSON.stringify(asal))
     <label class="medan"><span>Tunggakan saat ini (Rp, kosong kalau lancar)</span><input id="dTunggak" inputmode="numeric"></label>
     <label class="medan"><span>Catatan</span><input id="dCat" placeholder="mis. bisa nego tempo"></label><div id="dPesan"></div>
     <div class="tombol-baris">${asal ? '<button class="pil bahaya" id="dHapus">Hapus</button>' : ''}<button class="pil halus" data-tutup>Batal</button><button class="pil" id="dOk">Simpan</button></div>`, (d, tutup) => {
-    $('#dKred', d).value = h.kreditur; $('#dPokok', d).value = h.pokokAwal ? ribu(asal ? sisaHutang(h) : h.pokokAwal) : ''; $('#dBunga', d).value = h.bungaPersen ? String(h.bungaPersen).replace('.', ',') : ''; $('#dCicil', d).value = h.cicilan ? ribu(h.cicilan) : '';
+    $('#dKred', d).value = h.kreditur; $('#dJenis', d).value = h.jenis || ''; $('#dPokok', d).value = h.pokokAwal ? ribu(asal ? sisaHutang(h) : h.pokokAwal) : ''; $('#dBunga', d).value = h.bungaPersen ? String(h.bungaPersen).replace('.', ',') : ''; $('#dCicil', d).value = h.cicilan ? ribu(h.cicilan) : '';
     $('#dTgl', d).value = h.tglCicil || ''; $('#dTempo', d).value = h.jatuhTempo || ''; $('#dJamin', d).value = h.jaminan || ''; $('#dTunggak', d).value = h.tunggakan ? ribu(h.tunggakan) : ''; $('#dCat', d).value = h.catatan || '';
     $$('input[inputmode="numeric"]', d).forEach(i => i.addEventListener('blur', () => { if (i.value.trim()) i.value = ribu(angkaRp(i.value)); }));
     $('#dKred', d).focus();
     $('#dOk', d).onclick = async () => { const kred = $('#dKred', d).value.trim(), pokokBaru = angkaRp($('#dPokok', d).value);
       if (!kred) { $('#dPesan', d).innerHTML = '<div class="pesan-salah">Isi nama krediturnya.</div>'; return; } if (!pokokBaru) { $('#dPesan', d).innerHTML = '<div class="pesan-salah">Isi sisa pokoknya.</div>'; return; }
       // saat mengubah, kotak pokok berisi SISA; pokok awal disesuaikan supaya sisa = yang diketik
-      const rec = { ...h, kreditur: kred, jenis: $('#dJenis', d).value, pokokAwal: asal ? pokokBaru + pokokDibayar(h) : pokokBaru, bungaPersen: desimal($('#dBunga', d).value), cicilan: angkaRp($('#dCicil', d).value), tglCicil: $('#dTgl', d).value.replace(/\D/g, '').slice(0, 2), jatuhTempo: $('#dTempo', d).value, jaminan: $('#dJamin', d).value.trim(), tunggakan: angkaRp($('#dTunggak', d).value), catatan: $('#dCat', d).value.trim() };
+      const rec = { ...h, kreditur: kred, jenis: $('#dJenis', d).value.trim() || 'Hutang', pokokAwal: asal ? pokokBaru + pokokDibayar(h) : pokokBaru, bungaPersen: desimal($('#dBunga', d).value), cicilan: angkaRp($('#dCicil', d).value), tglCicil: $('#dTgl', d).value.replace(/\D/g, '').slice(0, 2), jatuhTempo: $('#dTempo', d).value, jaminan: $('#dJamin', d).value.trim(), tunggakan: angkaRp($('#dTunggak', d).value), catatan: $('#dCat', d).value.trim() };
       try { await simpanHutangBos(x => { const i = x.daftar.findIndex(y => y.id === rec.id); if (i >= 0) x.daftar[i] = rec; else x.daftar.push(rec); }); tutup(); asal ? bukaHutangBos(HB.daftar.find(y => y.id === rec.id)) : gambarHutangBos(); }
       catch (e) { $('#dPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } };
     const hp = $('#dHapus', d); if (hp) hp.onclick = async () => { if (!confirm(`Hapus hutang ${h.kreditur} beserta catatan cicilannya?`)) return;
