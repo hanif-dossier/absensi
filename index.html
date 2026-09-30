@@ -1722,11 +1722,91 @@ function ringkasHutang() { const d = HB.daftar, sisa = sumBy(d, sisaHutang), cic
   const laba = labaBulanRata(keu), bebas = laba ? laba.bulan - HB.prive - tetap - bunga : null;
   return { sisa, cicilan, bunga, tunggak, tetap, laba, bebas, lunasBulan: bebas > 0 ? Math.ceil(sisa / bebas) : null, cukup: bebas != null ? bebas >= cicilan : null }; }
 
+/* ----- Tahap 2 (neraca) dan tahap 4 (kebocoran) rencana bebas hutang -----
+   Neraca: aset yang diisi bos (kas, rekening, mobil, gudang, kendi, stok minyak) + piutang toko dari aplikasi, lawan
+   hutang bos. Kebocoran: dihitung dari data yang sudah ada (piutang toko, kendi kosong, harga per toko, margin minggu,
+   biaya operasional). Tiap kebocoran diberi taksiran rupiah per bulan dan tindakan. Semua taksiran, bukan angka pasti. */
+const HARGA_KENDI = 35000;   // harga kendi kosong yang dipakai di nota (Rp per kendi)
+const asetKosong = () => ({ kas: 0, rekening: 0, mobil: 0, mobilKet: '', gudang: 0, gudangKet: '', kendi: 0, kendiHarga: HARGA_KENDI, stokKg: 0 });
+function neracaBos() { const A = { ...asetKosong(), ...(HB.aset || {}) }, buku = bukuHutang(), hariIni = new Date(hariIni_());
+  const umur = t => t ? Math.round((hariIni - new Date(t + 'T00:00:00')) / 864e5) : 999;
+  // piutang toko: sisa per bon (bayar melunasi bon tertua dulu); bon > 90 hari dianggap sulit ditagih
+  const bon = buku.flatMap(t => t.bon.filter(x => x.sisa > 0).map(x => ({ ...x, toko: t.toko, umur: umur(x.tgl) })));
+  const piutang = sumBy(bon, x => x.sisa), macet = sumBy(bon.filter(x => x.umur > 90), x => x.sisa), kendiKosong = sumBy(buku, t => t.kendi);
+  const modal = modalOtomatis(hariIni_()), stokMinyak = Math.round((A.stokKg || 0) * (modal.kg || 0));
+  const aset = [['Kas dan rekening', A.kas + A.rekening, 'diisi bos'], ['Piutang toko yang masih bisa ditagih', piutang - macet, `${bon.filter(x => x.umur <= 90).length} bon, umur sampai 90 hari`],
+    ['Piutang toko yang mungkin macet', macet, `${bon.filter(x => x.umur > 90).length} bon lebih dari 90 hari, tidak dihitung aset`],
+    ['Kendi kosong di toko', kendiKosong * (A.kendiHarga || HARGA_KENDI), `${kendiKosong} kendi belum kembali x ${rp(A.kendiHarga || HARGA_KENDI)}`],
+    ['Kendi di gudang', (A.kendi || 0) * (A.kendiHarga || HARGA_KENDI), `${A.kendi || 0} kendi`], ['Stok minyak', stokMinyak, `${angkaId(A.stokKg || 0)} kg x modal ${rp(modal.kg)} per kg`],
+    ['Kendaraan', A.mobil, A.mobilKet || 'taksiran harga jual'], ['Gudang / bangunan', A.gudang, A.gudangKet || 'kosongkan kalau sewa']];
+  const totalAset = sumBy(aset.filter(x => !/macet/.test(x[0])), x => x[1]), hutang = sumBy(HB.daftar, sisaHutang);
+  return { A, aset, totalAset, hutang, bersih: totalAset - hutang, piutang, macet, kendiKosong, bon }; }
+const hariIni_ = () => hariIni();
+
+function kebocoran() { const B = [], k = keu, buku = bukuHutang(), N = neracaBos(), hariIni = new Date(hariIni_());
+  // 1. Piutang toko yang membesar: bon 30 hari terakhir dikurangi bayar 30 hari terakhir
+  const batas = new Date(hariIni); batas.setDate(batas.getDate() - 30); const b30 = isoTgl(batas);
+  // Bon lama dari Excel adalah saldo awal, bukan kenaikan; kenaikan dihitung dari hutang dan bayar yang dicatat di aplikasi.
+  const riw = buku.flatMap(t => t.riwayat.filter(x => !x.awal)), baru = sumBy(riw, x => x.hutang && x.tgl >= b30 ? x.hutang : 0), bayar = sumBy(riw, x => x.bayar && x.tgl >= b30 ? x.bayar : 0);
+  const tertahan = N.piutang - N.macet;
+  if (baru - bayar > 0) B.push({ judul: 'Piutang toko bertambah', rp: baru - bayar, ket: `30 hari terakhir hutang toko bertambah ${rp(baru)} dan yang dibayar hanya ${rp(bayar)}. Uang laba tertahan di toko.`,
+    tindakan: 'Batasi hutang per toko (misalnya maksimal 2 kali pengantaran), tagih bon di atas 14 hari tiap kali mengantar, dan cetak Bon Hutang per jalur untuk dibawa pengantar.' });
+  else if (tertahan > 0) B.push({ judul: 'Uang tertahan di piutang toko', rp: tertahan, sekali: true, ket: `${rp(tertahan)} laba yang sudah jadi hak usaha masih di tangan toko (bon sampai 90 hari). Ini lebih besar dari laba bersih sebulan.`,
+    tindakan: 'Batasi hutang per toko (misalnya maksimal 2 kali pengantaran), tagih bon di atas 14 hari tiap kali mengantar, dan cetak Bon Hutang per jalur untuk dibawa pengantar.' });
+  // 2. Piutang macet
+  if (N.macet) B.push({ judul: 'Bon lama yang mungkin macet', rp: N.macet, ket: `${N.bon.filter(x => x.umur > 90).length} bon berumur lebih dari 90 hari: ${N.bon.filter(x => x.umur > 90).sort((a, c) => c.sisa - a.sisa).slice(0, 4).map(x => x.toko + ' ' + rp(x.sisa)).join(', ')}.`, sekali: true,
+    tindakan: 'Datangi satu per satu dan sepakati cicilan. Kalau benar-benar tidak tertagih, hentikan kirim barang ke toko itu.' });
+  // 3. Kendi kosong
+  if (N.kendiKosong) B.push({ judul: 'Kendi kosong belum kembali', rp: N.kendiKosong * (N.A.kendiHarga || HARGA_KENDI), ket: `${N.kendiKosong} kendi di toko, tiap kendi ${rp(N.A.kendiHarga || HARGA_KENDI)}. Selama belum kembali, gudang harus beli kendi baru.`, sekali: true,
+    tindakan: 'Pengantar wajib menarik kendi kosong tiap kirim; tagih sebagai hutang kalau lebih dari 2 minggu.' });
+  // 4. Harga jual per toko yang terlalu rendah (dari Harga Toko): laba per kendi = harga - berat x modal
+  if (harga?.toko?.length && modalOtomatis(hariIni_()).kg) { const m = modalOtomatis(hariIni_()).kg, per = harga.toko.filter(t => t.aktif !== false).map(t => { const h = hargaKini(t, 'curah'); return h ? { nama: t.nama, harga: h.harga, laba: h.harga - 14.4 * m } : null; }).filter(Boolean);
+    if (per.length) { const rata = sumBy(per, x => x.laba) / per.length, rendah = per.filter(x => x.laba < rata * 0.5).sort((a, c) => a.laba - c.laba);
+      if (rendah.length) B.push({ judul: 'Toko dengan harga terlalu rendah', rp: Math.round(rendah.reduce((a, x) => a + (rata - x.laba), 0) * 4), ket: `Rata-rata laba per kendi ${rp(rata)} (harga dikurangi 14,4 kg x modal ${rp(m)}). ${rendah.length} toko di bawah separuhnya: ${rendah.slice(0, 5).map(x => `${x.nama} ${rp(x.harga)} (laba ${rp(x.laba)})`).join(', ')}.`,
+        tindakan: 'Naikkan harga toko-toko ini ke harga rata-rata, atau kurangi jatah kirimnya. Taksiran rupiah memakai 1 kendi per toko per minggu.' }); } }
+  if (k?.WK) { const W = k.WK.filter(w => (k.HARI[w] || 0) >= 5), rataM = W.length ? sumBy(W, w => k.D[w].tot.bersih / k.D[w].tot.omset) / W.length : 0;
+    // 5. Minggu dengan margin bersih di bawah 3%
+    const tipis = W.filter(w => k.D[w].tot.bersih / k.D[w].tot.omset < 0.03);
+    if (tipis.length && W.length) B.push({ judul: 'Minggu bermargin tipis', rp: Math.round(sumBy(tipis, w => k.D[w].tot.omset * rataM - k.D[w].tot.bersih) / W.length * 4.33), ket: `${tipis.length} dari ${W.length} minggu margin bersihnya di bawah 3%: ${tipis.map(w => `minggu ${w} (${(k.D[w].tot.bersih / k.D[w].tot.omset * 100).toFixed(1).replace('.', ',')}%)`).join(', ')}. Rata-rata ${(rataM * 100).toFixed(1).replace('.', ',')}%.`,
+      tindakan: 'Cek harga beli minggu itu lawan harga jual; kalau modal naik, harga toko harus ikut naik di minggu yang sama.' });
+    // 6. Biaya operasional naik
+    const ops = W.map(w => k.D[w].tot.ops), rataOps = sumBy(ops, x => x) / (ops.length || 1), akhir = ops.slice(-3);
+    if (akhir.length === 3 && sumBy(akhir, x => x) / 3 > rataOps * 1.3) B.push({ judul: 'Biaya operasional naik', rp: Math.round((sumBy(akhir, x => x) / 3 - rataOps) * 4.33), ket: `3 minggu terakhir rata-rata ${rp(sumBy(akhir, x => x) / 3)} per minggu, biasanya ${rp(rataOps)}. Rincian ada di Keuangan (biaya per kelompok).`,
+      tindakan: 'Cek bensin dan parkir per pengantar; tetapkan jatah per hari.' }); }
+  return B.sort((a, c) => c.rp - a.rp); }
+
+function kartuNeracaBocor() { const N = neracaBos(), B = kebocoran(), R = ringkasHutang(), bocorBulan = sumBy(B.filter(x => !x.sekali), x => x.rp);
+  return `<section class="kartu angkat" style="margin-top:14px"><h2>Neraca sederhana <button class="pil kecil" id="hbAset">Isi aset</button></h2>
+      ${N.aset.map(([l, n, ket]) => `<div class="baris-data"><div class="kiri">${esc(l)}<small>${esc(ket)}</small></div><div class="kanan ${/macet/.test(l) ? 'minus' : ''}">${/macet/.test(l) ? '(' + rp(n) + ')' : rp(n)}</div></div>`).join('')}
+      <div class="baris-data"><div class="kiri"><b>Total aset</b></div><div class="kanan"><b>${rp(N.totalAset)}</b></div></div>
+      <div class="baris-data"><div class="kiri"><b>Total hutang bos</b><small>${HB.daftar.length} hutang</small></div><div class="kanan"><b>- ${rp(N.hutang)}</b></div></div>
+      <div class="baris-data total"><div class="kiri">Kekayaan bersih</div><div class="kanan" style="color:${N.bersih >= 0 ? 'var(--naik)' : 'var(--turun)'}">${N.bersih < 0 ? 'minus ' : ''}${rp(Math.abs(N.bersih))}</div></div>
+      <div class="catatan">${N.bersih < 0 ? 'Hutang lebih besar dari aset. Yang bisa menutupnya hanya laba usaha tiap bulan, jadi kebocoran di bawah ini harus disumbat dulu.' : 'Aset masih lebih besar dari hutang; asal laba tidak bocor, hutang bisa selesai dari usaha.'} Piutang macet tidak dihitung aset.</div></section>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Kebocoran <span class="keping ${bocorBulan ? 'merah' : ''}">${bocorBulan ? 'sekitar ' + rp(bocorBulan) + ' per bulan' : 'tidak ada'}</span></h2>
+      ${B.map((x, i) => `<div class="orang" style="cursor:default"><span class="nama" style="font-size:15px">${i + 1}. ${esc(x.judul)}</span><span class="bayar" style="font-size:16px">${rp(x.rp)}<small style="display:block;font-weight:500;color:var(--redup);font-size:11px;text-align:right">${x.sekali ? 'uang tertahan' : 'per bulan'}</small></span>
+          <span class="rinci" style="display:block"><div style="font-size:13px;margin-top:4px">${esc(x.ket)}</div><div style="font-size:13px;margin-top:6px"><b>Tindakan:</b> ${esc(x.tindakan)}</div></span></div>`).join('') || '<div class="catatan" style="margin:0">Tidak ada kebocoran yang terbaca dari data.</div>'}
+      ${R.bebas != null ? `<div class="baris-data total" style="margin-top:8px"><div class="kiri">Uang bebas kalau kebocoran bulanan disumbat<small>uang bebas ${rp(R.bebas)} + kebocoran ${rp(bocorBulan)}</small></div><div class="kanan" style="color:var(--naik)">${rp(R.bebas + bocorBulan)}</div></div>
+        ${R.sisa && R.bebas + bocorBulan > 0 ? `<div class="catatan">Dengan uang itu, sisa hutang ${rp(R.sisa)} lunas dalam sekitar ${Math.ceil(R.sisa / (R.bebas + bocorBulan))} bulan${R.lunasBulan ? ', bukan ' + R.lunasBulan + ' bulan' : ''}. Bon macet dan kendi kosong yang tertagih mempercepatnya lagi.</div>` : ''}` : ''}</section>`; }
+
+function dialogAset() { const A = { ...asetKosong(), ...(HB.aset || {}) };
+  dialog(`<h3>Aset usaha dan bos</h3><p class="catatan" style="margin:0 0 12px">Taksiran saja, per hari ini. Piutang toko dan kendi kosong di toko diambil dari aplikasi, tidak perlu diisi.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px"><label class="medan"><span>Kas di tangan (Rp)</span><input id="sKas" inputmode="numeric"></label><label class="medan"><span>Saldo rekening (Rp)</span><input id="sRek" inputmode="numeric"></label>
+      <label class="medan"><span>Kendi kosong di gudang (buah)</span><input id="sKendi" inputmode="numeric"></label><label class="medan"><span>Harga kendi (Rp per buah)</span><input id="sKendiH" inputmode="numeric"></label>
+      <label class="medan"><span>Stok minyak di gudang (kg)</span><input id="sStok" inputmode="decimal"></label><span></span>
+      <label class="medan"><span>Kendaraan, taksiran harga jual (Rp)</span><input id="sMobil" inputmode="numeric"></label><label class="medan"><span>Keterangan kendaraan</span><input id="sMobilK" placeholder="mis. 2 pickup"></label>
+      <label class="medan"><span>Gudang / bangunan milik sendiri (Rp)</span><input id="sGudang" inputmode="numeric"></label><label class="medan"><span>Keterangan</span><input id="sGudangK" placeholder="kosongkan kalau sewa"></label></div><div id="sPesan"></div>
+    <div class="tombol-baris"><button class="pil halus" data-tutup>Batal</button><button class="pil" id="sOk">Simpan</button></div>`, (d, tutup) => {
+    const isi = { sKas: 'kas', sRek: 'rekening', sKendi: 'kendi', sKendiH: 'kendiHarga', sMobil: 'mobil', sGudang: 'gudang' };
+    for (const [i, k] of Object.entries(isi)) { $('#' + i, d).value = A[k] ? ribu(A[k]) : ''; $('#' + i, d).addEventListener('blur', ev => { if (ev.target.value.trim()) ev.target.value = ribu(angkaRp(ev.target.value)); }); }
+    $('#sStok', d).value = A.stokKg ? angkaId(A.stokKg) : ''; $('#sMobilK', d).value = A.mobilKet || ''; $('#sGudangK', d).value = A.gudangKet || '';
+    $('#sOk', d).onclick = async () => { const baru = { kas: angkaRp($('#sKas', d).value), rekening: angkaRp($('#sRek', d).value), kendi: angkaRp($('#sKendi', d).value), kendiHarga: angkaRp($('#sKendiH', d).value) || HARGA_KENDI, stokKg: desimal($('#sStok', d).value), mobil: angkaRp($('#sMobil', d).value), mobilKet: $('#sMobilK', d).value.trim(), gudang: angkaRp($('#sGudang', d).value), gudangKet: $('#sGudangK', d).value.trim(), diisi: hariIni_() };
+      try { await simpanHutangBos(x => { x.aset = baru; }); tutup(); gambarHutangBos(); } catch (e) { $('#sPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
+
 async function layarHutangBos() {
-  akar.innerHTML = kepalaPemilik('Bebas Hutang', 'Tahap 1: catat semua hutang, cicilannya, dan pengeluaran di luar Excel. Dari sini dihitung kemampuan bayar dan jadwal lunasnya.', true) +
+  akar.innerHTML = kepalaPemilik('Bebas Hutang', 'Catat semua hutang dan aset, lihat kemampuan bayar, neraca, dan kebocoran yang harus disumbat supaya hutang bisa lunas dari usaha.', true) +
     '<main class="bungkus"><div id="hb" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
   $('#bBeranda').onclick = layarBeranda;
-  try { [HB] = await Promise.all([muatHutangBos(), muatKeuangan().catch(() => null)]); gambarHutangBos(); }
+  try { [HB, INV] = await Promise.all([muatHutangBos(), muatInvoice(), muatKeuangan().catch(() => null), muatHarga().catch(() => null), muatPembelian().catch(() => null)]); gambarHutangBos(); }
   catch (e) { $('#hb').innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
 
 function gambarHutangBos() { const el = $('#hb'); if (!el) return; const R = ringkasHutang(), d = [...HB.daftar].sort((a, b) => (b.bungaPersen || 0) - (a.bungaPersen || 0) || sisaHutang(b) - sisaHutang(a));
@@ -1750,8 +1830,8 @@ function gambarHutangBos() { const el = $('#hb'); if (!el) return; const R = rin
           <span class="garis-batang"><i style="width:${pct}%"></i></span>
           <span class="rinci"><span class="keping">${esc(h.jenis || 'Hutang')}</span><span class="keping">Cicilan ${rp(h.cicilan)}${h.tglCicil ? ' tiap tgl ' + h.tglCicil : ''}</span>${h.bungaPersen ? `<span class="keping">Bunga ${String(h.bungaPersen).replace('.', ',')}% = ${rp(bungaBulan(h))}/bln</span>` : '<span class="keping">Tanpa bunga</span>'}<span class="keping">Terbayar ${pct}% dari ${rp(h.pokokAwal)}</span>${h.jatuhTempo ? `<span class="keping">Jatuh tempo ${esc(h.jatuhTempo)}</span>` : ''}${h.jaminan ? `<span class="keping">Jaminan ${esc(h.jaminan)}</span>` : ''}</span></div>`; }).join('')
       || '<div class="catatan" style="margin:0">Belum ada hutang tercatat. Tekan "+ Hutang" dan isi satu per satu: bank, koperasi, pinjaman perorangan, hutang ke pemasok, cicilan mobil.</div>'}
-      <div class="catatan">Diurutkan dari bunga tertinggi. Ketuk hutang untuk mencatat cicilan yang sudah dibayar atau mengubah datanya.</div></section>`;
-  $('#hbBaru').onclick = () => formHutangBos(null); $('#hbLuar').onclick = dialogLuarExcel;
+      <div class="catatan">Diurutkan dari bunga tertinggi. Ketuk hutang untuk mencatat cicilan yang sudah dibayar atau mengubah datanya.</div></section>` + kartuNeracaBocor();
+  $('#hbBaru').onclick = () => formHutangBos(null); $('#hbLuar').onclick = dialogLuarExcel; $('#hbAset').onclick = dialogAset;
   $$('[data-hb]', el).forEach(x => x.onclick = () => bukaHutangBos(HB.daftar.find(h => h.id === x.dataset.hb))); }
 
 function formHutangBos(asal) { const h = asal ? JSON.parse(JSON.stringify(asal)) : { id: idBaru('d'), kreditur: '', jenis: 'Bank', pokokAwal: 0, bungaPersen: 0, cicilan: 0, tglCicil: '', jatuhTempo: '', jaminan: '', tunggakan: 0, catatan: '', mulai: hariIni(), bayar: [] };

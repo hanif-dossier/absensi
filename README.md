@@ -45,6 +45,9 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   (bagian bunga dipisah, sisa pokok berkurang otomatis), pengambilan pribadi dan biaya tetap di luar Excel. Kemampuan
   bayar = laba bersih rata-rata per bulan dari Keuangan - prive - biaya tetap - bunga; perkiraan lunas kasar. Data di
   `minyak_nilai` kunci `hutang-bos` lewat `minyak_nilai_tulis` (pemilik/bos, kunci dibatasi). Tahap 1 dari rencana
-  bebas hutang; tahap berikutnya (neraca, kebocoran, jadwal pelunasan) menyusul.
+  bebas hutang. Tahap 2 **Neraca sederhana** (aset diisi bos: kas, rekening, kendi, stok, kendaraan, gudang; piutang
+  toko dan kendi kosong dari aplikasi, bon > 90 hari dianggap macet) dan tahap 4 **Kebocoran** (`kebocoran()`: piutang
+  bertambah / uang tertahan, bon macet, kendi kosong, toko berharga rendah dari Harga Toko lawan modal, minggu margin
+  < 3%, biaya operasional naik; tiap butir ada taksiran rupiah dan tindakan). Tahap 5 (jadwal pelunasan) menyusul.
 
 Tidak ada data gaji maupun rahasia di repo ini.
