@@ -48,6 +48,10 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   bebas hutang. Tahap 2 **Neraca sederhana** (aset diisi bos: kas, rekening, kendi, stok, kendaraan, gudang; piutang
   toko dan kendi kosong dari aplikasi, bon > 90 hari dianggap macet) dan tahap 4 **Kebocoran** (`kebocoran()`: piutang
   bertambah / uang tertahan, bon macet, kendi kosong, toko berharga rendah dari Harga Toko lawan modal, minggu margin
-  < 3%, biaya operasional naik; tiap butir ada taksiran rupiah dan tindakan). Tahap 5 (jadwal pelunasan) menyusul.
+  < 3%, biaya operasional naik; tiap butir ada taksiran rupiah dan tindakan). Tahap 5 **Jadwal pelunasan**
+  (`simulasiLunas`: bulan per bulan, bunga dulu, cicilan pokok wajib, sisa uang ke hutang prioritas; pilihan urutan
+  bunga tertinggi dulu / terkecil dulu disimpan di `hutang-bos.rencana`; giliran lunas tiap hutang; empat skenario: apa
+  adanya, kebocoran disumbat, piutang ditagih separuh, margin +Rp 200/kg) dan kartu **Minggu ini** (target setoran ke
+  hutang = uang bebas / 4,33 lawan laba minggu berjalan; daftar bon 15 sampai 90 hari untuk ditagih).
 
 Tidak ada data gaji maupun rahasia di repo ini.

@@ -1802,6 +1802,61 @@ function dialogAset() { const A = { ...asetKosong(), ...(HB.aset || {}) };
     $('#sOk', d).onclick = async () => { const baru = { kas: angkaRp($('#sKas', d).value), rekening: angkaRp($('#sRek', d).value), kendi: angkaRp($('#sKendi', d).value), kendiHarga: angkaRp($('#sKendiH', d).value) || HARGA_KENDI, stokKg: desimal($('#sStok', d).value), mobil: angkaRp($('#sMobil', d).value), mobilKet: $('#sMobilK', d).value.trim(), gudang: angkaRp($('#sGudang', d).value), gudangKet: $('#sGudangK', d).value.trim(), diisi: hariIni_() };
       try { await simpanHutangBos(x => { x.aset = baru; }); tutup(); gambarHutangBos(); } catch (e) { $('#sPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
 
+/* ----- Tahap 5: jadwal pelunasan, skenario, target mingguan -----
+   Simulasi bulan per bulan: tiap bulan uang yang tersedia = laba bersih - prive - biaya tetap (+ suntikan sekali, + kebocoran
+   yang disumbat). Bunga semua hutang dibayar dulu, lalu cicilan pokok wajib tiap hutang, sisanya dilempar ke hutang
+   prioritas (bunga tertinggi dulu, atau sisa terkecil dulu). Hasil: bulan lunas tiap hutang, lunas total, bunga yang
+   terbayar. Angka perkiraan; dipakai untuk memilih urutan dan menetapkan target mingguan, ditinjau tiap Sabtu. */
+function simulasiLunas(daftar, uangBulan, { urutan = 'bunga', suntikan = 0, maksBulan = 240 } = {}) {
+  let H = daftar.map(h => ({ id: h.id, kreditur: h.kreditur, sisa: sisaHutang(h), pct: h.bungaPersen || 0, cicilan: h.cicilan || 0, lunasBulan: null })).filter(h => h.sisa > 0);
+  const prioritas = () => H.filter(h => h.sisa > 0).sort((a, b) => urutan === 'kecil' ? a.sisa - b.sisa || b.pct - a.pct : b.pct - a.pct || a.sisa - b.sisa);
+  let bulan = 0, bungaTotal = 0, dana = suntikan, macet = false; const jejak = [];
+  while (H.some(h => h.sisa > 0) && bulan < maksBulan) { bulan++; dana += uangBulan;
+    const bunga = H.reduce((a, h) => a + (h.sisa > 0 ? h.sisa * h.pct / 100 : 0), 0);
+    if (dana < bunga) { macet = true; break; } dana -= bunga; bungaTotal += bunga;
+    // cicilan pokok wajib (cicilan dikurangi bagian bunganya), semampu dana
+    for (const h of prioritas()) { const pokokWajib = Math.max(0, h.cicilan - h.sisa * h.pct / 100), bayar = Math.min(h.sisa, pokokWajib, dana); h.sisa -= bayar; dana -= bayar; if (h.sisa <= 0.5) { h.sisa = 0; h.lunasBulan = bulan; } }
+    // sisa dana ke prioritas
+    for (const h of prioritas()) { if (dana <= 0) break; const bayar = Math.min(h.sisa, dana); h.sisa -= bayar; dana -= bayar; if (h.sisa <= 0.5) { h.sisa = 0; h.lunasBulan = bulan; } }
+    jejak.push({ bulan, sisa: Math.round(H.reduce((a, h) => a + h.sisa, 0)), bunga: Math.round(bunga) }); }
+  const selesai = !macet && H.every(h => h.sisa <= 0);
+  return { selesai, macet, bulan: selesai ? bulan : null, bungaTotal: Math.round(bungaTotal), urutanLunas: H.filter(h => h.lunasBulan).sort((a, b) => a.lunasBulan - b.lunasBulan), sisaAkhir: Math.round(H.reduce((a, h) => a + h.sisa, 0)), jejak }; }
+const bulanKe = n => { const d = new Date(); d.setMonth(d.getMonth() + n); return BLN_L[d.getMonth()] + ' ' + d.getFullYear(); };
+const lamaTeks = n => n == null ? 'tidak selesai' : n < 12 ? `${n} bulan` : `${Math.floor(n / 12)} tahun${n % 12 ? ' ' + n % 12 + ' bulan' : ''}`;
+
+function kartuJadwal() { const R = ringkasHutang(), d = HB.daftar.filter(h => sisaHutang(h) > 0); if (!R.laba || !d.length) return '';
+  const urutan = HB.rencana?.urutan || 'bunga', kotor = R.laba.bulan - HB.prive - R.tetap, B = kebocoran(), bocorBulan = sumBy(B.filter(x => !x.sekali), x => x.rp), N = neracaBos();
+  const tonase = keu?.WK ? (() => { const W = keu.WK.filter(w => (keu.HARI[w] || 0) >= 5).slice(-8); return W.length ? sumBy(W, w => keu.D[w].tot.tonase) / W.length : 0; })() : 0;
+  const sken = [['Apa adanya', kotor, 0, 'laba, prive, dan biaya tetap seperti sekarang'], ['Kebocoran bulanan disumbat', kotor + bocorBulan, 0, `tambah ${rp(bocorBulan)} per bulan dari daftar kebocoran`],
+    ['Piutang ditagih separuh', kotor, Math.round((N.piutang - N.macet) / 2), `suntikan sekali ${rp(Math.round((N.piutang - N.macet) / 2))} di bulan pertama`],
+    ['Margin naik Rp 200 per kg', kotor + Math.round(tonase * 200 * 4.33), 0, `${angkaId(Math.round(tonase))} kg per minggu x Rp 200 x 4,33`]]
+    .map(([nama, uang, suntik, ket]) => ({ nama, ket, uang, hasil: simulasiLunas(d, uang, { urutan, suntikan: suntik }) }));
+  const dua = ['bunga', 'kecil'].map(u => ({ u, hasil: simulasiLunas(d, kotor, { urutan: u }) })), utama = sken[0].hasil;
+  return `<section class="kartu angkat" style="margin-top:14px"><h2>Jadwal pelunasan <span class="keping">perkiraan</span></h2>
+      <div class="sub-judul"><span>Urutan bayar</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${[['bunga', 'Bunga tertinggi dulu', 'paling hemat bunga'], ['kecil', 'Terkecil dulu', 'cepat ada yang lunas, semangat naik']].map(([u, l, k]) => { const h = dua.find(x => x.u === u).hasil; return `<button class="tab ${urutan === u ? 'aktif' : ''}" data-urutan="${u}" style="white-space:normal;text-align:left;max-width:100%">${l} · ${h.selesai ? lamaTeks(h.bulan) + ', bunga ' + rp(h.bungaTotal) : 'tidak selesai'}</button>`; }).join('')}</div>
+      <div class="catatan">${dua[0].hasil.selesai && dua[1].hasil.selesai ? `Selisih bunga dua urutan itu ${rp(Math.abs(dua[0].hasil.bungaTotal - dua[1].hasil.bungaTotal))}. ${dua[0].hasil.bungaTotal <= dua[1].hasil.bungaTotal ? 'Bunga tertinggi dulu lebih hemat.' : 'Terkecil dulu lebih hemat di kasus ini.'}` : 'Dengan uang sekarang, hutang tidak akan selesai. Lihat skenario di bawah.'}</div>
+      ${utama.selesai ? `<div class="sub-judul"><span>Giliran lunas (${urutan === 'bunga' ? 'bunga tertinggi dulu' : 'terkecil dulu'})</span></div>
+        ${utama.urutanLunas.map((h, i) => `<div class="baris-data"><div class="kiri">${i + 1}. ${esc(h.kreditur)}</div><div class="kanan">${esc(bulanKe(h.lunasBulan))}<small style="display:block;font-weight:500;color:var(--redup)">bulan ke-${h.lunasBulan}</small></div></div>`).join('')}
+        <div class="baris-data total"><div class="kiri">Lunas total</div><div class="kanan">${esc(bulanKe(utama.bulan))}</div></div>` : `<div class="pesan-salah" style="margin-top:10px">Uang ${rp(kotor)} per bulan ${utama.macet ? 'tidak cukup membayar bunga' : 'belum cukup'} untuk menghabiskan hutang. Sumbat kebocoran atau tagih piutang dulu.</div>`}
+      <div class="sub-judul" style="margin-top:14px"><span>Empat skenario</span></div>
+      <div class="bungkus-tabel"><table class="tabel-pb"><thead><tr><th>Skenario</th><th class="angka">Uang / bulan</th><th class="angka">Lunas</th><th class="angka">Bunga terbayar</th></tr></thead>
+        <tbody>${sken.map(s => `<tr><td><b>${esc(s.nama)}</b><div class="catatan" style="margin:0">${esc(s.ket)}</div></td><td class="angka">${rp(s.uang)}${s.hasil.selesai || !s.hasil.macet ? '' : ''}</td><td class="angka">${s.hasil.selesai ? `<b>${lamaTeks(s.hasil.bulan)}</b><div class="catatan" style="margin:0">${esc(bulanKe(s.hasil.bulan))}</div>` : '<span style="color:var(--turun)">tidak selesai</span>'}</td><td class="angka">${s.hasil.selesai ? rp(s.hasil.bungaTotal) : '-'}</td></tr>`).join('')}</tbody></table></div>
+      <div class="catatan">Bunga dihitung dari persen tiap hutang atas sisanya. Cicilan wajib dibayar dulu, sisa uang dilempar ke hutang prioritas. Prive dan biaya tetap dianggap tetap.</div></section>`; }
+
+// Target minggu ini: uang bebas dibagi 4,33, dibandingkan laba minggu berjalan; piutang yang harus ditagih minggu ini.
+function kartuMingguIni() { const R = ringkasHutang(); if (!R.laba || !HB.daftar.some(h => sisaHutang(h) > 0)) return '';
+  const target = Math.round(R.bebas / 4.33), w = keu?.WK ? Math.max(...keu.WK) : null, t = w ? keu.D[w].tot : null, hari = w ? keu.HARI[w] || 0 : 0;
+  const labaMinggu = t ? t.bersih - (HB.prive + R.tetap + R.bunga) / 4.33 * (hari / 6) : null;
+  const N = neracaBos(), tagih = N.bon.filter(x => x.umur > 14 && x.umur <= 90).sort((a, b) => b.sisa - a.sisa).slice(0, 8), buku = bukuHutang();
+  return `<section class="kartu angkat" style="margin-top:14px"><h2>Minggu ini <span class="keping">ditinjau tiap Sabtu</span></h2>
+      <div class="kisi"><div class="kotak emas"><div class="l">Target ke hutang minggu ini</div><div class="v">${rp(target)}</div><small>uang bebas ${rp(R.bebas)} dibagi 4,33</small></div>
+        <div class="kotak ${labaMinggu != null && labaMinggu < target * (hari / 6) ? 'merah' : ''}"><div class="l">Laba bersih minggu ${w || '-'} sejauh ini</div><div class="v">${t ? rp(t.bersih) : '-'}</div><small>${t ? `${hari} hari, setelah prive dan biaya tetap kira-kira ${rp(Math.max(0, labaMinggu))}` : 'data minggu berjalan belum ada'}</small></div></div>
+      ${labaMinggu != null && hari >= 6 ? `<div class="catatan" style="font-weight:700;color:${labaMinggu >= target ? 'var(--naik)' : 'var(--turun)'}">${labaMinggu >= target ? 'Target tercapai. Setor ' + rp(target) + ' ke hutang prioritas.' : 'Di bawah target ' + rp(target - labaMinggu) + '. Kejar dari piutang di bawah ini.'}</div>` : ''}
+      <div class="sub-judul"><span>Tagih minggu ini (bon 15 sampai 90 hari)</span><span class="catatan" style="margin:0">${rp(sumBy(tagih, x => x.sisa))}</span></div>
+      ${tagih.map(x => `<div class="baris-data"><div class="kiri">${esc(x.toko)}<small>${x.tgl ? esc(tglPanjang(x.tgl)) : ''} · ${x.umur} hari · ${esc(buku.find(b => b.toko === x.toko)?.jalur || '')}</small></div><div class="kanan">${rp(x.sisa)}</div></div>`).join('') || '<div class="catatan" style="margin:0">Tidak ada bon yang jatuh tempo.</div>'}
+      <div class="catatan">Tiap Sabtu: catat cicilan yang dibayar di hutang prioritas, tagih daftar di atas, lalu cek lagi jadwal lunasnya.</div></section>`; }
+
 async function layarHutangBos() {
   akar.innerHTML = kepalaPemilik('Bebas Hutang', 'Catat semua hutang dan aset, lihat kemampuan bayar, neraca, dan kebocoran yang harus disumbat supaya hutang bisa lunas dari usaha.', true) +
     '<main class="bungkus"><div id="hb" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
@@ -1814,6 +1869,7 @@ function gambarHutangBos() { const el = $('#hb'); if (!el) return; const R = rin
   el.innerHTML = `<section class="besar angkat"><div class="label">Sisa hutang bos</div><div class="nilai">${rp(R.sisa)}</div>
       <div class="keping-baris"><span class="keping"><b>${d.length}</b> hutang</span><span class="keping">Cicilan wajib <b>${rp(R.cicilan)}</b> per bulan</span><span class="keping">Bunga <b>${rp(R.bunga)}</b> per bulan</span>${R.tunggak ? `<span class="keping merah">Menunggak <b>${rp(R.tunggak)}</b></span>` : ''}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="pil emas" id="hbBaru">+ Hutang</button><button class="pil kaca" id="hbLuar">Pengeluaran di luar Excel</button></div></section>
+    ${kartuMingguIni()}
     <section class="kartu angkat" style="margin-top:14px"><h2>Kemampuan bayar <span class="keping">perkiraan</span></h2>
       ${R.laba ? `<div class="baris-data"><div class="kiri">Laba bersih usaha per bulan<small>rata-rata ${R.laba.minggu} minggu lengkap terakhir (${esc(R.laba.dari)} sampai ${esc(R.laba.sampai)}) dikali 4,33</small></div><div class="kanan">${rp(R.laba.bulan)}</div></div>
         <div class="baris-data"><div class="kiri">Pengambilan pribadi<small>uang bos untuk rumah tangga</small></div><div class="kanan">- ${rp(HB.prive)}</div></div>
@@ -1830,8 +1886,9 @@ function gambarHutangBos() { const el = $('#hb'); if (!el) return; const R = rin
           <span class="garis-batang"><i style="width:${pct}%"></i></span>
           <span class="rinci"><span class="keping">${esc(h.jenis || 'Hutang')}</span><span class="keping">Cicilan ${rp(h.cicilan)}${h.tglCicil ? ' tiap tgl ' + h.tglCicil : ''}</span>${h.bungaPersen ? `<span class="keping">Bunga ${String(h.bungaPersen).replace('.', ',')}% = ${rp(bungaBulan(h))}/bln</span>` : '<span class="keping">Tanpa bunga</span>'}<span class="keping">Terbayar ${pct}% dari ${rp(h.pokokAwal)}</span>${h.jatuhTempo ? `<span class="keping">Jatuh tempo ${esc(h.jatuhTempo)}</span>` : ''}${h.jaminan ? `<span class="keping">Jaminan ${esc(h.jaminan)}</span>` : ''}</span></div>`; }).join('')
       || '<div class="catatan" style="margin:0">Belum ada hutang tercatat. Tekan "+ Hutang" dan isi satu per satu: bank, koperasi, pinjaman perorangan, hutang ke pemasok, cicilan mobil.</div>'}
-      <div class="catatan">Diurutkan dari bunga tertinggi. Ketuk hutang untuk mencatat cicilan yang sudah dibayar atau mengubah datanya.</div></section>` + kartuNeracaBocor();
+      <div class="catatan">Diurutkan dari bunga tertinggi. Ketuk hutang untuk mencatat cicilan yang sudah dibayar atau mengubah datanya.</div></section>` + kartuNeracaBocor() + kartuJadwal();
   $('#hbBaru').onclick = () => formHutangBos(null); $('#hbLuar').onclick = dialogLuarExcel; $('#hbAset').onclick = dialogAset;
+  $$('[data-urutan]', el).forEach(b => b.onclick = async () => { try { await simpanHutangBos(x => { x.rencana = { ...(x.rencana || {}), urutan: b.dataset.urutan }; }); gambarHutangBos(); } catch (e) { gagalDialog(e); } });
   $$('[data-hb]', el).forEach(x => x.onclick = () => bukaHutangBos(HB.daftar.find(h => h.id === x.dataset.hb))); }
 
 function formHutangBos(asal) { const h = asal ? JSON.parse(JSON.stringify(asal)) : { id: idBaru('d'), kreditur: '', jenis: 'Bank', pokokAwal: 0, bungaPersen: 0, cicilan: 0, tglCicil: '', jatuhTempo: '', jaminan: '', tunggakan: 0, catatan: '', mulai: hariIni(), bayar: [] };
