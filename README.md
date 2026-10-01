@@ -1,6 +1,6 @@
-# Absensi & Gaji
+# OFU (Oil for Us): Absensi, Gaji, dan Laporan
 
-Aplikasi web (bisa dipasang di HP) untuk usaha minyak: pemilik mengisi gaji harian, potongan, dan hutang;
+Aplikasi web (bisa dipasang di HP) untuk usaha minyak, nama aplikasi OFU sejak 1 Okt 2026: pemilik mengisi gaji harian, potongan, dan hutang;
 tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
 
 - `index.html` seluruh aplikasi (tanpa build tool), `sw.js` + `manifest.json` supaya bisa dipasang.
@@ -53,5 +53,11 @@ tiap karyawan masuk dengan PIN dan hanya melihat datanya sendiri.
   bunga tertinggi dulu / terkecil dulu disimpan di `hutang-bos.rencana`; giliran lunas tiap hutang; empat skenario: apa
   adanya, kebocoran disumbat, piutang ditagih separuh, margin +Rp 200/kg) dan kartu **Minggu ini** (target setoran ke
   hutang = uang bebas / 4,33 lawan laba minggu berjalan; daftar bon 15 sampai 90 hari untuk ditagih).
+- **Dua usaha, satu karyawan** (1 Okt 2026): tiap karyawan punya lembar gaji **Minyak** (`data.minggu`) dan lembar
+  **NTA** (`data.nta`, usaha lain milik pemilik), bentuknya sama; dipilih lewat tombol Minyak / NTA di Ringkasan, editor
+  karyawan, dan Laporan PDF. Hutang besar satu per orang; potongannya bisa dari gaji Minyak atau NTA (`d.usaha`).
+  Karyawan melihat kedua lembar di satu layar. Data NTA awal dipindah dari aplikasi NTA lewat `alat/nta-impor.mjs`;
+  aplikasi NTA membacanya lewat fungsi `mbg_gaji_nta` (database yang sama, hanya baca). `gaji-persis.mjs` (laporan
+  minyak) tetap memakai `hitung(e)` = lembar Minyak saja.
 
 Tidak ada data gaji maupun rahasia di repo ini.

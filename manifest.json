@@ -1,7 +1,7 @@
 {
-  "name": "Minyak Andre",
-  "short_name": "Minyak Andre",
-  "description": "Absensi, gaji, dan laporan Minyak Andre",
+  "name": "OFU",
+  "short_name": "OFU",
+  "description": "Oil for Us: absensi, gaji, dan laporan usaha minyak",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
