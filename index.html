@@ -841,24 +841,11 @@ async function tampilkanPembaruan() {
     el.innerHTML = `<div class="label">Pembaruan otomatis · ${esc(kapan)}</div>
       <p style="margin:6px 0 0">${p.galat ? `<span class="pesan-salah">Pembaruan minggu ${esc(p.minggu)} gagal: ${esc(p.galat)}. Laporan di aplikasi masih versi sebelumnya.</span>`
         : `Minggu ${esc(p.minggu)} terisi sampai <b>${esc(p.hariTerakhir?.hari || '')}</b>${p.tutupMinggu ? `, minggu sudah <b>ditutup</b> dengan gaji ${esc(p.tutupMinggu.gajiBruto)}` : ''}. Laporan harian, dashboard, keuangan, dan harga toko sudah ikut diperbarui.`}</p>
-      ${(p.periksa || []).map(t => `<div class="pesan-salah" style="margin-top:8px">${esc(t)}</div>`).join('')}
       ${(p.tokoMirip || []).map(t => `<div class="catatan" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff7e6;color:#7a5200">${esc(t)}</div>`).join('')}
       ${p.ringkasan ? `<p style="margin:10px 0 0;white-space:pre-line">${esc(p.ringkasan)}</p><div class="catatan" style="margin-top:6px">Catatan ditulis Gemini dari angka laporan.</div>` : ''}`;
     el.hidden = false;
-    // Pemeriksaan mentor: routine Claude di cloud mengecek ulang kerja agen tiap malam (repo privat minyak-mentor).
-    const rm = await rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'mentor' }).catch(() => null);
-    const mt = rm?.ok && rm.nilai;
-    // Pesan yang sebenarnya untuk Claude di laptop (nama berkas, nama kolom data, "minta Claude ...") tidak boleh tampil
-    // di sini; pemilik hanya mau membaca yang bisa dia kerjakan sendiri (23 Sep 2026). Laptop sudah menyaring, ini lapis kedua.
-    const TEKNIS_KATA = /claude di laptop|minta claude|usulan\.md|riwayat\/|aturan-agen|periksa\.mjs|[\w-]+\.(json|mjs|md|py|html|xlsx)\b|rincian(nya)? di /i;
-    const TEKNIS_KODE = /\b[a-z]+[A-Z][a-zA-Z]*\b/;   // nama kolom data ditulis gayaSepertiIni; sengaja peka huruf besar
-    const teknis = t => TEKNIS_KATA.test(t) || TEKNIS_KODE.test(t);
-    const kalimatBersih = t => String(t || '').split(/(?<=\.)\s+/).filter(k => k.trim() && !teknis(k)).join(' ').trim();
-    if (mt?.catatan) el.insertAdjacentHTML('beforeend', `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e7e3">
-      <div class="label">Pemeriksaan mentor · ${esc(new Date(mt.waktu).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}</div>
-      <p style="margin:6px 0 0;white-space:pre-line">${esc(kalimatBersih(mt.catatan) || mt.catatan)}</p>
-      ${(mt.masalah || []).filter(t => !teknis(t)).map(t => `<div class="pesan-salah" style="margin-top:8px">${esc(t)}</div>`).join('')}
-      <div class="catatan" style="margin-top:6px">Diperiksa Claude: angka laporan dicocokkan ulang dan catatan agen dinilai.</div></div>`);
+    // 3 Okt 2026: pemeriksaan mentor dan pemeriksaan cepat TIDAK ditampilkan di sini lagi (pemilik: "notifnya jangan
+    // munculkan di OFU, tapi Claude saja"). Datanya tetap ditulis ke kunci 'mentor' dan ke repo mentor untuk dibaca Claude.
   } catch { /* kartu tetap tersembunyi */ }
 }
 
