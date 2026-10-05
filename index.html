@@ -194,16 +194,17 @@ textarea.isian{font:inherit;resize:vertical}
   html,body{background:#fff!important;background-image:none!important}
   body.mode-cetak #cetak,body.mode-cetak #cetak *{color:#000!important;background:#fff!important;text-shadow:none!important}
   /* Dot matrix resolusinya rendah: huruf harus besar dan gemuk (Verdana), garis tebal, tanpa huruf kecil atau tipis. */
-  body.mode-cetak #cetak{font-family:Verdana,Tahoma,Arial,sans-serif!important;font-size:17px!important;line-height:1.5!important;padding:10mm 12mm!important}
-  body.mode-cetak #cetak .kop>div:first-child b{font-size:26px!important;font-family:Verdana,Arial,sans-serif!important;letter-spacing:.04em!important}
-  body.mode-cetak #cetak .kecil{font-size:15px!important}body.mode-cetak #cetak .sj-judul{font-size:28px!important;letter-spacing:.12em!important}
-  body.mode-cetak #cetak .kop{border-bottom:3px solid #000!important;padding-bottom:12px!important}
-  body.mode-cetak #cetak .sj-info{font-size:17px!important;gap:14px 24px!important;margin:16px 0!important}body.mode-cetak #cetak .sj-info b{font-weight:700!important}
-  body.mode-cetak #cetak table{font-size:17px!important}body.mode-cetak #cetak th,body.mode-cetak #cetak td{border:2px solid #000!important;padding:8px 10px!important}
-  body.mode-cetak #cetak th{font-size:15px!important;letter-spacing:.04em!important;font-weight:700!important}body.mode-cetak #cetak tbody td,body.mode-cetak #cetak tfoot td{font-weight:700!important}
-  body.mode-cetak #cetak .sj-kotak{font-size:15px!important;border:2px solid #000!important;margin-top:16px!important}body.mode-cetak #cetak .sj-kotak>div{padding:10px 12px!important}
-  body.mode-cetak #cetak .sj-kotak>div:first-child{border-right:2px solid #000!important}body.mode-cetak #cetak .sj-kotak ol{line-height:1.45!important}
-  body.mode-cetak #cetak .sj-ttd{font-size:16px!important;margin-top:28px!important}body.mode-cetak #cetak .sj-garis{border-top:2px solid #000!important;margin-top:60px!important;font-size:17px!important}
+  html.mode-cetak,body.mode-cetak{height:auto!important;min-height:0!important;overflow:visible!important}
+  body.mode-cetak #cetak{font-family:Verdana,Tahoma,Arial,sans-serif!important;font-size:15px!important;line-height:1.4!important;padding:6mm 10mm!important;page-break-inside:avoid;break-inside:avoid}
+  body.mode-cetak #cetak .kop>div:first-child b{font-size:22px!important;font-family:Verdana,Arial,sans-serif!important;letter-spacing:.04em!important}
+  body.mode-cetak #cetak .kecil{font-size:13.5px!important}body.mode-cetak #cetak .sj-judul{font-size:24px!important;letter-spacing:.12em!important}
+  body.mode-cetak #cetak .kop{border-bottom:3px solid #000!important;padding-bottom:8px!important}
+  body.mode-cetak #cetak .sj-info{font-size:15px!important;grid-template-columns:1fr 1fr!important;gap:8px 20px!important;margin:10px 0!important}body.mode-cetak #cetak .sj-info b{font-weight:700!important}
+  body.mode-cetak #cetak table{font-size:15px!important}body.mode-cetak #cetak th,body.mode-cetak #cetak td{border:2px solid #000!important;padding:5px 8px!important}
+  body.mode-cetak #cetak th{font-size:13px!important;letter-spacing:.04em!important;font-weight:700!important}body.mode-cetak #cetak tbody td,body.mode-cetak #cetak tfoot td{font-weight:700!important}
+  body.mode-cetak #cetak .sj-kotak{font-size:13.5px!important;grid-template-columns:1fr 1fr!important;border:2px solid #000!important;margin-top:10px!important}body.mode-cetak #cetak .sj-kotak>div{padding:7px 10px!important;min-height:0!important}
+  body.mode-cetak #cetak .sj-kotak>div:first-child{border-right:2px solid #000!important;border-bottom:0!important}body.mode-cetak #cetak .sj-kotak ol{line-height:1.35!important}
+  body.mode-cetak #cetak .sj-ttd{font-size:14px!important;grid-template-columns:repeat(3,1fr)!important;margin-top:16px!important}body.mode-cetak #cetak .sj-garis{border-top:2px solid #000!important;margin-top:44px!important;font-size:15px!important;white-space:normal!important}
   body.mode-cetak>:not(#akar),body.mode-cetak #akar>:not(main),body.mode-cetak main>div>:not(.sj-lembar-wrap){display:none!important}
   body.mode-cetak main{padding:0!important;max-width:none!important}body.mode-cetak .sj-lembar-wrap{margin:0!important;padding:0!important}
   body.mode-cetak #cetak{box-shadow:none;border-radius:0}body.mode-cetak #cetak table{min-width:0!important}body.mode-cetak .bungkus-tabel{overflow:visible!important}
@@ -1739,7 +1740,7 @@ async function simpanSJ(ubah) { const v = await muatSJ(); ubah(v); const r = awa
 const noSJ = () => String(Math.max(0, ...SJ.daftar.map(s => parseInt(s.no, 10) || 0)) + 1).padStart(3, '0');
 // Baris yang berisi, jumlah per satuan, dan total kg (qty x berat per satuan).
 function hitungSJ(s) { const b = (s.barang || []).filter(x => x.nama.trim() && x.qty > 0), per = {}; b.forEach(x => { const k = (x.satuan || 'pcs').toLowerCase(); per[k] = (per[k] || 0) + x.qty; }); const kg = sumBy(b, x => x.qty * x.berat);
-  return { b, per, kg, jumlah: Object.entries(per).map(([k, n]) => angkaId(n) + ' ' + k).join(', '), ringkas: [...Object.entries(per).map(([k, n]) => angkaId(n) + ' ' + k), kg ? angkaId(kg) + ' kg' : ''].filter(Boolean).join(' · ') || '-' }; }
+  return { b, per, kg, jumlah: Object.entries(per).map(([k, n]) => angkaId(n) + ' ' + k).join(', '), ringkas: Object.entries(per).map(([k, n]) => angkaId(n) + ' ' + k).join(' · ') || '-' }; }
 
 async function layarSuratJalan() {
   akar.innerHTML = kepalaPemilik('Surat Jalan', 'Bukti barang yang dibawa pengantar, untuk ditandatangani penerima. Dibuat dari HP, bisa dicetak atau diunduh PDF, tanpa harga.', true) +
@@ -1775,8 +1776,8 @@ function lembarSJ(s) { const c = hitungSJ(s), P = INV?.profil || {};
     <div class="sj-info"><div><div><b>Kepada Yth.</b></div><div>Nama : <b>${esc(s.kepada || '-')}</b></div><div>No. Telp : ${esc(s.telp || '-')}</div><div>Alamat : ${esc(s.alamat || '-')}</div></div>
       <div><div>No. Surat Jalan : <b>${esc(s.no)}</b></div><div>Tanggal : ${esc(hariTgl(s.tgl))}, ${esc(tglSurat(s.tgl))}</div><div>Kendaraan : ${esc(s.ekspedisi || '-')}</div><div>Plat nomor : <b>${esc(s.plat || '-')}</b></div><div>Pengantar : ${esc(s.pengantar || '-')}</div></div></div>
     <div class="bungkus-tabel"><table><thead><tr><th style="width:36px">No</th><th>Nama barang</th><th class="kanan">Qty</th><th class="kanan">Berat</th><th style="width:30%">Keterangan</th></tr></thead>
-    <tbody>${c.b.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.nama)}</td><td class="kanan">${angkaId(x.qty)} ${esc(x.satuan)}</td><td class="kanan">${x.berat ? angkaId(x.qty * x.berat) + ' kg' : ''}</td><td>${esc(x.ket)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#777">Belum ada barang</td></tr>'}</tbody>
-    <tfoot><tr><td colspan="2" class="kanan"><b>Jumlah</b></td><td class="kanan"><b>${esc(c.jumlah || '-')}</b></td><td class="kanan"><b>${c.kg ? angkaId(c.kg) + ' kg' : ''}</b></td><td></td></tr></tfoot></table></div>
+    <tbody>${c.b.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.nama)}</td><td class="kanan">${angkaId(x.qty)} ${esc(x.satuan)}</td><td class="kanan">${x.berat ? angkaId(x.berat) + ' kg' : ''}</td><td>${esc(x.ket)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#777">Belum ada barang</td></tr>'}</tbody>
+    <tfoot><tr><td colspan="2" class="kanan"><b>Jumlah</b></td><td class="kanan"><b>${esc(c.jumlah || '-')}</b></td><td></td><td></td></tr></tfoot></table></div>
     <div class="sj-kotak"><div><b>Catatan:</b><div>${esc(s.catatan || '')}</div></div><div><b>PERHATIAN:</b><ol><li>Surat Jalan ini merupakan bukti resmi penerimaan barang</li><li>Surat Jalan ini bukan bukti penjualan</li><li>Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan</li></ol></div></div>
     <div class="sj-ttd"><div>Penerima / Pembeli<div class="sj-garis">( ................................ )</div></div><div>Bagian Pengiriman<div class="sj-garis">${esc(s.pengantar || '( ................................ )')}</div></div><div>Petugas Gudang<div class="sj-garis">${esc(P.penandatangan || '( ................................ )')}</div></div></div></div>`; }
 
@@ -1823,7 +1824,7 @@ function formSJ(asal, salin) {
       <label class="medan s-nama"><span>Nama barang</span><input list="dlBarang" data-k="nama" value="${esc(b.nama)}" placeholder="Minyak Curah"></label>
       <label class="medan"><span>Qty</span><input type="number" inputmode="decimal" min="0" step="any" data-k="qty" value="${b.qty || ''}"></label>
       <label class="medan"><span>Satuan</span><select class="isian" data-k="satuan">${['kendi', 'dus', 'kg', 'pcs', 'karung'].map(u => `<option ${b.satuan === u ? 'selected' : ''}>${u}</option>`).join('')}</select></label>
-      <label class="medan"><span>Berat per satuan (kg)</span><input type="number" inputmode="decimal" min="0" step="any" data-k="berat" value="${b.berat || ''}"></label>
+      <label class="medan"><span>Berat per kendi/dus (kg)</span><input type="number" inputmode="decimal" min="0" step="any" data-k="berat" value="${b.berat || ''}"></label>
       <label class="medan s-ket"><span>Keterangan</span><input data-k="ket" value="${esc(b.ket)}" placeholder="boleh kosong"></label>
       <button class="pil halus kecil" type="button" data-hapus="${i}" aria-label="Hapus baris">✕</button></div>`).join('');
     $$('.sj-baris input, .sj-baris select').forEach(el => { el.oninput = () => { const w = el.closest('.sj-baris'), b = s.barang[+w.dataset.i], k = el.dataset.k; b[k] = k === 'qty' || k === 'berat' ? +el.value || 0 : el.value;
@@ -1846,8 +1847,8 @@ function formSJ(asal, salin) {
 function pdfSJ(s) { return denganTunggu(async () => { const c = hitungSJ(s); if (!c.b.length) throw new Error('Belum ada barang yang dibawa.'); const doc = await kertasBaru(), P = INV?.profil || {};
   const y = kepalaSurat(doc, 'SURAT JALAN', [['Nama', s.kepada], ['No. Telp', s.telp], ['Alamat', s.alamat]], [['No. Surat Jalan', s.no], ['Tanggal', `${hariTgl(s.tgl)}, ${tglSurat(s.tgl)}`], ['Kendaraan', s.ekspedisi], ['Plat nomor', s.plat], ['Pengantar', s.pengantar]], true);
   doc.autoTable({ ...garisTabel, startY: y, head: [['No', 'Nama Barang', 'Qty', 'Berat', 'Keterangan']],
-    body: c.b.map((x, i) => [i + 1, x.nama, angkaId(x.qty) + ' ' + x.satuan, x.berat ? angkaId(x.qty * x.berat) + ' kg' : '', x.ket]),
-    foot: [[{ content: 'JUMLAH', colSpan: 2, styles: { halign: 'right' } }, { content: c.jumlah, styles: { halign: 'center' } }, { content: c.kg ? angkaId(c.kg) + ' kg' : '', styles: { halign: 'center' } }, '']],
+    body: c.b.map((x, i) => [i + 1, x.nama, angkaId(x.qty) + ' ' + x.satuan, x.berat ? angkaId(x.berat) + ' kg' : '', x.ket]),
+    foot: [[{ content: 'JUMLAH', colSpan: 2, styles: { halign: 'right' } }, { content: c.jumlah, styles: { halign: 'center' } }, '', '']],
     columnStyles: { 0: { cellWidth: 11, halign: 'center' }, 2: { halign: 'center', cellWidth: 40 }, 3: { halign: 'center', cellWidth: 26 }, 4: { cellWidth: 46 } },
     didParseCell: d => { if (d.section === 'head' && [0, 2, 3].includes(d.column.index)) d.cell.styles.halign = 'center'; } });
   const yy = kotakCatatan(doc, doc.lastAutoTable.finalY + 4, 'Catatan:\n' + (s.catatan || ''),
