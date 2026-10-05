@@ -264,7 +264,7 @@ declare s minyak_sesi := minyak__sesi(p_token);
 begin
   if s.token_hash is null then return jsonb_build_object('ok', false, 'pesan', 'Sesi habis. Masuk lagi.'); end if;
   if s.peran not in ('pemilik', 'bos') then return jsonb_build_object('ok', false, 'pesan', 'Hanya pemilik atau bos.'); end if;
-  if p_kunci not in ('hutang-bos') then return jsonb_build_object('ok', false, 'pesan', 'kunci tidak diizinkan'); end if;
+  if p_kunci not in ('hutang-bos', 'surat-jalan') then return jsonb_build_object('ok', false, 'pesan', 'kunci tidak diizinkan'); end if;   -- surat-jalan: 5 Okt 2026
   if jsonb_typeof(p_nilai) is distinct from 'object' then return jsonb_build_object('ok', false, 'pesan', 'Bentuk data salah.'); end if;
   if length(p_nilai::text) > 1000000 then return jsonb_build_object('ok', false, 'pesan', 'Data terlalu besar.'); end if;
   insert into minyak_nilai(kunci, nilai) values (p_kunci, p_nilai) on conflict (kunci) do update set nilai = excluded.nilai, diubah = now();

@@ -179,6 +179,23 @@ textarea.isian{font:inherit;resize:vertical}
 .lembar th{background:#eef3ef;font-size:11px;letter-spacing:.05em;text-transform:uppercase;text-align:left}
 .lembar .kanan{text-align:right;white-space:nowrap}.lembar .kecil{font-size:11.5px;color:#444}
 .lembar table.rekap{width:auto;min-width:0;max-width:100%}.lembar table.rekap td{padding:4px 10px}.lembar tr.tebal td{font-weight:700}
+/* Surat jalan tersendiri (5 Okt 2026): lembar seperti berkas Word, formulir ringkas, dan mode cetak langsung dari HP */
+.sj-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sj-grid .medan{margin-bottom:0}.sj-grid .s-lebar{grid-column:1/-1}
+.sj-baris{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;padding:10px 0;border-bottom:1px dashed var(--garis)}.sj-baris .medan{margin-bottom:0}.sj-baris .s-nama,.sj-baris .s-ket{grid-column:1/-1}
+.sj-baris [data-hapus]{justify-self:end}
+.lembar .sj-judul{font-weight:800;font-size:20px;letter-spacing:.18em;align-self:center}
+.lembar .sj-info{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin:12px 0;font-size:12.5px}.lembar .sj-info>div>div{margin:2px 0}
+.lembar .sj-kotak{display:grid;grid-template-columns:1fr 1fr;border:1px solid #333;margin-top:12px;font-size:12px}.lembar .sj-kotak>div{padding:8px 10px;min-height:72px}.lembar .sj-kotak>div:first-child{border-right:1px solid #333}.lembar .sj-kotak ol{margin:4px 0 0;padding-left:18px}
+.lembar .sj-ttd{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;text-align:center;font-size:12px}.lembar .sj-garis{margin-top:50px;border-top:1px solid #333;padding-top:4px;font-weight:700}
+@media(min-width:720px){.sj-baris{grid-template-columns:minmax(0,1.8fr) minmax(0,.7fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,1.6fr) 44px;padding:6px 0}.sj-baris .s-nama,.sj-baris .s-ket{grid-column:auto}}
+@media(max-width:560px){.sj-grid{grid-template-columns:1fr}.lembar .sj-info,.lembar .sj-kotak{grid-template-columns:1fr}.lembar .sj-kotak>div:first-child{border-right:0;border-bottom:1px solid #333}.lembar .sj-ttd{gap:6px;font-size:11px}.lembar .sj-garis{margin-top:36px;white-space:nowrap;overflow:hidden;font-size:10px}}
+@media print{
+  @page{size:A4;margin:12mm}
+  html,body{background:#fff!important;background-image:none!important}
+  body.mode-cetak>:not(#akar),body.mode-cetak #akar>:not(main),body.mode-cetak main>div>:not(.sj-lembar-wrap){display:none!important}
+  body.mode-cetak main{padding:0!important;max-width:none!important}body.mode-cetak .sj-lembar-wrap{margin:0!important;padding:0!important}
+  body.mode-cetak #cetak{box-shadow:none;border-radius:0;padding:0}body.mode-cetak #cetak table{min-width:0!important}body.mode-cetak .bungkus-tabel{overflow:visible!important}
+}
 @media (max-width:640px){.inv-empat{grid-template-columns:1fr 1fr}
   .inv-kecil{grid-template-columns:minmax(0,1fr) 110px auto}.lembar{padding:16px}}
 .ubin{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;background:var(--kartu);border:0;border-radius:var(--r);padding:16px;box-shadow:var(--bayang);cursor:pointer;color:var(--tinta);text-decoration:none;transition:transform .12s}
@@ -707,6 +724,7 @@ const IKON = {
   bebas: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
   nota: '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   toko: '<path d="M3.5 9.5l1.8-5h13.4l1.8 5"/><path d="M3.5 9.5h17M5.5 9.5V20h13V9.5M10 20v-5h4v5"/>',
+  jalan: '<path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
 };
 const ikon = k => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IKON[k]}</svg>`;
 
@@ -802,6 +820,7 @@ async function layarBeranda() {
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
       <button class="ubin" data-ke="bebas"><span class="ik emas">${ikon('bebas')}</span><b>Bebas Hutang</b><small>Daftar hutang bos, cicilan yang dibayar, dan kemampuan bayar dari laba usaha</small></button>
       <button class="ubin" data-ke="invoice"><span class="ik emas">${ikon('nota')}</span><b>Invoice Harian</b><small>${bacaSaja ? 'Invoice per hari untuk semua toko, surat jalan, dan hutang toko' : 'Satu invoice per hari untuk semua toko: PDF invoice, surat jalan, nota per toko, Excel'}</small></button>
+      <button class="ubin" data-ke="sj"><span class="ik">${ikon('jalan')}</span><b>Surat Jalan</b><small>Bukti barang yang dibawa pengantar ke toko atau luar kota; dicetak atau PDF, tanpa harga</small></button>
       <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
       <button class="ubin" id="ubinHarian" data-laporan="laporan-harian"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''}</small></button>
       <button class="ubin" data-laporan="dashboard"><span class="ik">${ikon('grafik')}</span><b>Dashboard bulanan</b><small>Laporan per bulan dengan grafik tren</small></button>
@@ -812,7 +831,7 @@ async function layarBeranda() {
   $('#bKeluar').onclick = keluar; $('#bSandi').onclick = () => dialogGanti('pemilik'); const ub = $('#ubinBagi'); if (ub) ub.onclick = bagikan; siapkanPasang();
   $$('.ubin[data-laporan]').forEach(b => b.onclick = () => bukaLaporan(b.dataset.laporan));
   tampilkanPembaruan();
-  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga, pembelian: layarPembelian, invoice: layarInvoice, bebas: layarHutangBos })[b.dataset.ke]());
+  $$('.ubin[data-ke]').forEach(b => b.onclick = () => ({ gaji: layarPemilik, keuangan: layarKeuangan, laporan: layarLaporan, harga: bacaSaja ? layarHargaBaca : layarHarga, pembelian: layarPembelian, invoice: layarInvoice, bebas: layarHutangBos, sj: layarSuratJalan })[b.dataset.ke]());
   try { const k = await muatKeuangan(), bl = bulanKeu(k)[0]; const el = $('#kepingLaba'); if (el) el.innerHTML = `Laba bersih ${esc(bl.nama.split(' ')[0])} <b>${rp(bl.tot.bersih)}</b>`;
     const mh = Math.max(...k.WK); const u = $('#ubinHarian'); if (u) $('small', u).textContent = `Rincian penjualan per hari minggu ${mh}`;
   } catch { const el = $('#kepingLaba'); if (el) el.remove(); }
@@ -1403,7 +1422,7 @@ function dialogProfilInv() { const P = INV.profil || {};
     [['pNama', 'nama'], ['pAlamat', 'alamat'], ['pTelp', 'telp'], ['pTtd', 'penandatangan'], ['pBayar', 'bayar']].forEach(([i, k]) => { $('#' + i, d).value = P[k] || ''; });
     $('#pOk', d).onclick = async () => { const baru = { nama: $('#pNama', d).value.trim(), alamat: $('#pAlamat', d).value.trim(), telp: $('#pTelp', d).value.trim(), penandatangan: $('#pTtd', d).value.trim(), bayar: $('#pBayar', d).value.trim() };
       if (!baru.nama) { $('#pPesan', d).innerHTML = '<div class="pesan-salah">Nama usaha wajib diisi.</div>'; return; }
-      try { await simpanInvoice(x => { x.profil = baru; }); tutup(); gambarInvoice(); } catch (e) { $('#pPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
+      try { await simpanInvoice(x => { x.profil = baru; }); tutup(); gambarInvoice(); gambarSJ(); } catch (e) { $('#pPesan', d).innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }); }
 
 /* ----- Lembar di layar (seperti nota MBG), satu tabel per blok ----- */
 function lembarHarian(h) { const c = hitungHarian(h), P = INV.profil || {};
@@ -1693,6 +1712,135 @@ function pdfSjToko(h, pilih) { return denganTunggu(async () => { const doc = awa
       'PERHATIAN:\n1. Surat Jalan ini merupakan bukti resmi penerimaan barang\n2. Surat Jalan ini bukan bukti penjualan\n3. Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan') + 10;
     ttd(doc, yy, [['Penerima / Pembeli', '', 45], ['Bagian Pengiriman', '', 105], ['Petugas Gudang', '', 165]]); });
   doc.save(namaBerkas('Surat Jalan', h, pilih.length === 1 ? pilih[0] : 'semua toko')); }); }
+
+/* ----- Surat Jalan tersendiri (5 Okt 2026) -----
+   Pemilik mencatat penjualan di Excel; aplikasi hanya membuatkan surat jalan untuk barang yang dibawa pengantar (toko luar kota
+   perlu bukti pengiriman). Disimpan di minyak_nilai kunci 'surat-jalan' lewat minyak_nilai_tulis; kepala surat memakai profil
+   invoice (nama usaha, alamat, telepon, penanda tangan). Tidak masuk invoice, keuangan, maupun laporan. ----- */
+let SJ = null, sjCari = '';
+const SJ_BARANG = ['Minyak Curah', 'Minyak Dus', 'Kendi Kosong'];
+const normSJ = s => { s.barang = Array.isArray(s.barang) ? s.barang : []; s.barang.forEach(b => { b.nama = b.nama || ''; b.qty = +b.qty || 0; b.satuan = b.satuan || 'kendi'; b.berat = +b.berat || 0; b.ket = b.ket || ''; }); ['pengantar', 'ekspedisi', 'kepada', 'telp', 'alamat', 'catatan'].forEach(k => { s[k] = s[k] || ''; }); return s; };
+async function muatSJ() { const [r] = await Promise.all([rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'surat-jalan' }), INV ? null : muatInvoice().then(v => { INV = v; })]);
+  if (!r.ok) throw new Error(r.pesan); const v = r.nilai || {}; v.daftar = Array.isArray(v.daftar) ? v.daftar : []; v.daftar.forEach(normSJ); return v; }
+// Simpan: ambil versi terbaru dulu lalu terapkan perubahan, supaya dua HP yang menyimpan bergantian tidak saling menimpa.
+async function simpanSJ(ubah) { const v = await muatSJ(); ubah(v); const r = await rpc('minyak_nilai_tulis', { p_token: sesi.baca().token, p_kunci: 'surat-jalan', p_nilai: v }); if (!r.ok) throw new Error(r.pesan); SJ = v; return v; }
+const noSJ = () => String(Math.max(0, ...SJ.daftar.map(s => parseInt(s.no, 10) || 0)) + 1).padStart(3, '0');
+// Baris yang berisi, jumlah per satuan, dan total kg (qty x berat per satuan).
+function hitungSJ(s) { const b = (s.barang || []).filter(x => x.nama.trim() && x.qty > 0), per = {}; b.forEach(x => { const k = (x.satuan || 'pcs').toLowerCase(); per[k] = (per[k] || 0) + x.qty; }); const kg = sumBy(b, x => x.qty * x.berat);
+  return { b, per, kg, jumlah: Object.entries(per).map(([k, n]) => angkaId(n) + ' ' + k).join(', '), ringkas: [...Object.entries(per).map(([k, n]) => angkaId(n) + ' ' + k), kg ? angkaId(kg) + ' kg' : ''].filter(Boolean).join(' · ') || '-' }; }
+
+async function layarSuratJalan() {
+  akar.innerHTML = kepalaPemilik('Surat Jalan', 'Bukti barang yang dibawa pengantar, untuk ditandatangani penerima. Dibuat dari HP, bisa dicetak atau diunduh PDF, tanpa harga.', true) +
+    '<main class="bungkus"><div id="sj" style="padding-top:38px"><section class="kartu angkat">Memuat…</section></div></main>';
+  $('#bBeranda').onclick = layarBeranda;
+  try { [SJ] = await Promise.all([muatSJ(), muatHarga().catch(() => null)]); gambarSJ(); }
+  catch (e) { $('#sj').innerHTML = `<section class="kartu angkat"><div class="pesan-salah">${esc(e.message)}</div></section>`; } }
+
+function gambarSJ() { const el = $('#sj'); if (!el || !SJ) return; const P = INV?.profil || {}, aktif = SJ.daftar.filter(s => !s.batal), bln = aktif.filter(s => s.tgl.startsWith(hariIni().slice(0, 7)));
+  el.innerHTML = `<section class="besar angkat"><div class="label">Surat jalan bulan ini</div><div class="nilai">${bln.length}</div>
+      <div class="keping-baris"><span class="keping">Semua <b>${aktif.length}</b></span><span class="keping">Barang bulan ini <b>${esc(hitungSJ({ barang: bln.flatMap(s => s.barang) }).ringkas)}</b></span></div>
+      ${bacaSaja ? '' : '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="pil emas" id="bSjBaru">+ Surat jalan baru</button><button class="pil kaca" id="bSjProfil">Kepala surat</button></div>'}</section>
+    ${!P.nama && !bacaSaja ? '<section class="kartu angkat" style="margin-top:14px"><div class="pesan-salah" style="margin:0">Kepala surat belum diisi. Tekan "Kepala surat" untuk mengisi nama usaha, alamat, dan nomor telepon.</div></section>' : ''}
+    <section class="kartu angkat" style="margin-top:14px"><h2>Daftar surat jalan<span class="keping">${aktif.length}</span></h2>
+      <input class="isian" id="sjCari" placeholder="Cari nomor, tanggal, tujuan, atau pengantar…" value="${esc(sjCari)}" autocomplete="off" aria-label="Cari surat jalan">
+      <div id="sjDaftar" class="inv-kartu-baris" style="margin-top:12px"></div>
+      <div class="catatan">Surat jalan ini berdiri sendiri: tidak masuk invoice maupun laporan keuangan. Penjualannya tetap dicatat di Excel seperti biasa.</div></section>`;
+  gambarDaftarSJ(); $('#sjCari').oninput = ev => { sjCari = ev.target.value; gambarDaftarSJ(); };
+  const b = $('#bSjBaru'); if (b) b.onclick = () => formSJ(null); const p = $('#bSjProfil'); if (p) p.onclick = dialogProfilInv; }
+
+function gambarDaftarSJ() { const el = $('#sjDaftar'); if (!el) return; const cari = sjCari.trim().toLowerCase();
+  const daftar = SJ.daftar.filter(s => !cari || `${s.no} ${s.tgl} ${tglPanjang(s.tgl)} ${s.kepada} ${s.alamat} ${s.pengantar}`.toLowerCase().includes(cari))
+    .sort((a, b) => b.tgl.localeCompare(a.tgl) || (parseInt(b.no, 10) || 0) - (parseInt(a.no, 10) || 0));
+  el.innerHTML = daftar.map(s => { const c = hitungSJ(s);
+    return `<button class="inv-kartu ${s.batal ? 'mati' : ''}" data-buka="${esc(s.id)}"><div class="inv-atas"><div style="min-width:0"><b>${esc(s.kepada || '(tujuan belum diisi)')}</b><div class="catatan" style="margin:2px 0 0">No. ${esc(s.no)} · ${esc(tglPanjang(s.tgl))}${s.pengantar ? ' · ' + esc(s.pengantar) : ''}${s.alamat ? ' · ' + esc(s.alamat) : ''}</div></div><b style="flex:none;text-align:right">${esc(c.ringkas)}</b></div>
+      ${s.batal ? '<div class="keping-baris" style="margin:8px 0 0"><span class="keping">Dibatalkan</span></div>' : ''}</button>`; }).join('')
+    || `<div class="catatan" style="margin:0">${SJ.daftar.length ? 'Tidak ada yang cocok.' : 'Belum ada surat jalan. Tekan "+ Surat jalan baru".'}</div>`;
+  $$('[data-buka]', el).forEach(b => b.onclick = () => bukaSJ(SJ.daftar.find(s => s.id === b.dataset.buka))); }
+
+// Lembar di layar: susunannya mengikuti berkas Word SURAT JALAN TERBARU (kepala kiri, judul kanan, Kepada Yth., tabel, kotak catatan, tiga tanda tangan).
+function lembarSJ(s) { const c = hitungSJ(s), P = INV?.profil || {};
+  return `<div class="lembar" id="cetak"><div class="kop"><div><b>${esc(P.nama || '')}</b><div class="kecil">${esc(P.alamat || '')}</div>${P.telp ? `<div class="kecil">No Telp : ${esc(P.telp)}</div>` : ''}</div><div class="sj-judul">SURAT JALAN</div></div>
+    <div class="sj-info"><div><div><b>Kepada Yth.</b></div><div>Nama : <b>${esc(s.kepada || '-')}</b></div><div>No. Telp : ${esc(s.telp || '-')}</div><div>Alamat : ${esc(s.alamat || '-')}</div></div>
+      <div><div>No. Surat Jalan : <b>${esc(s.no)}</b></div><div>Tanggal : ${esc(hariTgl(s.tgl))}, ${esc(tglSurat(s.tgl))}</div><div>Ekspedisi : ${esc(s.ekspedisi || '-')}</div><div>Pengantar : ${esc(s.pengantar || '-')}</div></div></div>
+    <div class="bungkus-tabel"><table><thead><tr><th style="width:36px">No</th><th>Nama barang</th><th class="kanan">Qty</th><th class="kanan">Berat</th><th style="width:30%">Keterangan</th></tr></thead>
+    <tbody>${c.b.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.nama)}</td><td class="kanan">${angkaId(x.qty)} ${esc(x.satuan)}</td><td class="kanan">${x.berat ? angkaId(x.qty * x.berat) + ' kg' : ''}</td><td>${esc(x.ket)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#777">Belum ada barang</td></tr>'}</tbody>
+    <tfoot><tr><td colspan="2" class="kanan"><b>Jumlah</b></td><td class="kanan"><b>${esc(c.jumlah || '-')}</b></td><td class="kanan"><b>${c.kg ? angkaId(c.kg) + ' kg' : ''}</b></td><td></td></tr></tfoot></table></div>
+    <div class="sj-kotak"><div><b>Catatan:</b><div>${esc(s.catatan || '')}</div></div><div><b>PERHATIAN:</b><ol><li>Surat Jalan ini merupakan bukti resmi penerimaan barang</li><li>Surat Jalan ini bukan bukti penjualan</li><li>Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan</li></ol></div></div>
+    <div class="sj-ttd"><div>Penerima / Pembeli<div class="sj-garis">( ................................ )</div></div><div>Bagian Pengiriman<div class="sj-garis">${esc(s.pengantar || '( ................................ )')}</div></div><div>Petugas Gudang<div class="sj-garis">${esc(P.penandatangan || '( ................................ )')}</div></div></div></div>`; }
+
+function bukaSJ(s) {
+  akar.innerHTML = kepalaPemilik('Surat Jalan ' + esc(s.no), esc(tglPanjang(s.tgl)) + (s.kepada ? ' · ' + esc(s.kepada) : ''), true) +
+    `<main class="bungkus"><div style="padding-top:38px">
+      <section class="kartu angkat"><h2>Cetak atau unduh</h2><div class="inv-unduh"><button class="pil" id="bSjCetak">Cetak</button><button class="pil halus" id="bSjPdf">Unduh PDF</button></div>
+        <div class="catatan">Cetak memakai printer yang tersambung ke HP atau laptop; dari jendela cetak bisa juga "Simpan sebagai PDF". Lembar di bawah ini persis yang tercetak.</div>
+        ${bacaSaja ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="pil emas kecil" id="bSjUbah">Ubah</button><button class="pil halus kecil" id="bSjSalin">Buat lagi dari ini</button>${s.batal ? '<button class="pil halus kecil" id="bSjPulih">Pulihkan</button>' : '<button class="pil halus kecil" id="bSjBatal">Batalkan</button>'}</div>`}</section>
+      ${s.batal ? '<div class="keping-baris" style="margin-top:12px"><span class="keping">Dibatalkan</span></div>' : ''}
+      <section class="sj-lembar-wrap" style="margin-top:14px">${lembarSJ(s)}</section></div></main>`;
+  $('#bBeranda').textContent = '← Surat jalan'; $('#bBeranda').onclick = layarSuratJalan;
+  $('#bSjCetak').onclick = () => { if (!hitungSJ(s).b.length) return dialog('<h3>Belum ada barang</h3><p class="catatan">Isi barangnya dulu lewat tombol Ubah.</p><div class="tombol-baris"><button class="pil" data-tutup>Tutup</button></div>');
+    document.title = `Surat Jalan ${s.no} ${s.kepada || ''}`.trim(); document.body.classList.add('mode-cetak');
+    addEventListener('afterprint', () => { document.title = 'OFU'; document.body.classList.remove('mode-cetak'); }, { once: true }); window.print(); };
+  $('#bSjPdf').onclick = () => pdfSJ(s);
+  const u = $('#bSjUbah'); if (u) u.onclick = () => formSJ(s); const sl = $('#bSjSalin'); if (sl) sl.onclick = () => formSJ(s, true);
+  const bt = $('#bSjBatal'); if (bt) bt.onclick = () => ubahStatusSJ(s, true); const pl = $('#bSjPulih'); if (pl) pl.onclick = () => ubahStatusSJ(s, false); }
+async function ubahStatusSJ(s, batal) { try { await simpanSJ(v => { const y = v.daftar.find(z => z.id === s.id); if (y) y.batal = batal; }); bukaSJ(SJ.daftar.find(z => z.id === s.id)); } catch (e) { gagalDialog(e); } }
+
+// Formulir: surat (nomor, tanggal, pengantar, ekspedisi), tujuan (kepada, telepon, alamat), barang, catatan. salin = surat baru dari isi yang lama.
+function formSJ(asal, salin) {
+  const barisBaru = (nama = '') => ({ id: idBaru('s'), nama, qty: 0, satuan: nama === 'Minyak Dus' ? 'dus' : 'kendi', berat: nama === 'Minyak Curah' ? 14.4 : 0, ket: '' });
+  const lalu = SJ.daftar.filter(x => !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl))[0];
+  const s = asal ? normSJ(JSON.parse(JSON.stringify(asal))) : { id: idBaru('j'), no: noSJ(), tgl: hariIni(), pengantar: lalu?.pengantar || '', ekspedisi: lalu?.ekspedisi || 'Mobil pick-up', kepada: '', telp: '', alamat: '', catatan: '', barang: [barisBaru('Minyak Curah')] };
+  if (salin) { s.id = idBaru('j'); s.no = noSJ(); s.tgl = hariIni(); s.batal = false; s.barang.forEach(b => { b.id = idBaru('s'); }); }
+  const tokoList = [...new Set([...(harga?.toko || []).filter(t => t.aktif !== false).map(t => t.nama), ...SJ.daftar.map(x => x.kepada)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const pengantarList = [...new Set([...Object.values(data || {}).filter(e => e.aktif).map(e => e.nama), ...SJ.daftar.map(x => x.pengantar)].filter(Boolean))];
+  const alamatToko = {}; SJ.daftar.forEach(x => { if (x.kepada && (x.alamat || x.telp)) alamatToko[x.kepada.trim().toLowerCase()] = { alamat: x.alamat, telp: x.telp }; });
+  akar.innerHTML = kepalaPemilik(asal && !salin ? 'Ubah Surat Jalan ' + esc(s.no) : 'Surat Jalan Baru', 'Isi tujuan, pengantar, dan barang yang dibawa. Tanpa harga. Setelah disimpan bisa langsung dicetak atau diunduh PDF.', true) + `<main class="bungkus"><div style="padding-top:38px">
+    <datalist id="dlToko">${tokoList.map(t => `<option value="${esc(t)}">`).join('')}</datalist><datalist id="dlPengantar">${pengantarList.map(t => `<option value="${esc(t)}">`).join('')}</datalist><datalist id="dlBarang">${SJ_BARANG.map(t => `<option value="${t}">`).join('')}</datalist>
+    <section class="kartu angkat"><h2>Surat</h2><div class="sj-grid">
+      <label class="medan"><span>Nomor</span><input id="sNo" value="${esc(s.no)}"></label><label class="medan"><span>Tanggal</span><input id="sTgl" type="date" value="${esc(s.tgl)}"></label>
+      <label class="medan"><span>Pengantar</span><input id="sPengantar" list="dlPengantar" value="${esc(s.pengantar)}" placeholder="nama karyawan yang membawa"></label><label class="medan"><span>Ekspedisi / kendaraan</span><input id="sEks" value="${esc(s.ekspedisi)}" placeholder="mis. Mobil pick-up KB 1234 AB"></label></div></section>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Kepada</h2><div class="sj-grid">
+      <label class="medan s-lebar"><span>Nama toko / penerima</span><input id="sKepada" list="dlToko" value="${esc(s.kepada)}" placeholder="nama toko atau orang"></label>
+      <label class="medan"><span>No. telp</span><input id="sTelp" inputmode="tel" value="${esc(s.telp)}"></label><label class="medan"><span>Alamat / kota tujuan</span><input id="sAlamat" value="${esc(s.alamat)}" placeholder="mis. Psr Inpres Sintang"></label></div></section>
+    <section class="kartu angkat" style="margin-top:14px"><h2>Barang yang dibawa</h2><div id="sBaris"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="pil halus kecil" id="bSTambah" type="button">+ Tambah barang</button></div>
+      <label class="medan" style="margin-top:14px"><span>Catatan (tampil di surat, boleh kosong)</span><input id="sCatatan" value="${esc(s.catatan)}"></label>
+      <div id="sPesan"></div><div class="tombol-baris"><button class="pil halus" id="bSBatal" type="button">Batal</button><button class="pil emas" id="bSSimpan" type="button">Simpan</button></div></section></div></main>`;
+  const gambarBaris = () => { $('#sBaris').innerHTML = s.barang.map((b, i) => `<div class="sj-baris" data-i="${i}">
+      <label class="medan s-nama"><span>Nama barang</span><input list="dlBarang" data-k="nama" value="${esc(b.nama)}" placeholder="Minyak Curah"></label>
+      <label class="medan"><span>Qty</span><input type="number" inputmode="decimal" min="0" step="any" data-k="qty" value="${b.qty || ''}"></label>
+      <label class="medan"><span>Satuan</span><select class="isian" data-k="satuan">${['kendi', 'dus', 'kg', 'pcs', 'karung'].map(u => `<option ${b.satuan === u ? 'selected' : ''}>${u}</option>`).join('')}</select></label>
+      <label class="medan"><span>Berat per satuan (kg)</span><input type="number" inputmode="decimal" min="0" step="any" data-k="berat" value="${b.berat || ''}"></label>
+      <label class="medan s-ket"><span>Keterangan</span><input data-k="ket" value="${esc(b.ket)}" placeholder="boleh kosong"></label>
+      <button class="pil halus kecil" type="button" data-hapus="${i}" aria-label="Hapus baris">✕</button></div>`).join('');
+    $$('.sj-baris input, .sj-baris select').forEach(el => { el.oninput = () => { const w = el.closest('.sj-baris'), b = s.barang[+w.dataset.i], k = el.dataset.k; b[k] = k === 'qty' || k === 'berat' ? +el.value || 0 : el.value;
+        if (k === 'nama') { if (el.value === 'Minyak Dus') b.satuan = 'dus'; else if (el.value === 'Minyak Curah' || el.value === 'Kendi Kosong') b.satuan = 'kendi'; if (el.value === 'Minyak Curah' && !b.berat) b.berat = 14.4; $('[data-k=satuan]', w).value = b.satuan; $('[data-k=berat]', w).value = b.berat || ''; } };
+      el.onkeydown = ev => { if (ev.key === 'Enter' && el.tagName === 'INPUT') { ev.preventDefault(); const semua = $$('.sj-baris input, .sj-baris select'), j = semua.indexOf(el); if (j + 1 < semua.length) semua[j + 1].focus(); else { s.barang.push(barisBaru()); gambarBaris(); $('.sj-baris:last-child input').focus(); } } }; });
+    $$('[data-hapus]').forEach(b => b.onclick = () => { s.barang.splice(+b.dataset.hapus, 1); if (!s.barang.length) s.barang.push(barisBaru()); gambarBaris(); }); };
+  gambarBaris();
+  $('#bSTambah').onclick = () => { s.barang.push(barisBaru()); gambarBaris(); $('.sj-baris:last-child input').focus(); };
+  $('#sKepada').onchange = () => { const a = alamatToko[$('#sKepada').value.trim().toLowerCase()]; if (!a) return; if (!$('#sAlamat').value) $('#sAlamat').value = a.alamat || ''; if (!$('#sTelp').value) $('#sTelp').value = a.telp || ''; };
+  $('#bBeranda').textContent = '← Surat jalan'; $('#bBeranda').onclick = $('#bSBatal').onclick = () => asal && !salin ? bukaSJ(asal) : layarSuratJalan();
+  $('#bSSimpan').onclick = async () => { s.no = $('#sNo').value.trim(); s.tgl = $('#sTgl').value; s.pengantar = $('#sPengantar').value.trim(); s.ekspedisi = $('#sEks').value.trim(); s.kepada = $('#sKepada').value.trim(); s.telp = $('#sTelp').value.trim(); s.alamat = $('#sAlamat').value.trim(); s.catatan = $('#sCatatan').value.trim();
+    s.barang = s.barang.filter(b => b.nama.trim() || b.qty);
+    const salah = !s.no ? 'Nomor wajib diisi.' : !s.tgl ? 'Tanggal wajib diisi.' : !s.kepada ? 'Nama toko atau penerima wajib diisi.' : !s.barang.some(b => b.nama.trim() && b.qty > 0) ? 'Isi paling sedikit satu barang beserta jumlahnya.' : SJ.daftar.some(x => x.id !== s.id && !x.batal && x.no === s.no) ? `Nomor ${s.no} sudah dipakai surat jalan lain.` : '';
+    if (salah) { $('#sPesan').innerHTML = `<div class="pesan-salah">${esc(salah)}</div>`; return; }
+    $('#bSSimpan').disabled = true;
+    try { await simpanSJ(v => { const i = v.daftar.findIndex(x => x.id === s.id); if (i >= 0) v.daftar[i] = s; else v.daftar.push(s); }); bukaSJ(SJ.daftar.find(x => x.id === s.id)); }
+    catch (e) { $('#bSSimpan').disabled = false; $('#sPesan').innerHTML = `<div class="pesan-salah">${esc(e.message)}</div>`; } }; }
+
+// PDF hitam-putih, susunan sama dengan surat jalan per toko dari invoice (kepalaSurat, tabel, kotak catatan, tiga tanda tangan).
+function pdfSJ(s) { return denganTunggu(async () => { const c = hitungSJ(s); if (!c.b.length) throw new Error('Belum ada barang yang dibawa.'); const doc = await kertasBaru(), P = INV?.profil || {};
+  const y = kepalaSurat(doc, 'SURAT JALAN', [['Nama', s.kepada], ['No. Telp', s.telp], ['Alamat', s.alamat]], [['No. Surat Jalan', s.no], ['Tanggal', `${hariTgl(s.tgl)}, ${tglSurat(s.tgl)}`], ['Ekspedisi', s.ekspedisi], ['Pengantar', s.pengantar]], true);
+  doc.autoTable({ ...garisTabel, startY: y, head: [['No', 'Nama Barang', 'Qty', 'Berat', 'Keterangan']],
+    body: c.b.map((x, i) => [i + 1, x.nama, angkaId(x.qty) + ' ' + x.satuan, x.berat ? angkaId(x.qty * x.berat) + ' kg' : '', x.ket]),
+    foot: [[{ content: 'JUMLAH', colSpan: 2, styles: { halign: 'right' } }, { content: c.jumlah, styles: { halign: 'center' } }, { content: c.kg ? angkaId(c.kg) + ' kg' : '', styles: { halign: 'center' } }, '']],
+    columnStyles: { 0: { cellWidth: 11, halign: 'center' }, 2: { halign: 'center', cellWidth: 40 }, 3: { halign: 'center', cellWidth: 26 }, 4: { cellWidth: 46 } },
+    didParseCell: d => { if (d.section === 'head' && [0, 2, 3].includes(d.column.index)) d.cell.styles.halign = 'center'; } });
+  const yy = kotakCatatan(doc, doc.lastAutoTable.finalY + 4, 'Catatan:\n' + (s.catatan || ''),
+    'PERHATIAN:\n1. Surat Jalan ini merupakan bukti resmi penerimaan barang\n2. Surat Jalan ini bukan bukti penjualan\n3. Surat Jalan ini akan dilengkapi Invoice sebagai bukti penjualan') + 10;
+  ttd(doc, yy, [['Penerima / Pembeli', '...', 45], ['Bagian Pengiriman', s.pengantar || '...', 105], ['Petugas Gudang', P.penandatangan || '...', 165]]);
+  doc.save(namaBerkas('Surat Jalan', s, s.kepada)); }); }
 
 /* ----- Excel bersusunan lembar harian PENJUALAN MINYAK MINGGU N: blok demi blok ke bawah (ExcelJS dari cdnjs) ----- */
 let pustakaXl = null;
