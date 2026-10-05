@@ -326,6 +326,16 @@ const sesi = { baca() { try { return JSON.parse(localStorage.getItem(LS)); } cat
    (nomor minggu, periode, 7 kotak hari Senin sampai Minggu, hutang mingguan). Hutang besar satu untuk satu orang; potongannya
    bisa dari gaji Minyak atau NTA (d.usaha). Alat laptop (gaji-persis.mjs) menyalin syncHm..hitung, jadi urutannya dijaga. */
 const USAHA = { minyak: 'Minyak', nta: 'NTA' };
+/* Karyawan ikut usaha mana (5 Okt 2026, supaya ringkasan Minyak dan NTA tidak tercampur): e.usaha = ['minyak', 'nta']
+   diatur pemilik di halaman karyawan. Kalau belum diatur, ditebak dari isi lembar: usaha yang punya minggu berisi (gaji
+   harian atau hutang mingguan) dihitung; lembar kosong hasil "minggu baru semua karyawan" tidak dihitung. Tanpa isi sama
+   sekali: usaha yang lembarnya ada, kalau tidak ada juga, Minyak. */
+const mingguBerisi = w => (w.hari || []).some(x => num(x) > 0) || (w.hmd || []).some(x => num(x) > 0) || num(w.hmx) > 0 || num(w.hbx) > 0;
+function usahaKaryawan(e) { if (Array.isArray(e.usaha) && e.usaha.length) return e.usaha.filter(u => USAHA[u]);
+  const lembar = u => (u === 'nta' ? e.nta : e.minggu) || [];
+  const isi = ['minyak', 'nta'].filter(u => lembar(u).some(mingguBerisi)); if (isi.length) return isi;
+  const ada = ['minyak', 'nta'].filter(u => lembar(u).length); return ada.length ? ada : ['minyak']; }
+const ikut = (e, u) => usahaKaryawan(e).includes(u);
 const mingguDari = (e, u) => u === 'nta' ? (e.nta ||= []) : (e.minggu ||= []);
 function syncHm(e) { [e.minggu || [], e.nta || []].forEach(arr => arr.forEach(w => { if (!Array.isArray(w.hmd)) { w.hmd = [0, 0, 0, 0, 0, 0, 0]; w.hmx = num(w.hm) || 0; }
   w.hmd = w.hmd.map(num).concat([0, 0, 0, 0, 0, 0, 0]).slice(0, 7); w.hmx = num(w.hmx); w.hm = w.hmd.reduce((a, b) => a + b, 0) + w.hmx; })); }
@@ -475,7 +485,7 @@ function htmlHutang(e) { const c = hitung(e), uRow = d => d.usaha === 'nta' ? 'n
 
 `; }
 // Semua lembar yang dimiliki karyawan: Minyak, lalu NTA kalau ada; hutang besar sekali di akhir.
-function htmlGajiSemua(e, angkat = true) { const ada = ['minyak', 'nta'].filter(u => hitung(e, u).wks.some(w => num(w.w) > 0)); if (!ada.length) ada.push('minyak');
+function htmlGajiSemua(e, angkat = true) { const ada = usahaKaryawan(e).filter(u => hitung(e, u).wks.some(w => num(w.w) > 0)); if (!ada.length) ada.push(usahaKaryawan(e)[0]);
   return { k: isiGaji(e, angkat, ada[0]).k, html: ada.map((u, i) => isiGaji(e, i ? false : angkat, u).html).join('') + htmlHutang(e) }; }
 const ikatSlip = (e) => { $$('[data-slipw]').forEach(b => b.onclick = () => pdfSlip(e, b.dataset.slipw, b.dataset.slipu || 'minyak')); };
 
@@ -550,27 +560,28 @@ function gambarTab() {
 
 function gambarRingkasan() {
   const wl = semuaMinggu(), isi = $('#isi');
-  if (!wl.length) { isi.innerHTML = tabUsaha() + `<section class="kartu">Belum ada data minggu ${USAHA[usahaK]}. ${bacaSaja ? '' : '<button class="pil kecil" id="bSerentak">+ Minggu baru semua karyawan</button>'}</section>`; ikatUsaha(isi); const bs = $('#bSerentak'); if (bs) bs.onclick = dialogMingguSerentak; return; }
+  if (!wl.length) { isi.innerHTML = tabUsaha() + `<section class="kartu">Belum ada data minggu ${USAHA[usahaK]}. ${bacaSaja ? '' : `<button class="pil kecil" id="bSerentak">+ Minggu baru semua karyawan ${USAHA[usahaK]}</button>`}</section>`; ikatUsaha(isi); const bs = $('#bSerentak'); if (bs) bs.onclick = dialogMingguSerentak; return; }
   if (!wl.includes(mingguRingkas)) mingguRingkas = wl[wl.length - 1];
-  const daftar = Object.entries(data).filter(([, e]) => e.aktif).sort((a, b) => a[1].nama.localeCompare(b[1].nama));
+  const daftar = Object.entries(data).filter(([, e]) => e.aktif && ikut(e, usahaK)).sort((a, b) => a[1].nama.localeCompare(b[1].nama));
+  const luar = Object.values(data).filter(e => e.aktif && !ikut(e, usahaK)).map(e => e.nama).sort((a, b) => a.localeCompare(b));
   const baris = daftar.map(([k, e]) => { const c = hitung(e, usahaK), w = c.wks.find(x => num(x.w) === mingguRingkas);
-    return { k, nama: e.nama, ada: !!w, per: w?.periode || '', masuk: w?.masuk || 0, total: w?.total || 0, hm: num(w?.hm), hb: num(w?.hb), terima: w?.terima || 0, sisa: c.sisa, rinci: w ? rincianHm(w) : '' }; });
+    return { k, nama: e.nama, ada: !!w, per: w?.periode || '', masuk: w?.masuk || 0, total: w?.total || 0, hm: num(w?.hm), hb: num(w?.hb), terima: w?.terima || 0, sisa: c.perUsaha?.[usahaK]?.sisa || 0, rinci: w ? rincianHm(w) : '' }; });
   const T = f => baris.reduce((a, r) => a + r[f], 0), mx = Math.max(1, ...baris.map(r => r.terima)), per = (baris.find(r => r.per) || {}).per || '';
   const nonaktif = Object.values(data).filter(e => !e.aktif);
   isi.innerHTML = tabUsaha() + `<section class="kartu"><h2>${USAHA[usahaK]} · Minggu ${mingguRingkas}<select id="pilihMinggu" class="isian" style="width:auto" aria-label="Pilih minggu">${[...wl].reverse().map(w => `<option ${w === mingguRingkas ? 'selected' : ''}>${w}</option>`).join('')}</select></h2>
-      ${bacaSaja ? '' : '<button class="pil kecil" id="bSerentak" style="margin:-4px 0 12px">+ Minggu baru semua karyawan</button>'}
-      <div class="catatan" style="margin:-6px 0 12px">${per ? 'Periode ' + esc(per) + ' · ' : ''}${daftar.length} karyawan aktif</div>
+      ${bacaSaja ? '' : `<button class="pil kecil" id="bSerentak" style="margin:-4px 0 12px">+ Minggu baru semua karyawan ${USAHA[usahaK]}</button>`}
+      <div class="catatan" style="margin:-6px 0 12px">${per ? 'Periode ' + esc(per) + ' · ' : ''}${daftar.length} karyawan ${USAHA[usahaK]}</div>
       <div class="kisi"><div class="kotak emas"><div class="l">Yang harus dibayar</div><div class="v">${rp(T('terima'))}</div></div>
         <div class="kotak"><div class="l">Total gaji</div><div class="v">${rp(T('total'))}</div></div>
         <div class="kotak"><div class="l">Potongan mingguan</div><div class="v">${rp(T('hm'))}</div></div>
         <div class="kotak"><div class="l">Potongan hutang besar</div><div class="v">${rp(T('hb'))}</div></div>
-        <div class="kotak merah"><div class="l">Sisa hutang besar</div><div class="v">${rp(T('sisa'))}</div></div></div></section>
+        <div class="kotak merah"><div class="l">Sisa hutang besar ${USAHA[usahaK]}</div><div class="v">${rp(T('sisa'))}</div></div></div></section>
     <section class="kartu"><h2>Per karyawan</h2>
       ${baris.map(r => `<button class="orang ${r.ada ? '' : 'kosong'}" data-ke="${esc(r.k)}"><span class="nama">${esc(r.nama)}</span><span class="bayar">${r.ada ? rp(r.terima) : '—'}</span>
         <span class="garis-batang"><i style="width:${Math.round(r.terima / mx * 100)}%"></i></span>
         <span class="rinci">${r.ada ? `<span class="keping">${r.masuk} hari</span><span class="keping">Gaji ${rp(r.total)}</span>${r.hm ? `<span class="keping" title="${esc(r.rinci)}">Mingguan − ${rp(r.hm)}</span>` : ''}${r.hb ? `<span class="keping">Hutang besar − ${rp(r.hb)}</span>` : ''}` : '<span class="keping">belum ada minggu ini</span>'}
         ${r.sisa > 0 ? `<span class="keping merah">Sisa hutang ${rp(r.sisa)}</span>` : ''}${punyaPin[r.k] ? '' : '<span class="keping merah">belum punya PIN</span>'}</span></button>`).join('')}
-      <div class="catatan">${bacaSaja ? 'Ketuk nama untuk melihat rincian gaji, absensi, dan hutangnya.' : 'Ketuk nama untuk mengisi gaji.'} Karyawan nonaktif tidak dihitung di sini.</div></section>
+      <div class="catatan">${bacaSaja ? 'Ketuk nama untuk melihat rincian gaji, absensi, dan hutangnya.' : 'Ketuk nama untuk mengisi gaji.'} Hanya karyawan ${USAHA[usahaK]} yang dihitung di sini.${luar.length ? ` Tidak bekerja di ${USAHA[usahaK]}: ${esc(luar.join(', '))}${bacaSaja ? '' : ' (atur di halaman karyawan, bagian Bekerja di)'}.` : ''} Karyawan nonaktif tidak dihitung.</div></section>
     ${nonaktif.length ? `<section class="kartu"><h2>Nonaktif</h2><div class="catatan" style="margin:0">${nonaktif.map(e => esc(e.nama)).join(', ')} — tidak bisa masuk ke aplikasi.</div></section>` : ''}`;
   $('#pilihMinggu').onchange = ev => { mingguRingkas = num(ev.target.value); gambarRingkasan(); }; ikatUsaha(isi);
   const bs = $('#bSerentak'); if (bs) bs.onclick = dialogMingguSerentak;
@@ -597,15 +608,15 @@ function periodeBerikut(per) {
    Yang ditawarkan: minggu terakhir kalau periodenya belum lewat dan masih ada karyawan aktif yang belum punya
    (misalnya sebagian sudah dibuat satu per satu); selain itu minggu berikutnya. Nomornya tetap bisa diganti di jendela. */
 function dialogMingguSerentak() {
-  const aktif = Object.entries(data).filter(([, e]) => e.aktif).sort((a, b) => a[1].nama.localeCompare(b[1].nama));
-  if (!aktif.length) return status('Belum ada karyawan aktif', 'salah');
+  const aktif = Object.entries(data).filter(([, e]) => e.aktif && ikut(e, usahaK)).sort((a, b) => a[1].nama.localeCompare(b[1].nama));
+  if (!aktif.length) return status(`Belum ada karyawan aktif di ${USAHA[usahaK]}`, 'salah');
   const wl = semuaMinggu(), mx = wl.length ? wl[wl.length - 1] : 0;
   const cari = (e, w) => mingguDari(e, usahaK).find(x => num(x.w) === w);
   const perW = w => (Object.values(data).flatMap(x => mingguDari(x, usahaK)).find(x => num(x.w) === w && x.periode) || {}).periode || '';
   const tebak = w => perW(w) || periodeBerikut(perW(Math.max(0, ...wl.filter(x => x < w))));
   const akhir = akhirPeriode(perW(mx)), kemarin = new Date(); kemarin.setHours(0, 0, 0, 0); kemarin.setDate(kemarin.getDate() - 1);
   const w0 = mx && akhir && akhir >= kemarin && aktif.some(([, e]) => !cari(e, mx)) ? mx : mx + 1;
-  dialog(`<h3>Minggu baru ${USAHA[usahaK]} untuk semua karyawan</h3>
+  dialog(`<h3>Minggu baru ${USAHA[usahaK]} untuk semua karyawan ${USAHA[usahaK]}</h3>
     <label class="medan"><span>Nomor minggu</span><input id="sW" inputmode="numeric" value="${w0}"></label>
     <label class="medan"><span>Periode</span><input id="sPer" value="${esc(tebak(w0))}" placeholder="mis. 28 September - 3 Oktober 2026"></label>
     <div class="catatan" style="margin:0 0 6px">Karyawan yang dibuatkan minggu ini:</div><div id="sDaftar"></div><div id="sPesan"></div>
@@ -637,12 +648,16 @@ function gambarKaryawan(k) {
         <div class="kotak emas"><div class="l">NTA · minggu <span id="kMingguN">${aN ? esc(aN.w) : '—'}</span></div><div class="v" id="kTerimaN">${aN ? rp(aN.terima) : '—'}</div></div>
         <div class="kotak ${c.sisa > 0 ? 'merah' : ''}"><div class="l">Sisa hutang besar</div><div class="v" id="kSisa">${rp(c.sisa)}</div></div>
         <div class="kotak"><div class="l">Akses aplikasi</div><div class="v" style="font-size:15px;font-family:var(--sans);font-weight:700">${!e.aktif ? 'Nonaktif' : punyaPin[k] ? 'Sudah punya PIN' : 'Belum punya PIN'}</div></div></div></section>
+    <section class="kartu"><h2>Bekerja di</h2><div class="keping-baris" id="usahaKu">${['minyak', 'nta'].map(u => `<button class="pil kecil ${ikut(e, u) ? 'emas' : 'halus'}" data-ikut="${u}" aria-pressed="${ikut(e, u)}">${ikut(e, u) ? '✓ ' : ''}${USAHA[u]}</button>`).join('')}</div>
+      <div class="catatan">Menentukan ${esc(e.nama)} masuk ringkasan, minggu baru serentak, dan rekap gaji usaha yang mana. Ketuk untuk menambah atau melepas, lalu Simpan.</div></section>
     <section class="kartu"><h2>Absensi & gaji per minggu <button class="pil kecil" id="bMinggu">+ Minggu baru ${USAHA[usahaK]}</button></h2>${tabUsaha()}<div id="daftarMinggu"></div>
       <div class="catatan">Lembar ${USAHA[usahaK]}. Isi gaji harian di kotak hari; kosong berarti tidak masuk. Potongan hutang besar tidak diketik di sini, isinya otomatis dari tabel Hutang besar di bawah.</div></section>
     <section class="kartu"><h2>Hutang besar <button class="pil kecil" id="bHutang">+ Hutang Minyak</button> <button class="pil kecil" id="bHutangN">+ Hutang NTA</button></h2>
       <div class="keping-baris" id="hutangUsaha" style="margin-bottom:8px"></div><div id="daftarHutang"></div>
       <div class="catatan" id="ringkasHutang"></div></section>`;
 
+  $$('[data-ikut]', isi).forEach(b => b.onclick = () => { const u = b.dataset.ikut, now = usahaKaryawan(e); const baru = now.includes(u) ? now.filter(x => x !== u) : [...now, u];
+    if (!baru.length) return status('Paling sedikit satu usaha', 'salah'); e.usaha = ['minyak', 'nta'].filter(x => baru.includes(x)); tandai(k); gambarKaryawan(k); });
   const gambarMinggu = () => { const c2 = hitung(e, usahaK), src = mingguDari(e, usahaK);
     const urutan = [...c2.wks].map((w, i) => ({ w, i })).reverse(), tampil = semuaTampil[k] ? urutan : urutan.slice(0, 4);
     $('#daftarMinggu').innerHTML = tampil.map(({ w, i }, urut) => { const terbuka = buka[k + ':' + i] ?? urut === 0;
@@ -825,7 +840,7 @@ async function layarBeranda() {
   akar.innerHTML = kepalaPemilik('Dashboard Minyak', bacaSaja ? 'Melihat absensi & gaji, keuangan, harga toko, dan laporan. Akun ini tidak bisa mengubah apa pun.' : 'Absensi, gaji, keuangan, dan laporan usaha minyak di satu tempat.', false) +
   `<main class="bungkus">
     <section class="besar angkat" style="margin-top:-18px"><div class="label">Gaji Minyak yang harus dibayar · minggu ${w || '—'}</div><div class="nilai">${rp(bayar)}</div>
-      <div class="keping-baris">${wN ? `<span class="keping">Gaji NTA minggu ${wN} <b>${rp(bayarN)}</b></span>` : ''}<span class="keping"><b>${Object.values(data).filter(e => e.aktif).length}</b> karyawan aktif</span><span class="keping">Sisa hutang besar <b>${rp(sisaHutang)}</b></span><span class="keping" id="kepingLaba">Laba bersih …</span></div></section>
+      <div class="keping-baris">${wN ? `<span class="keping">Gaji NTA minggu ${wN} <b>${rp(bayarN)}</b></span>` : ''}<span class="keping"><b>${Object.values(data).filter(e => e.aktif && ikut(e, 'minyak')).length}</b> karyawan Minyak · <b>${Object.values(data).filter(e => e.aktif && ikut(e, 'nta')).length}</b> NTA</span><span class="keping">Sisa hutang besar <b>${rp(sisaHutang)}</b></span><span class="keping" id="kepingLaba">Laba bersih …</span></div></section>
     <section class="menu">
       <button class="ubin" data-ke="gaji"><span class="ik">${ikon('gaji')}</span><b>Absensi & Gaji</b><small>${bacaSaja ? 'Gaji, absensi, dan hutang tiap karyawan (hanya melihat)' : 'Isi gaji harian, potongan, hutang, dan PIN karyawan'}</small></button>
       <button class="ubin" data-ke="keuangan"><span class="ik emas">${ikon('uang')}</span><b>Keuangan</b><small>Laporan laba rugi per bulan: omzet, modal, biaya, gaji, laba bersih</small></button>
@@ -1185,7 +1200,7 @@ function pdfSlip(e, w, usaha = 'minyak') { return denganTunggu(async () => { con
   const y = Math.min(doc.lastAutoTable.finalY + 22, 270); doc.setFontSize(9.5); doc.text('Diterima oleh,', 28, y); doc.text('Pemilik,', 150, y); doc.line(18, y + 20, 72, y + 20); doc.line(138, y + 20, 192, y + 20); doc.text(e.nama, 45, y + 25, { align: 'center' });
   tutupDok(doc, `slip-gaji-${usaha}-${slug(e.nama)}-minggu-${m.w}.pdf`); }); }
 
-function pdfRekapGaji(w, usaha = 'minyak') { return denganTunggu(async () => { const baris = Object.values(data).map(e => ({ e, m: hitung(e, usaha).wks.find(x => num(x.w) === num(w)), sisa: hitung(e).sisa })).filter(x => x.m).sort((a, b) => a.e.nama.localeCompare(b.e.nama));
+function pdfRekapGaji(w, usaha = 'minyak') { return denganTunggu(async () => { const baris = Object.values(data).filter(e => ikut(e, usaha)).map(e => ({ e, m: hitung(e, usaha).wks.find(x => num(x.w) === num(w)), sisa: hitung(e).sisa })).filter(x => x.m).sort((a, b) => a.e.nama.localeCompare(b.e.nama));
   if (!baris.length) throw new Error('Belum ada data minggu itu.'); const T = f => baris.reduce((a, x) => a + num(x.m[f]), 0), per = (baris.find(x => x.m.periode) || { m: {} }).m.periode || '';
   const doc = await dokumen(`Rekap Gaji Karyawan ${USAHA[usaha]}`, `Minggu ${w}${per ? ' · ' + per : ''} · ${baris.length} karyawan`);
   doc.autoTable({ ...gayaTabel, startY: 38, head: [['Karyawan', 'Masuk', 'Total gaji', 'Hutang mingguan', 'Hutang besar', 'Dibayar', 'Sisa hutang', 'Paraf']], body: baris.map(x => [x.e.nama, x.m.masuk + ' hr', rp(x.m.total), x.m.hm ? rp(x.m.hm) : '-', x.m.hb ? rp(x.m.hb) : '-', rp(x.m.terima), x.sisa > 0 ? rp(x.sisa) : '-', '']),
