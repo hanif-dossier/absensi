@@ -190,8 +190,13 @@ textarea.isian{font:inherit;resize:vertical}
 @media(min-width:720px){.sj-baris{grid-template-columns:minmax(0,1.8fr) minmax(0,.7fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,1.6fr) 44px;padding:6px 0}.sj-baris .s-nama,.sj-baris .s-ket{grid-column:auto}}
 @media(max-width:560px){.sj-grid{grid-template-columns:1fr}.lembar .sj-info,.lembar .sj-kotak{grid-template-columns:1fr}.lembar .sj-kotak>div:first-child{border-right:0;border-bottom:1px solid #333}.lembar .sj-ttd{gap:6px;font-size:11px}.lembar .sj-garis{margin-top:36px;white-space:nowrap;overflow:hidden;font-size:10px}}
 @media print{
-  @page{size:A4;margin:12mm}
+  @page{size:auto;margin:10mm}
   html,body{background:#fff!important;background-image:none!important}
+  body.mode-cetak #cetak,body.mode-cetak #cetak *{color:#000!important;background:#fff!important;text-shadow:none!important}
+  body.mode-cetak #cetak{font-family:Arial,Helvetica,sans-serif!important;font-size:13.5px!important}
+  body.mode-cetak #cetak .kop{border-bottom:2px solid #000!important}body.mode-cetak #cetak th,body.mode-cetak #cetak td{border:1.5px solid #000!important}
+  body.mode-cetak #cetak .sj-kotak,body.mode-cetak #cetak .sj-kotak>div:first-child{border-color:#000!important;border-width:1.5px!important}
+  body.mode-cetak #cetak .sj-garis{border-top:1.5px solid #000!important}
   body.mode-cetak>:not(#akar),body.mode-cetak #akar>:not(main),body.mode-cetak main>div>:not(.sj-lembar-wrap){display:none!important}
   body.mode-cetak main{padding:0!important;max-width:none!important}body.mode-cetak .sj-lembar-wrap{margin:0!important;padding:0!important}
   body.mode-cetak #cetak{box-shadow:none;border-radius:0;padding:0}body.mode-cetak #cetak table{min-width:0!important}body.mode-cetak .bungkus-tabel{overflow:visible!important}
@@ -819,7 +824,7 @@ async function layarBeranda() {
       <button class="ubin" data-ke="pembelian"><span class="ik emas">${ikon('beli')}</span><b>Pembelian minyak</b><small>Minyak yang dibeli dari pemasok di jalan, dihitung sejak 24 Sep 2026</small></button>
       <button class="ubin" data-ke="harga"><span class="ik">${ikon('toko')}</span><b>Harga Toko</b><small>${bacaSaja ? 'Harga curah & dus tiap toko' : 'Harga curah & dus tiap toko; karyawan ikut melihatnya'}</small></button>
       <button class="ubin" data-ke="bebas"><span class="ik emas">${ikon('bebas')}</span><b>Bebas Hutang</b><small>Daftar hutang bos, cicilan yang dibayar, dan kemampuan bayar dari laba usaha</small></button>
-      <button class="ubin" data-ke="invoice"><span class="ik emas">${ikon('nota')}</span><b>Invoice Harian</b><small>${bacaSaja ? 'Invoice per hari untuk semua toko, surat jalan, dan hutang toko' : 'Satu invoice per hari untuk semua toko: PDF invoice, surat jalan, nota per toko, Excel'}</small></button>
+      <button class="ubin" data-ke="invoice" hidden><span class="ik emas">${ikon('nota')}</span><b>Invoice Harian</b><small>${bacaSaja ? 'Invoice per hari untuk semua toko, surat jalan, dan hutang toko' : 'Satu invoice per hari untuk semua toko: PDF invoice, surat jalan, nota per toko, Excel'}</small></button>
       <button class="ubin" data-ke="sj"><span class="ik">${ikon('jalan')}</span><b>Surat Jalan</b><small>Bukti barang yang dibawa pengantar ke toko atau luar kota; dicetak atau PDF, tanpa harga</small></button>
       <button class="ubin" data-ke="laporan"><span class="ik emas">${ikon('pdf')}</span><b>Laporan PDF</b><small>Slip gaji, rekap gaji mingguan, laporan laba rugi bulanan</small></button>
       <button class="ubin" id="ubinHarian" data-laporan="laporan-harian"><span class="ik emas">${ikon('harian')}</span><b>Laporan harian</b><small>Rincian penjualan per hari minggu ${w || ''}</small></button>
@@ -1719,7 +1724,7 @@ function pdfSjToko(h, pilih) { return denganTunggu(async () => { const doc = awa
    invoice (nama usaha, alamat, telepon, penanda tangan). Tidak masuk invoice, keuangan, maupun laporan. ----- */
 let SJ = null, sjCari = '';
 const SJ_BARANG = ['Minyak Curah', 'Minyak Dus', 'Kendi Kosong'];
-const normSJ = s => { s.barang = Array.isArray(s.barang) ? s.barang : []; s.barang.forEach(b => { b.nama = b.nama || ''; b.qty = +b.qty || 0; b.satuan = b.satuan || 'kendi'; b.berat = +b.berat || 0; b.ket = b.ket || ''; }); ['pengantar', 'ekspedisi', 'kepada', 'telp', 'alamat', 'catatan'].forEach(k => { s[k] = s[k] || ''; }); return s; };
+const normSJ = s => { s.barang = Array.isArray(s.barang) ? s.barang : []; s.barang.forEach(b => { b.nama = b.nama || ''; b.qty = +b.qty || 0; b.satuan = b.satuan || 'kendi'; b.berat = +b.berat || 0; b.ket = b.ket || ''; }); ['pengantar', 'ekspedisi', 'plat', 'kepada', 'telp', 'alamat', 'catatan'].forEach(k => { s[k] = s[k] || ''; }); return s; };
 async function muatSJ() { const [r] = await Promise.all([rpc('minyak_ambil_nilai', { p_token: sesi.baca().token, p_kunci: 'surat-jalan' }), INV ? null : muatInvoice().then(v => { INV = v; })]);
   if (!r.ok) throw new Error(r.pesan); const v = r.nilai || {}; v.daftar = Array.isArray(v.daftar) ? v.daftar : []; v.daftar.forEach(normSJ); return v; }
 // Simpan: ambil versi terbaru dulu lalu terapkan perubahan, supaya dua HP yang menyimpan bergantian tidak saling menimpa.
@@ -1761,7 +1766,7 @@ function gambarDaftarSJ() { const el = $('#sjDaftar'); if (!el) return; const ca
 function lembarSJ(s) { const c = hitungSJ(s), P = INV?.profil || {};
   return `<div class="lembar" id="cetak"><div class="kop"><div><b>${esc(P.nama || '')}</b><div class="kecil">${esc(P.alamat || '')}</div>${P.telp ? `<div class="kecil">No Telp : ${esc(P.telp)}</div>` : ''}</div><div class="sj-judul">SURAT JALAN</div></div>
     <div class="sj-info"><div><div><b>Kepada Yth.</b></div><div>Nama : <b>${esc(s.kepada || '-')}</b></div><div>No. Telp : ${esc(s.telp || '-')}</div><div>Alamat : ${esc(s.alamat || '-')}</div></div>
-      <div><div>No. Surat Jalan : <b>${esc(s.no)}</b></div><div>Tanggal : ${esc(hariTgl(s.tgl))}, ${esc(tglSurat(s.tgl))}</div><div>Ekspedisi : ${esc(s.ekspedisi || '-')}</div><div>Pengantar : ${esc(s.pengantar || '-')}</div></div></div>
+      <div><div>No. Surat Jalan : <b>${esc(s.no)}</b></div><div>Tanggal : ${esc(hariTgl(s.tgl))}, ${esc(tglSurat(s.tgl))}</div><div>Kendaraan : ${esc(s.ekspedisi || '-')}</div><div>Plat nomor : <b>${esc(s.plat || '-')}</b></div><div>Pengantar : ${esc(s.pengantar || '-')}</div></div></div>
     <div class="bungkus-tabel"><table><thead><tr><th style="width:36px">No</th><th>Nama barang</th><th class="kanan">Qty</th><th class="kanan">Berat</th><th style="width:30%">Keterangan</th></tr></thead>
     <tbody>${c.b.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.nama)}</td><td class="kanan">${angkaId(x.qty)} ${esc(x.satuan)}</td><td class="kanan">${x.berat ? angkaId(x.qty * x.berat) + ' kg' : ''}</td><td>${esc(x.ket)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#777">Belum ada barang</td></tr>'}</tbody>
     <tfoot><tr><td colspan="2" class="kanan"><b>Jumlah</b></td><td class="kanan"><b>${esc(c.jumlah || '-')}</b></td><td class="kanan"><b>${c.kg ? angkaId(c.kg) + ' kg' : ''}</b></td><td></td></tr></tfoot></table></div>
@@ -1789,7 +1794,7 @@ async function ubahStatusSJ(s, batal) { try { await simpanSJ(v => { const y = v.
 function formSJ(asal, salin) {
   const barisBaru = (nama = '') => ({ id: idBaru('s'), nama, qty: 0, satuan: nama === 'Minyak Dus' ? 'dus' : 'kendi', berat: nama === 'Minyak Curah' ? 14.4 : 0, ket: '' });
   const lalu = SJ.daftar.filter(x => !x.batal).sort((a, b) => b.tgl.localeCompare(a.tgl))[0];
-  const s = asal ? normSJ(JSON.parse(JSON.stringify(asal))) : { id: idBaru('j'), no: noSJ(), tgl: hariIni(), pengantar: lalu?.pengantar || '', ekspedisi: lalu?.ekspedisi || 'Mobil pick-up', kepada: '', telp: '', alamat: '', catatan: '', barang: [barisBaru('Minyak Curah')] };
+  const s = asal ? normSJ(JSON.parse(JSON.stringify(asal))) : { id: idBaru('j'), no: noSJ(), tgl: hariIni(), pengantar: lalu?.pengantar || '', ekspedisi: lalu?.ekspedisi || 'Mobil pick-up', plat: lalu?.plat || '', kepada: '', telp: '', alamat: '', catatan: '', barang: [barisBaru('Minyak Curah')] };
   if (salin) { s.id = idBaru('j'); s.no = noSJ(); s.tgl = hariIni(); s.batal = false; s.barang.forEach(b => { b.id = idBaru('s'); }); }
   const tokoList = [...new Set([...(harga?.toko || []).filter(t => t.aktif !== false).map(t => t.nama), ...SJ.daftar.map(x => x.kepada)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const pengantarList = [...new Set([...Object.values(data || {}).filter(e => e.aktif).map(e => e.nama), ...SJ.daftar.map(x => x.pengantar)].filter(Boolean))];
@@ -1798,7 +1803,8 @@ function formSJ(asal, salin) {
     <datalist id="dlToko">${tokoList.map(t => `<option value="${esc(t)}">`).join('')}</datalist><datalist id="dlPengantar">${pengantarList.map(t => `<option value="${esc(t)}">`).join('')}</datalist><datalist id="dlBarang">${SJ_BARANG.map(t => `<option value="${t}">`).join('')}</datalist>
     <section class="kartu angkat"><h2>Surat</h2><div class="sj-grid">
       <label class="medan"><span>Nomor</span><input id="sNo" value="${esc(s.no)}"></label><label class="medan"><span>Tanggal</span><input id="sTgl" type="date" value="${esc(s.tgl)}"></label>
-      <label class="medan"><span>Pengantar</span><input id="sPengantar" list="dlPengantar" value="${esc(s.pengantar)}" placeholder="nama karyawan yang membawa"></label><label class="medan"><span>Ekspedisi / kendaraan</span><input id="sEks" value="${esc(s.ekspedisi)}" placeholder="mis. Mobil pick-up KB 1234 AB"></label></div></section>
+      <label class="medan"><span>Pengantar</span><input id="sPengantar" list="dlPengantar" value="${esc(s.pengantar)}" placeholder="nama karyawan yang membawa"></label><label class="medan"><span>Kendaraan</span><input id="sEks" value="${esc(s.ekspedisi)}" placeholder="mis. Mobil pick-up"></label>
+      <label class="medan"><span>Plat nomor</span><input id="sPlat" value="${esc(s.plat)}" placeholder="mis. KB 1234 AB" style="text-transform:uppercase"></label></div></section>
     <section class="kartu angkat" style="margin-top:14px"><h2>Kepada</h2><div class="sj-grid">
       <label class="medan s-lebar"><span>Nama toko / penerima</span><input id="sKepada" list="dlToko" value="${esc(s.kepada)}" placeholder="nama toko atau orang"></label>
       <label class="medan"><span>No. telp</span><input id="sTelp" inputmode="tel" value="${esc(s.telp)}"></label><label class="medan"><span>Alamat / kota tujuan</span><input id="sAlamat" value="${esc(s.alamat)}" placeholder="mis. Psr Inpres Sintang"></label></div></section>
@@ -1821,7 +1827,7 @@ function formSJ(asal, salin) {
   $('#bSTambah').onclick = () => { s.barang.push(barisBaru()); gambarBaris(); $('.sj-baris:last-child input').focus(); };
   $('#sKepada').onchange = () => { const a = alamatToko[$('#sKepada').value.trim().toLowerCase()]; if (!a) return; if (!$('#sAlamat').value) $('#sAlamat').value = a.alamat || ''; if (!$('#sTelp').value) $('#sTelp').value = a.telp || ''; };
   $('#bBeranda').textContent = '← Surat jalan'; $('#bBeranda').onclick = $('#bSBatal').onclick = () => asal && !salin ? bukaSJ(asal) : layarSuratJalan();
-  $('#bSSimpan').onclick = async () => { s.no = $('#sNo').value.trim(); s.tgl = $('#sTgl').value; s.pengantar = $('#sPengantar').value.trim(); s.ekspedisi = $('#sEks').value.trim(); s.kepada = $('#sKepada').value.trim(); s.telp = $('#sTelp').value.trim(); s.alamat = $('#sAlamat').value.trim(); s.catatan = $('#sCatatan').value.trim();
+  $('#bSSimpan').onclick = async () => { s.no = $('#sNo').value.trim(); s.tgl = $('#sTgl').value; s.pengantar = $('#sPengantar').value.trim(); s.ekspedisi = $('#sEks').value.trim(); s.plat = $('#sPlat').value.trim().toUpperCase(); s.kepada = $('#sKepada').value.trim(); s.telp = $('#sTelp').value.trim(); s.alamat = $('#sAlamat').value.trim(); s.catatan = $('#sCatatan').value.trim();
     s.barang = s.barang.filter(b => b.nama.trim() || b.qty);
     const salah = !s.no ? 'Nomor wajib diisi.' : !s.tgl ? 'Tanggal wajib diisi.' : !s.kepada ? 'Nama toko atau penerima wajib diisi.' : !s.barang.some(b => b.nama.trim() && b.qty > 0) ? 'Isi paling sedikit satu barang beserta jumlahnya.' : SJ.daftar.some(x => x.id !== s.id && !x.batal && x.no === s.no) ? `Nomor ${s.no} sudah dipakai surat jalan lain.` : '';
     if (salah) { $('#sPesan').innerHTML = `<div class="pesan-salah">${esc(salah)}</div>`; return; }
@@ -1831,7 +1837,7 @@ function formSJ(asal, salin) {
 
 // PDF hitam-putih, susunan sama dengan surat jalan per toko dari invoice (kepalaSurat, tabel, kotak catatan, tiga tanda tangan).
 function pdfSJ(s) { return denganTunggu(async () => { const c = hitungSJ(s); if (!c.b.length) throw new Error('Belum ada barang yang dibawa.'); const doc = await kertasBaru(), P = INV?.profil || {};
-  const y = kepalaSurat(doc, 'SURAT JALAN', [['Nama', s.kepada], ['No. Telp', s.telp], ['Alamat', s.alamat]], [['No. Surat Jalan', s.no], ['Tanggal', `${hariTgl(s.tgl)}, ${tglSurat(s.tgl)}`], ['Ekspedisi', s.ekspedisi], ['Pengantar', s.pengantar]], true);
+  const y = kepalaSurat(doc, 'SURAT JALAN', [['Nama', s.kepada], ['No. Telp', s.telp], ['Alamat', s.alamat]], [['No. Surat Jalan', s.no], ['Tanggal', `${hariTgl(s.tgl)}, ${tglSurat(s.tgl)}`], ['Kendaraan', s.ekspedisi], ['Plat nomor', s.plat], ['Pengantar', s.pengantar]], true);
   doc.autoTable({ ...garisTabel, startY: y, head: [['No', 'Nama Barang', 'Qty', 'Berat', 'Keterangan']],
     body: c.b.map((x, i) => [i + 1, x.nama, angkaId(x.qty) + ' ' + x.satuan, x.berat ? angkaId(x.qty * x.berat) + ' kg' : '', x.ket]),
     foot: [[{ content: 'JUMLAH', colSpan: 2, styles: { halign: 'right' } }, { content: c.jumlah, styles: { halign: 'center' } }, { content: c.kg ? angkaId(c.kg) + ' kg' : '', styles: { halign: 'center' } }, '']],
