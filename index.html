@@ -339,6 +339,10 @@ const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, ''
 const rp = n => 'Rp ' + Math.round(n || 0).toLocaleString('id-ID');
 const ribu = n => Math.round(n || 0).toLocaleString('id-ID');
 const HN = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+/* Urutan tampil kolom hari (10 Okt 2026). Data hari[] tetap Senin..Minggu (indeks 6 = Minggu). Pekan NTA Minggu sampai
+   Sabtu: kolom Minggu adalah hari Minggu di AWAL pekan, jadi ditampilkan paling depan; Minggu sesudah Sabtu sudah pekan baru.
+   Lembar Minyak tetap Senin sampai Minggu. */
+const URUT_HARI = u => u === 'nta' ? [6, 0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6];
 const HS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 const slug = s => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -488,7 +492,7 @@ function isiGaji(e, angkat = true, usaha = 'minyak') {
       ${wks.length ? `<button class="pil emas kecil" data-slipw="${esc(k.w)}" data-slipu="${usaha}" style="margin-top:14px">Unduh slip gaji (PDF)</button>` : ''}</section>
 
     <section class="kartu"><h2>Absensi ${USAHA[usaha]} minggu ${esc(k.w)}</h2>
-      <div class="hari7">${k.hari.map((v, i) => `<div class="hari ${v ? 'hadir' : 'libur'}"><b>${HS[i]}</b><span>${v ? ribu(v) : '—'}</span></div>`).join('')}</div>
+      <div class="hari7">${URUT_HARI(usaha).map(i => { const v = k.hari[i]; return `<div class="hari ${v ? 'hadir' : 'libur'}"><b>${HS[i]}</b><span>${v ? ribu(v) : '—'}</span></div>`; }).join('')}</div>
       <div class="catatan">Angka di tiap hari adalah gaji hari itu. Tanda — berarti tidak masuk.</div></section>
 
     <section class="kartu"><h2>Rincian ${USAHA[usaha]} minggu ${esc(k.w)}</h2>
@@ -625,11 +629,11 @@ function akhirPeriode(per) {
   const m = [...String(per || '').matchAll(/(\d{1,2})\s+([A-Za-z]+)(?:\s+(\d{4}))?/g)].pop(); if (!m) return null;
   const bi = BLN_L.findIndex(x => x.slice(0, 3).toLowerCase() === m[2].slice(0, 3).toLowerCase());
   return bi < 0 ? null : new Date(+(m[3] || new Date().getFullYear()), bi, +m[1]); }
-function periodeBerikut(per) {
+function periodeBerikut(per, usaha = 'minyak') {
   let sab = akhirPeriode(per);
   if (sab) sab.setDate(sab.getDate() + ((6 - sab.getDay() + 7) % 7 || 7));
   else { sab = new Date(); sab.setHours(0, 0, 0, 0); sab.setDate(sab.getDate() + (6 - sab.getDay() + 7) % 7); }
-  const sen = new Date(sab); sen.setDate(sab.getDate() - 5);
+  const sen = new Date(sab); sen.setDate(sab.getDate() - (usaha === 'nta' ? 6 : 5));   // NTA: Minggu sampai Sabtu
   const t = d => d.getDate() + ' ' + BLN_L[d.getMonth()];
   if (sen.getMonth() === sab.getMonth()) return `${sen.getDate()} - ${t(sab)} ${sab.getFullYear()}`;
   return sen.getFullYear() === sab.getFullYear() ? `${t(sen)} - ${t(sab)} ${sab.getFullYear()}` : `${t(sen)} ${sen.getFullYear()} - ${t(sab)} ${sab.getFullYear()}`;
@@ -644,7 +648,7 @@ function dialogMingguSerentak() {
   const wl = semuaMinggu(), mx = wl.length ? wl[wl.length - 1] : 0;
   const cari = (e, w) => mingguDari(e, usahaK).find(x => num(x.w) === w);
   const perW = w => (Object.values(data).flatMap(x => mingguDari(x, usahaK)).find(x => num(x.w) === w && x.periode) || {}).periode || '';
-  const tebak = w => perW(w) || periodeBerikut(perW(Math.max(0, ...wl.filter(x => x < w))));
+  const tebak = w => perW(w) || periodeBerikut(perW(Math.max(0, ...wl.filter(x => x < w))), usahaK);
   const akhir = akhirPeriode(perW(mx)), kemarin = new Date(); kemarin.setHours(0, 0, 0, 0); kemarin.setDate(kemarin.getDate() - 1);
   const w0 = mx && akhir && akhir >= kemarin && aktif.some(([, e]) => !cari(e, mx)) ? mx : mx + 1;
   dialog(`<h3>Minggu baru ${USAHA[usahaK]} untuk semua karyawan ${USAHA[usahaK]}</h3>
@@ -695,9 +699,9 @@ function gambarKaryawan(k) {
       return `<div class="minggu" data-i="${i}"><div class="minggu-kepala"><input class="isian angka no" data-f="w" value="${esc(w.w)}" inputmode="numeric" aria-label="Nomor minggu">
           <input class="isian per" data-f="periode" value="${esc(w.periode || '')}" placeholder="Periode, mis. 14 - 19 September 2026" aria-label="Periode">
           <button class="pil halus kecil" data-lipat>${terbuka ? 'Tutup' : 'Buka'}</button><button class="pil bahaya kecil" data-hapus aria-label="Hapus minggu">Hapus</button></div>
-        <div ${terbuka ? '' : 'hidden'} data-badan><div class="kisi7">${HN.map((d, di) => `<div><label for="h-${i}-${di}">${HS[di]}</label><input id="h-${i}-${di}" class="isian" data-h="${di}" value="${w.hari[di] || ''}" placeholder="—" inputmode="numeric"></div>`).join('')}</div>
+        <div ${terbuka ? '' : 'hidden'} data-badan><div class="kisi7">${URUT_HARI(usahaK).map(di => `<div><label for="h-${i}-${di}">${HS[di]}</label><input id="h-${i}-${di}" class="isian" data-h="${di}" value="${w.hari[di] || ''}" placeholder="—" inputmode="numeric"></div>`).join('')}</div>
           <div class="sub-judul"><span>Hutang mingguan per hari</span></div>
-          <div class="kisi7">${HN.map((d, di) => `<div><input class="isian" data-hd="${di}" value="${w.hmd[di] || ''}" placeholder="0" inputmode="numeric" aria-label="Hutang ${d}"></div>`).join('')}</div>
+          <div class="kisi7">${URUT_HARI(usahaK).map(di => `<div><input class="isian" data-hd="${di}" value="${w.hmd[di] || ''}" placeholder="0" inputmode="numeric" aria-label="Hutang ${HN[di]}"></div>`).join('')}</div>
           <div class="sub-judul"><span>Hutang mingguan lain-lain</span><input class="isian angka" style="width:130px" data-hx value="${w.hmx || ''}" placeholder="0" inputmode="numeric"></div></div>
         <div class="hasil"><span class="keping"><b data-o="masuk">${w.masuk}</b> hari</span><span class="keping">Total <b data-o="total">${rp(w.total)}</b></span><span class="keping">Mingguan − <b data-o="hm">${rp(w.hm)}</b></span>
           <span class="keping">Hutang besar − <b data-o="hb">${rp(w.hb)}</b></span><span class="keping hijau">Diterima <b data-o="terima">${rp(w.terima)}</b></span></div></div>`; }).join('') + (urutan.length > tampil.length ? `<button class="pil halus" id="bLama" style="width:100%">Tampilkan ${urutan.length - tampil.length} minggu yang lebih lama</button>` : '') || '<div class="catatan" style="margin:0">Belum ada minggu. Tekan "+ Minggu baru".</div>';
@@ -735,7 +739,9 @@ function gambarKaryawan(k) {
 
   gambarMinggu(); gambarHutang(); ikatUsaha(isi);
   $('#bMinggu').onclick = () => { const src = mingguDari(e, usahaK), mx = Math.max(0, ...src.map(w => num(w.w))), semua = Math.max(mx, ...semuaMinggu('minyak'), ...semuaMinggu('nta')), baru = Math.max(mx + 1, semua);
-    const per = (Object.values(data).flatMap(x => [...mingguDari(x, 'minyak'), ...mingguDari(x, 'nta')]).find(w => num(w.w) === baru && w.periode) || {}).periode || '';
+    const perU = u => w0 => (Object.values(data).flatMap(x => mingguDari(x, u)).find(w => num(w.w) === w0 && w.periode) || {}).periode || '';
+    // NTA memakai periode lembar NTA saja (Minggu sampai Sabtu); periode lembar Minyak (Senin sampai Sabtu) tidak dipinjam
+    const per = usahaK === 'nta' ? perU('nta')(baru) || (mx ? periodeBerikut(perU('nta')(mx), 'nta') : '') : (Object.values(data).flatMap(x => [...mingguDari(x, 'minyak'), ...mingguDari(x, 'nta')]).find(w => num(w.w) === baru && w.periode) || {}).periode || '';
     src.push({ w: baru, periode: per, hari: [0, 0, 0, 0, 0, 0, 0], hmd: [0, 0, 0, 0, 0, 0, 0], hmx: 0, hm: 0, hb: 0, hbx: 0 }); src.sort((a, b) => num(a.w) - num(b.w)); buka = {}; tandai(k); gambarMinggu(); gambarHutang(); segarAtas(); };
   const tambahHutang = u => { e.hutang.push({ tgl: new Date().toLocaleDateString('sv-SE'), ket: u === 'nta' ? 'Pinjaman NTA' : '', pinjam: 0, bayar: 0, wk: 0, usaha: u }); tandai(k); gambarHutang(); const b = $$('#daftarHutang .hutang-baris').at(-1); if (b) { b.scrollIntoView({ block: 'nearest' }); $('[data-hf="pinjam"]', b)?.focus(); } };
   $('#bHutang').onclick = () => tambahHutang('minyak'); $('#bHutangN').onclick = () => tambahHutang('nta');
@@ -1322,7 +1328,7 @@ async function denganTunggu(fn) { const tutup = dialog('<h3>Menyiapkan PDF…</h
 
 function pdfSlip(e, w, usaha = 'minyak') { return denganTunggu(async () => { const c = hitung(e, usaha), m = c.wks.find(x => num(x.w) === num(w)); if (!m) throw new Error('Minggu itu belum ada datanya.');
   const doc = await dokumen(`Slip Gaji ${USAHA[usaha]} · ` + e.nama, `Minggu ${m.w}${m.periode ? ' · ' + m.periode : ''}`);
-  doc.autoTable({ ...gayaTabel, startY: 38, head: [['Hari', 'Gaji harian', 'Hutang mingguan']], body: HN.map((h, i) => [h, m.hari[i] ? rp(m.hari[i]) : 'tidak masuk', num(m.hmd?.[i]) ? rp(m.hmd[i]) : '-']), columnStyles: kanan([1, 2]) });
+  doc.autoTable({ ...gayaTabel, startY: 38, head: [['Hari', 'Gaji harian', 'Hutang mingguan']], body: URUT_HARI(usaha).map(i => [HN[i], m.hari[i] ? rp(m.hari[i]) : 'tidak masuk', num(m.hmd?.[i]) ? rp(m.hmd[i]) : '-']), columnStyles: kanan([1, 2]) });
   doc.autoTable({ ...gayaTabel, startY: doc.lastAutoTable.finalY + 6, head: [['Rincian', 'Jumlah']], body: [['Hari masuk', m.masuk + ' hari'], ['Total gaji', rp(m.total)], ['Potongan hutang mingguan' + (num(m.hmx) ? ' (termasuk lain-lain ' + rp(m.hmx) + ')' : ''), '- ' + rp(m.hm)], ['Potongan hutang besar', '- ' + rp(m.hb)]],
     foot: [['GAJI DITERIMA', rp(m.terima)]], columnStyles: kanan([1]) });
   if (e.hutang?.length) doc.autoTable({ ...gayaTabel, startY: doc.lastAutoTable.finalY + 6, head: [['Hutang besar', 'Tanggal', 'Pinjam', 'Bayar']], body: e.hutang.map(d => [(d.ket || '-') + (d.usaha === 'nta' ? ' (NTA)' : ''), d.tgl || (num(d.wk) ? 'minggu ' + num(d.wk) : '-'), num(d.pinjam) ? rp(d.pinjam) : '-', num(d.bayar) ? rp(d.bayar) : '-']),
