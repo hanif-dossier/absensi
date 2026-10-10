@@ -173,6 +173,24 @@ textarea.isian{font:inherit;resize:vertical}
 .lembar{background:#fff;color:#111;border-radius:18px;padding:22px 24px;font:13px/1.45 var(--sans);font-variant-numeric:tabular-nums;box-shadow:var(--bayang)}
 /* Laporan keuangan bulanan bergaya laporan publikasi bank (7 Okt 2026): pos rinci, kolom pembanding, nomor catatan */
 .lk{margin-top:14px;overflow-x:auto}
+/* Keuangan di layar (11 Okt 2026): ringkasan berkartu; format resmi (#lapkeu) hanya untuk cetak, PDF, atau dibuka manual */
+.lk-wrap #lapkeu{display:none}.lk-wrap.resmi #lapkeu{display:block}
+.keu-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 12px}
+.keu-nav select{padding:9px 12px;border-radius:12px;border:1px solid var(--garis);background:var(--kartu);color:var(--tinta);font:inherit;font-weight:600;max-width:100%}
+.keu-nav .panah{min-width:40px;text-align:center}.keu-nav .panah[aria-disabled]{opacity:.35;pointer-events:none}
+.keu-dua{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;margin-top:14px}
+.keu-dua>.kartu{margin:0}
+.keu-daftar{display:grid}
+.keu-sub{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--redup);font-weight:700;padding:12px 0 4px}
+.keu-baris{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-bottom:1px solid var(--garis);font-size:14px}
+.keu-baris span{min-width:0}.keu-baris small{display:block;color:var(--redup);font-size:11.5px;margin-top:1px}
+.keu-baris b{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}.keu-baris b.minus{color:var(--turun)}
+.keu-baris.jml{border-bottom:0;border-top:1.5px solid var(--tinta);margin-top:4px;padding-top:10px;font-weight:700}
+.keu-baris.memo{color:var(--redup);font-style:italic;border-bottom:0}
+.keu-rasio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.keu-rasio>div{border:1px solid var(--garis);border-radius:14px;padding:11px 13px}.keu-rasio small{display:block;color:var(--redup);font-size:12px}
+.keu-rasio b{display:block;font-size:21px;margin:3px 0 2px;font-variant-numeric:tabular-nums}.keu-rasio span{display:block;color:var(--redup);font-size:11.5px}
+@media (max-width:760px){.keu-dua{grid-template-columns:1fr}.keu-rasio{grid-template-columns:repeat(2,minmax(0,1fr))}.keu-nav select{flex:1;min-width:0}}
 .lk .kop-lk{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:2px solid #111;padding-bottom:12px}
 .lk .kop-lk .jenis{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--utama2);font-weight:700}
 .lk .kop-lk b{display:block;font:600 23px/1.15 var(--serif);margin-top:2px;color:var(--utama)}
@@ -236,7 +254,7 @@ textarea.isian{font:inherit;resize:vertical}
   body.mode-cetak>:not(#akar),body.mode-cetak #akar>:not(main),body.mode-cetak main>div>:not(.sj-lembar-wrap){display:none!important}
   body.mode-cetak main{padding:0!important;max-width:none!important}body.mode-cetak .sj-lembar-wrap{margin:0!important;padding:0!important}
   body.cetak-lk>:not(#akar),body.cetak-lk #akar>:not(main),body.cetak-lk main>:not(.lk-wrap),body.cetak-lk .lk-wrap>:not(#lapkeu){display:none!important}
-  body.cetak-lk main{padding:0!important;max-width:none!important}body.cetak-lk #lapkeu{box-shadow:none;border-radius:0;margin:0;padding:10mm 12mm;overflow:visible}
+  body.cetak-lk main{padding:0!important;max-width:none!important}body.cetak-lk .lk-wrap #lapkeu{display:block!important}body.cetak-lk #lapkeu{box-shadow:none;border-radius:0;margin:0;padding:10mm 12mm;overflow:visible}
   body.cetak-lk .lk-tabel tr,body.cetak-lk .catatan-lk{break-inside:avoid;page-break-inside:avoid}
   body.mode-cetak #cetak{box-shadow:none;border-radius:0}body.mode-cetak #cetak table{min-width:0!important}body.mode-cetak .bungkus-tabel{overflow:visible!important}
 }
@@ -945,6 +963,8 @@ async function tampilkanPembaruan() {
   } catch { /* kartu tetap tersembunyi */ }
 }
 
+const daftarKeu = rows => `<div class="keu-daftar">${rows.filter(r => r.t === 'judul' || r.t === 'sub' || r.t === 'jumlah' || r.t === 'total' || r.wajib || (r.v && typeof r.v[0] === 'number' && Math.round(r.v[0]))).map(r => r.t === 'judul' || r.t === 'sub'
+  ? `<div class="keu-sub">${esc(r.l)}</div>` : `<div class="keu-baris${r.t === 'jumlah' || r.t === 'total' ? ' jml' : ''}${r.t === 'memo' ? ' memo' : ''}"><span>${esc(r.l)}${r.ket ? `<small>${esc(r.ket)}</small>` : ''}</span><b class="${typeof r.v?.[0] === 'number' && Math.round(r.v[0]) < 0 ? 'minus' : ''}">${typeof r.v?.[0] === 'number' ? (!Math.round(r.v[0]) ? '-' : (Math.round(r.v[0]) < 0 ? '− ' : '') + rp(Math.abs(r.v[0]))) : esc(r.v?.[0] ?? '-')}</b></div>`).join('')}</div>`;
 async function layarKeuangan() {
   akar.innerHTML = kepalaPemilik('Keuangan', 'Memuat data…', true) + '<main class="bungkus"><section class="kartu">Memuat…</section></main>';
   $('#bBeranda').onclick = layarBeranda;
@@ -959,14 +979,20 @@ async function layarKeuangan() {
   const rentang = a => a.length ? (a.length > 1 ? `minggu ${a[0]}–${a[a.length - 1]}` : `minggu ${a[0]}`) : '';
   const kapan = keuDiubah ? new Date(keuDiubah).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   akar.innerHTML = kepalaPemilik('Keuangan', 'Laporan keuangan per bulan: neraca, laba rugi, rasio, dan catatan rinci. Rincian per hari ada di Laporan harian.', true) + `<main class="bungkus">
-    <nav class="tab-baris" aria-label="Bulan">${daftar.map(b => `<button class="tab ${b.key === B.key ? 'aktif' : ''}" data-b="${b.key}">${esc(b.nama)}</button>`).join('')}</nav>
+    <nav class="keu-nav" aria-label="Bulan">${(() => { const i = daftar.indexOf(B), lbh = daftar[i + 1], brk = daftar[i - 1], th = [...new Set(daftar.map(b => b.key.slice(0, 4)))];
+      return `<button class="pil kecil halus panah" ${lbh ? `data-b="${lbh.key}"` : 'aria-disabled="true"'} title="Bulan sebelumnya">‹</button><select id="pilihBulanKeu" aria-label="Pilih bulan">${th.map(y => `<optgroup label="${y}">${daftar.filter(b => b.key.startsWith(y)).map(b => `<option value="${b.key}" ${b.key === B.key ? 'selected' : ''}>${esc(b.nama)}${b.berjalan ? ' (berjalan)' : ''}</option>`).join('')}</optgroup>`).join('')}</select><button class="pil kecil halus panah" ${brk ? `data-b="${brk.key}"` : 'aria-disabled="true"'} title="Bulan sesudahnya">›</button>`; })()}</nav>
     <section class="besar" style="margin-top:6px"><div class="label">Laba bersih ${esc(B.nama)}${B.berjalan ? ' · bulan berjalan' : ''}</div><div class="nilai">${rp(t.bersih)}</div>
       <div class="keping-baris"><span class="keping">Omzet <b>${rp(t.omset)}</b></span><span class="keping"><b>${ribu(t.qty)}</b> unit</span><span class="keping">Margin bersih <b>${pc(t.bersih / (t.omset || 1))}</b></span>
         <span class="keping"><b>${B.minggu.length}</b> minggu · <b>${B.hari}</b> hari kerja</span><span class="keping">Rata-rata <b>${rp(perHari(B))}</b> per hari</span></div>
       ${(() => { const L = labaTertahan(B.key + '-01', B.key + '-31'); if (!L) return ''; return `<div class="keping-baris" style="margin-top:8px"><span class="keping merah">Tertahan di toko yang hutang <b>${rp(L.tertahan)}</b></span><span class="keping hijau">Laba yang sudah jadi uang <b>${rp(Math.max(0, t.bersih - L.tertahan + L.cair))}</b></span>${L.cair ? `<span class="keping">Cair dari bayar hutang <b>${rp(L.cair)}</b></span>` : ''}</div>
         <div class="catatan" style="color:#cfe3de;margin:8px 0 0">Laba dari penjualan yang masih dihutang toko (${rp(L.hutang)} bon bulan ini x margin ${(L.margin * 100).toFixed(1).replace('.', ',')}%) belum dihitung sebagai uang. Baru dihitung di bulan toko itu membayar.</div>`; })()}</section>
 
-    <div class="lk-wrap"><div class="tombol-baris" style="justify-content:flex-start;margin-top:14px"><button class="pil kecil" id="bCetakLK">Cetak</button><button class="pil kecil halus" id="bPdfKeu">${ikon('pdf').replace('width="26" height="26"', 'width="16" height="16" style="vertical-align:-3px"')} Unduh PDF ${esc(B.nama)}</button></div>
+    <div class="lk-wrap"><div class="tombol-baris" style="justify-content:flex-start;margin-top:14px"><button class="pil kecil" id="bCetakLK">Cetak</button><button class="pil kecil halus" id="bPdfKeu">${ikon('pdf').replace('width="26" height="26"', 'width="16" height="16" style="vertical-align:-3px"')} Unduh PDF ${esc(B.nama)}</button><button class="pil kecil halus" id="bResmiKeu">Lihat format resmi</button></div>
+      ${(() => { const L = barisLK(k, B, lalu), N = L.N, rasio = L.rasio.filter(r => r.t !== 'judul' && r.t !== 'sub' && r.v && r.v[0] != null);
+        return `<div class="keu-dua">
+          <section class="kartu"><h2>Neraca <small style="font-family:var(--sans);font-size:12.5px;color:var(--redup);font-weight:500">per ${esc(tglBiasa(hariIni()))}</small></h2>${L.posisi ? (N && N.TE < 0 ? `<div class="kotak merah" style="margin-bottom:8px">Utang lebih besar dari aset ${rp(-N.TE)}.</div>` : '') + daftarKeu(L.posisi) : '<div class="catatan" style="margin:0">Isi aset dan hutang dulu di menu Bebas Hutang supaya neraca bisa disusun.</div>'}</section>
+          <section class="kartu"><h2>Laba rugi <small style="font-family:var(--sans);font-size:12.5px;color:var(--redup);font-weight:500">${esc(B.nama)}${B.berjalan ? ' · berjalan' : ''}</small></h2>${daftarKeu(L.lr)}</section></div>
+        <section class="kartu" style="margin-top:14px"><h2>Rasio keuangan</h2><div class="keu-rasio">${rasio.map(r => `<div><small>${esc(r.l)}</small><b>${esc(String(r.v[0]))}</b>${r.ket ? `<span>${esc(r.ket)}</span>` : ''}</div>`).join('')}</div></section>`; })()}
       ${htmlLK(k, B, lalu, R)}</div>
 
     <section class="kartu"><h2>Perbandingan antarbulan</h2>${daftar.map(b => `<div class="orang" style="cursor:default${b.key === B.key ? ';box-shadow:inset 0 0 0 2px var(--emas)' : ''}"><span class="nama" style="font-size:15px">${esc(b.nama)}${b.berjalan ? ' <small style="font-family:var(--sans);color:var(--redup);font-size:12px">berjalan</small>' : ''}</span><span class="bayar" style="font-size:16px">${rp(b.tot.bersih)}</span>
@@ -976,7 +1002,9 @@ async function layarKeuangan() {
     <div class="catatan" style="margin-top:16px">${(k.kaki || []).join('<br>')}<br>Data disalin dari Dashboard Keuangan Minyak di Docfarm${kapan ? ', terakhir ' + esc(kapan) : ''}.</div></main>`;
   $('#bBeranda').onclick = layarBeranda; $('#bPdfKeu').onclick = () => pdfKeuangan(B.key);
   $('#bCetakLK').onclick = () => { document.title = 'Laporan keuangan ' + B.nama; document.body.classList.add('cetak-lk'); addEventListener('afterprint', () => { document.title = 'OFU'; document.body.classList.remove('cetak-lk'); }, { once: true }); window.print(); };
-  $$('.tab[data-b]').forEach(b => b.onclick = () => { bulanPilih = b.dataset.b; layarKeuangan(); scrollTo({ top: 0 }); });
+  $$('.tab[data-b], .keu-nav [data-b]').forEach(b => b.onclick = () => { bulanPilih = b.dataset.b; layarKeuangan(); scrollTo({ top: 0 }); });
+  $('#pilihBulanKeu').onchange = e => { bulanPilih = e.target.value; layarKeuangan(); scrollTo({ top: 0 }); };
+  $('#bResmiKeu').onclick = e => { const w = e.currentTarget.closest('.lk-wrap'), buka = w.classList.toggle('resmi'); e.currentTarget.textContent = buka ? 'Sembunyikan format resmi' : 'Lihat format resmi'; if (buka) $('#lapkeu').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 }
 /* BULAN: minggu kerja digabung menjadi bulan. Satu minggu masuk ke bulan tempat hari Sabtunya jatuh (tanggal akhir di k.PER),
    karena gaji dan rekap dibuat per minggu. Minggu lama (tanpa `days`) hanya punya angka total, jadi rinciannya dicatat terpisah. */
