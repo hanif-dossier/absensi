@@ -190,6 +190,11 @@ textarea.isian{font:inherit;resize:vertical}
 .keu-rasio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .keu-rasio>div{border:1px solid var(--garis);border-radius:14px;padding:11px 13px}.keu-rasio small{display:block;color:var(--redup);font-size:12px}
 .keu-rasio b{display:block;font-size:21px;margin:3px 0 2px;font-variant-numeric:tabular-nums}.keu-rasio span{display:block;color:var(--redup);font-size:11.5px}
+.rasio-kel{margin-top:14px}.rasio-kel h3{margin:0 0 8px;font-size:15px}.rasio-kel h3 small{font-weight:400;color:var(--redup);font-size:12px;margin-left:6px}.rasio-kel .keu-rasio{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.keu-rasio b i{font-style:normal;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:8px;vertical-align:3px}
+.st-baik{background:rgba(47,138,87,.14);color:#2f8a57}.st-awas{background:rgba(201,140,20,.16);color:#a46f08}.st-bahaya{background:rgba(196,64,52,.14);color:#c44034}
+.keu-rasio>div.bahaya{border-color:rgba(196,64,52,.45)}.keu-rasio>div.awas{border-color:rgba(201,140,20,.45)}
+.keu-rasio em{display:block;font-style:normal;color:var(--redup);font-size:11px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--garis);line-height:1.4}
 @media (max-width:760px){.keu-dua{grid-template-columns:1fr}.keu-rasio{grid-template-columns:repeat(2,minmax(0,1fr))}.keu-nav select{flex:1;min-width:0}}
 .lk .kop-lk{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:2px solid #111;padding-bottom:12px}
 .lk .kop-lk .jenis{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--utama2);font-weight:700}
@@ -992,7 +997,8 @@ async function layarKeuangan() {
         return `<div class="keu-dua">
           <section class="kartu"><h2>Neraca <small style="font-family:var(--sans);font-size:12.5px;color:var(--redup);font-weight:500">per ${esc(tglBiasa(hariIni()))}</small></h2>${L.posisi ? (N && N.TE < 0 ? `<div class="kotak merah" style="margin-bottom:8px">Utang lebih besar dari aset ${rp(-N.TE)}.</div>` : '') + daftarKeu(L.posisi) : '<div class="catatan" style="margin:0">Isi aset dan hutang dulu di menu Bebas Hutang supaya neraca bisa disusun.</div>'}</section>
           <section class="kartu"><h2>Laba rugi <small style="font-family:var(--sans);font-size:12.5px;color:var(--redup);font-weight:500">${esc(B.nama)}${B.berjalan ? ' · berjalan' : ''}</small></h2>${daftarKeu(L.lr)}</section></div>
-        <section class="kartu" style="margin-top:14px"><h2>Rasio keuangan</h2><div class="keu-rasio">${rasio.map(r => `<div><small>${esc(r.l)}</small><b>${esc(String(r.v[0]))}</b>${r.ket ? `<span>${esc(r.ket)}</span>` : ''}</div>`).join('')}</div></section>`; })()}
+        <section class="kartu" style="margin-top:14px"><h2>Analisis rasio keuangan <small style="font-family:var(--sans);font-size:12.5px;color:var(--redup);font-weight:500">ROE dan ROA per periode · panduan untuk usaha dagang kecil, bukan aturan resmi</small></h2>
+          ${analisisRasioOFU(B, N).map(kel => `<div class="rasio-kel"><h3>${esc(kel.judul)} <small>${esc(kel.sub)}</small></h3><div class="keu-rasio">${kel.isi.map(x => `<div class="${x.status || ''}"><small>${esc(x.l)}</small><b>${esc(x.tampil)}${x.status ? `<i class="st-${x.status}">${{ baik: 'sehat', awas: 'perhatikan', bahaya: 'bahaya' }[x.status]}</i>` : ''}</b><span>${esc(x.arti)}</span><em>${esc(x.rumus)}${x.padanan ? ' · ' + esc(x.padanan) : ''}${x.panduan ? '<br>' + esc(x.panduan) : ''}</em></div>`).join('')}</div></div>`).join('')}</section>`; })()}
       ${htmlLK(k, B, lalu, R)}</div>
 
     <section class="kartu"><h2>Perbandingan antarbulan</h2>${daftar.map(b => `<div class="orang" style="cursor:default${b.key === B.key ? ';box-shadow:inset 0 0 0 2px var(--emas)' : ''}"><span class="nama" style="font-size:15px">${esc(b.nama)}${b.berjalan ? ' <small style="font-family:var(--sans);color:var(--redup);font-size:12px">berjalan</small>' : ''}</span><span class="bayar" style="font-size:16px">${rp(b.tot.bersih)}</span>
@@ -1046,6 +1052,48 @@ const namaPendek = B => B ? BLN3[+B.key.slice(5, 7) - 1] + ' ' + B.key.slice(0, 
 const tglBiasa = t => t ? new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 const pendekHutang = h => { const sisa = sisaHutang(h), th = new Date(); th.setFullYear(th.getFullYear() + 1);
   return h.jenis === 'Pemasok minyak' || (h.jatuhTempo && h.jatuhTempo <= isoTgl(th)) ? sisa : Math.min(sisa, (h.cicilan || 0) * 12); };
+// Analisis rasio keuangan (12 Okt 2026, pemilik: "seperti isi topik dalam video ini, ada ROE, ROA dan lain-lain").
+// Cara membaca laporan bank (rentabilitas, efisiensi, kualitas aset, likuiditas, permodalan) dipakai untuk usaha minyak:
+// tiap rasio diberi rumus, padanan istilah bank, arti sehari-hari, dan panduan status. Panduan = patokan Hanif untuk
+// usaha dagang kecil, bukan aturan resmi. ROE dan ROA per periode; padanan setahunnya disebut di keterangan.
+function analisisRasioOFU(B, N) {
+  if (!B) return [];
+  const t = B.tot, [th0, bl0] = B.key.split('-').map(Number), hariBulan = new Date(th0, bl0, 0).getDate();
+  const hari = B.berjalan ? Math.max(1, new Date(hariIni_() + 'T00:00:00').getDate()) : hariBulan, th = 365 / hari;
+  const pc = v => v == null || !isFinite(v) ? '-' : (v * 100).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  const xx = v => v == null || !isFinite(v) ? '-' : v.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'x';
+  const hr = v => v == null || !isFinite(v) ? '-' : Math.round(v) + ' hari';
+  const dg = (a, b2) => b2 ? a / b2 : null;
+  const st = (v, baik, awas, arah = 1) => v == null || !isFinite(v) ? null : arah > 0 ? (v >= baik ? 'baik' : v >= awas ? 'awas' : 'bahaya') : (v <= baik ? 'baik' : v <= awas ? 'awas' : 'bahaya');
+  const r = (l, padanan, rumus, tampil, status, panduan, arti) => ({ l, padanan, rumus, tampil, status, panduan, arti });
+  const roe = N && N.TE > 0 ? t.bersih / N.TE : null, roa = N && N.TA > 0 ? t.bersih / N.TA : null, setahun = v => v == null ? '' : ' Setara kira-kira ' + pc(v * th) + ' setahun kalau laju ini bertahan.';
+  const beban = t.ops + t.gaji, hppHari = t.hpp / hari, omsetHari = t.omset / hari;
+  const telat = N ? sumBy(N.bon.filter(x => x.umur > 30), x => x.sisa) : null, stok = N ? ((N.aset.find(x => x[0] === 'Stok minyak') || [, 0])[1] || 0) : 0, kasBank = N ? N.A.kas + N.A.rekening : null;
+  return [
+    { judul: 'Rentabilitas', sub: 'seberapa pandai modal dan aset menghasilkan laba', isi: [
+      r('ROE (imbal hasil ekuitas)', 'ROE di laporan bank', 'laba bersih periode ÷ ekuitas akhir', pc(roe), roe == null ? null : st(roe * th, .2, .1), 'setara ≥20% setahun baik · 10 sampai 20% cukup · <10% lemah', N ? 'tiap Rp100 modal pemilik menghasilkan laba sebesar ini dalam periode ini.' + setahun(roe) : (N === null ? 'butuh neraca: isi aset dan hutang di menu Bebas Hutang' : '')),
+      r('ROA (imbal hasil aset)', 'ROA di laporan bank', 'laba bersih periode ÷ jumlah aset', pc(roa), roa == null ? null : st(roa * th, .1, .05), 'setara ≥10% setahun baik · 5 sampai 10% cukup · <5% lemah', N ? 'seberapa produktif semua harta usaha: kas, piutang, kendi, stok, mobil.' + setahun(roa) : ''),
+      r('Margin laba kotor', 'padanan NIM bank (selisih harga jual dan modal)', 'laba kotor ÷ pendapatan', pc(dg(t.lk, t.omset)), st(dg(t.lk, t.omset), .08, .05), '≥8% baik · 5 sampai 8% tipis · <5% sangat tipis', 'untung dari minyaknya saja, sebelum gaji dan bensin'),
+      r('Margin laba bersih', 'net profit margin', 'laba bersih ÷ pendapatan', pc(dg(t.bersih, t.omset)), st(dg(t.bersih, t.omset), .05, .02), '≥5% baik · 2 sampai 5% tipis · <2% rawan', 'uang yang benar-benar tersisa dari tiap Rp100 penjualan')] },
+    { judul: 'Efisiensi', sub: 'seberapa hemat usaha dijalankan', isi: [
+      r('Rasio biaya terhadap pendapatan', 'padanan BOPO bank', '(modal minyak + gaji + biaya operasional) ÷ pendapatan', pc(dg(t.omset - t.bersih, t.omset)), st(dg(t.omset - t.bersih, t.omset), .95, .98, -1), '≤95% baik · 95 sampai 98% berat · >98% hampir impas', 'dari tiap Rp100 penjualan, berapa yang habis untuk semua biaya'),
+      r('Beban usaha terhadap laba kotor', 'padanan cost to income bank', '(gaji + biaya operasional) ÷ laba kotor', pc(dg(beban, t.lk)), st(dg(beban, t.lk), .4, .6, -1), '≤40% efisien · 40 sampai 60% wajar · >60% berat', 'bagian laba kotor yang termakan gaji, bensin, parkir, dan makan pengantar'),
+      r('Laba bersih per hari kerja', '', 'laba bersih ÷ hari kerja', rp(t.bersih / (B.hari || 1)), null, '', 'rata-rata hasil bersih tiap hari pengantaran'),
+      r('Laba bersih per unit terjual', '', 'laba bersih ÷ jumlah unit', rp(t.bersih / (t.qty || 1)), null, '', 'hasil bersih dari tiap kendi atau bungkus yang terjual')] },
+    { judul: 'Kualitas aset', sub: 'apakah piutang toko dan stok lancar berputar', isi: [
+      r('Piutang telat lebih dari 30 hari', 'padanan NPL bank (kredit bermasalah)', 'sisa bon berumur >30 hari ÷ seluruh piutang toko', N ? pc(dg(telat, N.piutang) ?? 0) : '-', N ? st(dg(telat, N.piutang) ?? 0, .05, .15, -1) : null, '≤5% baik · 5 sampai 15% waspada · >15% bahaya', N ? 'bon telat ' + rp(telat) + '; makin besar, makin banyak uang yang berisiko tidak kembali' : ''),
+      r('Piutang macet lebih dari 90 hari', 'padanan kredit macet (kolektibilitas 5)', 'sisa bon berumur >90 hari ÷ seluruh piutang toko', N ? pc(dg(N.macet, N.piutang) ?? 0) : '-', N ? st(dg(N.macet, N.piutang) ?? 0, .02, .05, -1) : null, '≤2% baik · 2 sampai 5% waspada · >5% bahaya', N ? 'bon macet ' + rp(N.macet) + ', sudah tidak dihitung sebagai aset di neraca' : ''),
+      r('Umur piutang rata-rata', 'days sales outstanding', 'piutang toko ÷ penjualan per hari', N && omsetHari ? hr(N.piutang / omsetHari) : '-', N && omsetHari ? st(N.piutang / omsetHari, 14, 30, -1) : null, '≤14 hari baik · 14 sampai 30 hari waspada · >30 hari lambat', 'berapa hari rata-rata uang penjualan tertahan di toko sebelum dibayar'),
+      r('Umur stok minyak', 'days inventory', 'nilai stok minyak ÷ modal minyak terjual per hari', N && hppHari ? hr(stok / hppHari) : '-', N && hppHari ? st(stok / hppHari, 14, 30, -1) : null, '≤14 hari baik · 14 sampai 30 hari waspada · >30 hari lambat', 'berapa hari stok di gudang habis dengan laju penjualan sekarang')] },
+    { judul: 'Likuiditas', sub: 'sanggup membayar utang jangka pendek', isi: [
+      r('Rasio lancar', 'current ratio', 'aset lancar ÷ utang jangka pendek', N ? (N.TLP ? xx(N.TAL / N.TLP) : 'tanpa utang') : '-', N ? (N.TLP ? st(N.TAL / N.TLP, 1.5, 1) : 'baik') : null, '≥1,5x baik · 1 sampai 1,5x ketat · <1x kurang', 'harta yang cepat jadi uang dibanding utang yang segera jatuh tempo'),
+      r('Rasio cepat', 'quick ratio', '(aset lancar − stok minyak) ÷ utang jangka pendek', N ? (N.TLP ? xx((N.TAL - stok) / N.TLP) : 'tanpa utang') : '-', N ? (N.TLP ? st((N.TAL - stok) / N.TLP, 1, .7) : 'baik') : null, '≥1x baik · 0,7 sampai 1x ketat · <0,7x kurang', 'sama dengan rasio lancar tapi tanpa stok, karena stok belum tentu cepat laku'),
+      r('Rasio kas', 'cash ratio', '(kas + rekening) ÷ utang jangka pendek', N ? (N.TLP ? xx(kasBank / N.TLP) : 'tanpa utang') : '-', N ? (N.TLP ? st(kasBank / N.TLP, .5, .2) : 'baik') : null, '≥0,5x baik · 0,2 sampai 0,5x ketat · <0,2x kurang', 'utang pendek yang bisa dilunasi hari ini juga dengan uang di tangan dan rekening')] },
+    { judul: 'Permodalan', sub: 'seberapa tebal bantalan modal sendiri', isi: [
+      r('Modal sendiri terhadap aset', 'padanan CAR bank (bantalan kerugian)', 'ekuitas ÷ jumlah aset', N ? pc(dg(N.TE, N.TA)) : '-', N ? st(dg(N.TE, N.TA), .5, .3) : null, '≥50% tebal · 30 sampai 50% cukup · <30% tipis', 'bagian harta usaha yang dibiayai modal pemilik sendiri, bukan utang'),
+      r('Utang terhadap modal', 'debt to equity ratio (DER)', 'jumlah liabilitas ÷ ekuitas', N ? (N.TE > 0 ? xx(N.TL / N.TE) : 'ekuitas minus') : '-', N ? (N.TE > 0 ? st(N.TL / N.TE, 1, 2, -1) : 'bahaya') : null, '≤1x aman · 1 sampai 2x waspada · >2x berat', 'tiap Rp1 modal pemilik menanggung utang sebesar ini; minus berarti utang lebih besar dari harta'),
+      r('Utang terhadap aset', 'debt to asset ratio (DAR)', 'jumlah liabilitas ÷ jumlah aset', N ? pc(dg(N.TL, N.TA)) : '-', N ? st(dg(N.TL, N.TA), .5, .7, -1) : null, '≤50% aman · 50 sampai 70% waspada · >70% berat', 'bagian harta usaha yang masih dibiayai utang')] }];
+}
 function barisLK(k, B, lalu) {
   const dua = f => [f(B), lalu ? f(lalu) : null], ada = v => v.some(x => x != null && Math.round(x) !== 0);
   const saring = rows => rows.filter(r => !(r.t === 'pos' || r.t === 'pos2') || r.wajib || ada(r.v));
@@ -1097,17 +1145,9 @@ function barisLK(k, B, lalu) {
       { t: 'jumlah', l: 'Jumlah ekuitas', v: [TE] },
       { t: 'total', l: 'Jumlah liabilitas dan ekuitas', v: [TL + TE] }]); }
   const pr = (a, b) => b ? pc(a / b) : '-', kali = (a, b) => b ? (a / b).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'x' : '-';
-  const rasio = [
-    { t: 'judul', l: 'Rentabilitas (kemampuan menghasilkan laba)' },
-    { t: 'pos', l: 'Margin laba bruto', ket: 'laba bruto dibagi pendapatan', v: dua(x => pr(x.tot.lk, x.tot.omset)) },
-    { t: 'pos', l: 'Margin laba bersih', ket: 'laba bersih dibagi pendapatan', v: dua(x => pr(x.tot.bersih, x.tot.omset)) },
-    { t: 'pos', l: 'Beban usaha terhadap pendapatan', ket: 'mirip BOPO di laporan bank: makin kecil makin hemat', v: dua(x => pr(x.tot.ops + x.tot.gaji, x.tot.omset)) },
-    { t: 'pos', l: 'Laba bersih per hari kerja', v: dua(x => rp(x.tot.bersih / (x.hari || 1))) },
-    { t: 'pos', l: 'Laba bersih per unit terjual', v: dua(x => rp(x.tot.bersih / (x.tot.qty || 1))) },
-    { t: 'judul', l: 'Likuiditas dan permodalan (per hari ini)' },
-    { t: 'pos', l: 'Rasio lancar', ket: 'aset lancar dibagi utang jangka pendek; di atas 1x berarti utang pendek tertutup', v: [N ? kali(N.TAL, N.TLP) : '-', lalu ? '' : null] },
-    { t: 'pos', l: 'Utang terhadap modal', ket: 'jumlah liabilitas dibagi ekuitas; minus berarti utang lebih besar dari aset', v: [N ? kali(N.TL, N.TE) : '-', lalu ? '' : null] },
-    { t: 'pos', l: 'Umur piutang toko', ket: 'piutang dibagi penjualan per hari kerja', v: [N && B.tot.omset ? Math.round(N.piutang / (B.tot.omset / (B.hari || 1))) + ' hari kerja' : '-', lalu ? '' : null] }];
+  const AR = analisisRasioOFU(B, N), ARL = lalu ? analisisRasioOFU(lalu, null) : [];
+  const rasio = AR.flatMap((kel, a) => [{ t: 'judul', l: kel.judul + ' (' + kel.sub + ')' },
+    ...kel.isi.map((x, b2) => ({ t: 'pos', l: x.l, ket: x.rumus + (x.padanan ? '; ' + x.padanan : '') + (x.panduan ? '. Panduan: ' + x.panduan : ''), v: [x.tampil, lalu ? (ARL[a] && ARL[a].isi[b2].tampil !== '-' ? ARL[a].isi[b2].tampil : '') : null] }))]);
   return { kolomR: [namaPendek(B) + (B.berjalan ? '*' : ''), lalu ? namaPendek(lalu) : '-'], kolomN: [(d => d.getDate() + ' ' + BLN3[d.getMonth()] + ' ' + d.getFullYear())(new Date())], lr, posisi, rasio, N };
 }
 function tabelLK(kolom, baris) {
