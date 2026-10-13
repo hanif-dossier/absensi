@@ -1548,11 +1548,13 @@ function bukuHutang() { const per = {};
   const catat = (toko, x) => { const k = kunciToko(toko); if (!k) return; const t = per[k] ||= { k, toko: toko.trim(), hutang: 0, bayar: 0, kendi: 0, riwayat: [] };
     t.riwayat.push(x); if (x.hutang) t.hutang += x.hutang; if (x.bayar) t.bayar += x.bayar; if (x.kendi) t.kendi += x.kendi; };
   (INV.awal || []).forEach(x => catat(x.toko, { tgl: x.tgl || '', hutang: x.jumlah || 0, kendi: x.kendi || 0, ket: 'bon lama' + (x.kendi ? ` / ${x.kendi} ken kosong` : '') + (x.jalur ? ' · ' + x.jalur : ''), awal: x.id, jalur: x.jalur }));
-  INV.daftar.filter(h => !h.batal).forEach(h => h.blok.forEach((B, i) => B.baris.forEach(r => {
+  // Excel = patokan piutang (12 Okt 2026): yang tanggalnya sampai tanggal Excel terakhir disalin sudah ada di Excel.
+  const batasExcel = INV.awalDiimpor?.tglExcel || '', sesudahExcel = t => !batasExcel || (t || '') > batasExcel;
+  INV.daftar.filter(h => !h.batal && sesudahExcel(h.tgl)).forEach(h => h.blok.forEach((B, i) => B.baris.forEach(r => {
     if (hutangBaris(r) > 0) catat(r.toko, { tgl: h.tgl, hutang: hutangBaris(r), ket: `${r.barang} ${angkaId(r.qty)} ${r.satuan || ''} · ${namaBlok(B, i)}` });
     if (r.bayar > 0) catat(r.toko, { tgl: h.tgl, bayar: r.bayar, ket: 'bayar lewat ' + namaBlok(B, i) });
     if (r.retur > 0 && per[kunciToko(r.toko)]?.kendi) catat(r.toko, { tgl: h.tgl, kendi: -r.retur, ket: `retur ${angkaId(r.retur)} kendi · ${namaBlok(B, i)}` }); })));
-  (INV.bayar || []).forEach(x => catat(x.toko, { tgl: x.tgl, bayar: x.jumlah, ket: x.ket || 'bayar langsung', id: x.id }));
+  (INV.bayar || []).filter(x => sesudahExcel(x.tgl)).forEach(x => catat(x.toko, { tgl: x.tgl, bayar: x.jumlah, ket: x.ket || 'bayar langsung', id: x.id }));
   return Object.values(per).map(t => { t.riwayat.sort((a, b) => (a.tgl || '').localeCompare(b.tgl || ''));
     let sisaBayar = t.bayar; const bon = t.riwayat.filter(x => x.hutang > 0).map(x => { const lunas = Math.min(sisaBayar, x.hutang); sisaBayar -= lunas; return { ...x, dibayar: lunas, sisa: x.hutang - lunas }; });
     return { ...t, sisa: t.hutang - t.bayar, kendi: Math.max(0, t.kendi), bon, jalur: jalurToko(t.k) }; }); }
